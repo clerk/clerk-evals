@@ -1,0 +1,26 @@
+{
+  "name": "clerk-evals",
+  "version": "0.0.0",
+  "description": "",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "runner:main": "bun src/runners/main.ts",
+    "runner:dummy": "bun src/runners/dummy.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.25",
+    "@ai-sdk/openai": "^2.0.46",
+    "@ai-sdk/vercel": "^1.0.22",
+    "ai": "^5.0.64",
+    "autoevals": "^0.0.131",
+    "openai": "^6.2.0",
+    "tinypool": "^2.0.0"
+  }
+}
