@@ -18,9 +18,16 @@
     "@ai-sdk/anthropic": "^2.0.25",
     "@ai-sdk/openai": "^2.0.46",
     "@ai-sdk/vercel": "^1.0.22",
+    "@inkjs/ui": "^2.0.0",
     "ai": "^5.0.64",
     "autoevals": "^0.0.131",
+    "ink": "^6.3.1",
     "openai": "^6.2.0",
+    "react": "^19.2.0",
+    "swr": "^2.3.6",
     "tinypool": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2"
   }
 }
