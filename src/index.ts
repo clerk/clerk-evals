@@ -48,6 +48,11 @@ const evaluations = [
     category: "Webhooks",
     path: "evals/001-webhooks",
   },
+  {
+    framework: "Next.js",
+    category: "API Routes",
+    path: "evals/002-apiroutes",
+  },
 ] satisfies Evaluation[];
 
 const args = process.argv.slice(2);
