@@ -54,27 +54,27 @@ const evaluations = [
   },
   {
     framework: "Next.js",
-    category: "Webhooks: Organization Memberships",
+    category: "Webhooks",
     path: "evals/webhooks-organization",
   },
   {
     framework: "Next.js",
-    category: "Webhooks: Billing",
+    category: "Webhooks",
     path: "evals/webhooks-billing",
   },
   {
     framework: "Next.js",
-    category: "Webhooks: Users",
+    category: "Webhooks",
     path: "evals/webhooks-users",
   },
   {
     framework: "Next.js",
-    category: "Webhooks: Subscriptions",
+    category: "Webhooks",
     path: "evals/webhooks-subscriptions",
   },
   {
     framework: "Next.js",
-    category: "Webhooks: Notifications",
+    category: "Webhooks",
     path: "evals/webhooks-notifications",
   },
   {
