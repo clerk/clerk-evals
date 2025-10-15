@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "bun src/index.ts",
+    "start:eval": "bun src/index.ts --eval",
     "runner:main": "bun src/runners/main.ts",
     "runner:dummy": "bun src/runners/dummy.ts"
   },

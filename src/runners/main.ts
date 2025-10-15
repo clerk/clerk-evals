@@ -35,7 +35,7 @@ export default async function exec({
 
   try {
     // Load the prompt
-    const prompt = await fs.readFile(path.join(evalPath, "PROMPT.txt"), "utf8");
+    const prompt = await fs.readFile(path.join(evalPath, "PROMPT.md"), "utf8");
 
     // Generate the answer
     const response = await generateText({
@@ -63,6 +63,13 @@ export default async function exec({
     return OK({ score });
   } catch (error) {
     return ERR(error);
+  }
+}
+
+// For conditional below
+declare global {
+  interface ImportMeta {
+    main?: boolean;
   }
 }
 
