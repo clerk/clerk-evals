@@ -3,12 +3,19 @@ import type { Result } from "@/src/utils/result";
 type Grader = (input: string) => Promise<boolean>;
 export type Graders = Record<string, Grader>;
 
+export type RunnerDebugPayload = {
+  prompt: string;
+  response: string;
+  graders: [string, boolean][];
+};
+
 /**
  * Every Runner function must return a RunnerResult
  * and should never throw under normal circumstances.
  */
 export type RunnerResult = Result<{
   score: number;
+  debug?: RunnerDebugPayload;
 }>;
 
 /**
@@ -18,6 +25,7 @@ export type RunnerArgs = {
   provider: string;
   model: string;
   evalPath: string;
+  debug?: boolean;
 };
 
 export type Evaluation = {

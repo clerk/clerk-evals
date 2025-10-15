@@ -26,6 +26,7 @@ export default async function exec({
   provider,
   model,
   evalPath,
+  debug = false,
 }: RunnerArgs): Promise<RunnerResult> {
   // Determine the language model
   const languageModel = getModel(provider, model);
@@ -50,17 +51,27 @@ export default async function exec({
     };
 
     // Preserve the result of each grader
-    let result = [] as [string, boolean][];
+    let graderResults = [] as [string, boolean][];
     for (const [key, grader] of Object.entries(graderModule.graders)) {
       const passed = await grader(response.text);
-      result.push([key, passed]);
+      graderResults.push([key, passed]);
     }
 
     // Fold the result into a percentage score
     const score =
-      result.filter(([_, isCorrect]) => isCorrect).length / result.length;
+      graderResults.filter(([_, isCorrect]) => isCorrect).length /
+      (graderResults.length || 1);
 
-    return OK({ score });
+    return OK({
+      score,
+      debug: debug
+        ? {
+            prompt,
+            response: response.text,
+            graders: graderResults,
+          }
+        : undefined,
+    });
   } catch (error) {
     return ERR(error);
   }
