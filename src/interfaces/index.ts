@@ -17,8 +17,16 @@ export type RunnerResult = Result<{
 export type RunnerArgs = {
   provider: string;
   model: string;
-  category: string;
   evalPath: string;
+};
+
+export type Evaluation = {
+  /** e.g. "Next.js", "React", "JavaScript" */
+  framework: string;
+  /** e.g. "Basic", "API Routes", "Webhooks" */
+  category: string;
+  /** e.g. "evals/000-basic-nextjs" */
+  path: string;
 };
 
 /**
@@ -26,7 +34,8 @@ export type RunnerArgs = {
  */
 export type Score = {
   model: string; // e.g., "claude-sonnet-4-0"
-  category: string; // e.g., "Next.js", "React", "JavaScript"
+  framework: string; // e.g., "Next.js", "React", "JavaScript"
+  category: string; // e.g., "Basic", "API Routes", "Webhooks"
   value: number; // 0..1
   updatedAt?: string; // ISO date
 };

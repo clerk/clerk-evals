@@ -26,45 +26,52 @@ bun start
 [
   {
     "model": "gpt-5-chat-latest",
-    "category": "Next.js",
-    "value": 0.8333333333333334,
-    "updatedAt": "2025-10-10T20:52:16.288Z"
+    "framework": "Next.js",
+    "category": "Fundamentals",
+    "value": 0.6666666666666666,
+    "updatedAt": "2025-10-15T17:51:27.901Z"
   },
   {
     "model": "gpt-4o",
-    "category": "Next.js",
+    "framework": "Next.js",
+    "category": "Fundamentals",
     "value": 0.3333333333333333,
-    "updatedAt": "2025-10-10T20:52:27.202Z"
-  },
-  {
-    "model": "claude-sonnet-4-5",
-    "category": "Next.js",
-    "value": 0.8333333333333334,
-    "updatedAt": "2025-10-10T20:52:40.724Z"
+    "updatedAt": "2025-10-15T17:51:30.871Z"
   },
   {
     "model": "claude-sonnet-4-0",
-    "category": "Next.js",
+    "framework": "Next.js",
+    "category": "Fundamentals",
     "value": 0.5,
-    "updatedAt": "2025-10-10T20:52:42.372Z"
+    "updatedAt": "2025-10-15T17:51:56.370Z"
+  },
+  {
+    "model": "claude-sonnet-4-5",
+    "framework": "Next.js",
+    "category": "Fundamentals",
+    "value": 0.8333333333333334,
+    "updatedAt": "2025-10-15T17:52:03.349Z"
   },
   {
     "model": "v0-1.5-md",
-    "category": "Next.js",
+    "framework": "Next.js",
+    "category": "Fundamentals",
     "value": 1,
-    "updatedAt": "2025-10-10T20:52:52.231Z"
+    "updatedAt": "2025-10-15T17:52:06.700Z"
   },
   {
     "model": "claude-opus-4-0",
-    "category": "Next.js",
-    "value": 0.8333333333333334,
-    "updatedAt": "2025-10-10T20:52:55.006Z"
+    "framework": "Next.js",
+    "category": "Fundamentals",
+    "value": 0.5,
+    "updatedAt": "2025-10-15T17:52:06.898Z"
   },
   {
     "model": "gpt-5",
-    "category": "Next.js",
-    "value": 0.6666666666666666,
-    "updatedAt": "2025-10-10T20:53:13.328Z"
+    "framework": "Next.js",
+    "category": "Fundamentals",
+    "value": 0.5,
+    "updatedAt": "2025-10-15T17:52:07.038Z"
   }
 ]
 ```
@@ -88,7 +95,6 @@ A **runner** takes a simple object as an argument:
 {
   "provider": "openai",
   "model": "gpt-5",
-  "category": "Next.js",
   "evalPath": "/absolute/path/to/clerk-evals/src/evals/000-basic-nextjs
 }
 ```
