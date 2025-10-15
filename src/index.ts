@@ -50,7 +50,32 @@ const evaluations = [
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/001-webhooks",
+    path: "evals/webhooks",
+  },
+  {
+    framework: "Next.js",
+    category: "Webhooks",
+    path: "evals/webhooks-organization",
+  },
+  {
+    framework: "Next.js",
+    category: "Webhooks",
+    path: "evals/webhooks-billing",
+  },
+  {
+    framework: "Next.js",
+    category: "Webhooks",
+    path: "evals/webhooks-users",
+  },
+  {
+    framework: "Next.js",
+    category: "Webhooks",
+    path: "evals/webhooks-subscriptions",
+  },
+  {
+    framework: "Next.js",
+    category: "Webhooks",
+    path: "evals/webhooks-notifications",
   },
   {
     framework: "Next.js",
@@ -84,8 +109,8 @@ const parseBooleanFlag = (name: string, alias?: string) => {
   const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`));
   if (equalsArg) {
     const [, rawValue] = equalsArg.split("=", 2);
-    const value = rawValue.toLowerCase();
-    return !["false", "0", "no"].includes(value);
+    const value = rawValue?.toLowerCase();
+    return !["false", "0", "no"].includes(value ?? "");
   }
 
   const index = args.findIndex(
