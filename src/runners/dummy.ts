@@ -22,7 +22,6 @@ if (import.meta.main) {
     provider: "openai",
     model: "gpt-4o",
     evalPath: new URL("../evals/000-basic-nextjs", import.meta.url).pathname,
-    category: "test",
   });
 
   console.log(result);

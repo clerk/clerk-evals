@@ -1,6 +1,11 @@
 import Tinypool from "tinypool";
 
-import type { Score, RunnerArgs, RunnerResult } from "@/src/interfaces";
+import type {
+  Score,
+  RunnerArgs,
+  RunnerResult,
+  Evaluation,
+} from "@/src/interfaces";
 
 import consoleReporter from "@/src/reporters/console";
 import fileReporter from "@/src/reporters/file";
@@ -32,14 +37,21 @@ const models = [
  * Registered evaluations
  * To be manually updated
  */
-const evaluations = [{ category: "Next.js", path: "evals/000-basic-nextjs" }];
+const evaluations = [
+  {
+    framework: "Next.js",
+    category: "Fundamentals",
+    path: "evals/000-basic-nextjs",
+  },
+] satisfies Evaluation[];
 
 // Collect list of tasks to be run
-const tasks: RunnerArgs[] = models.flatMap((model) =>
+const tasks = models.flatMap((model) =>
   evaluations.map((evaluation) => ({
     provider: model.provider,
     model: model.model,
     category: evaluation.category,
+    framework: evaluation.framework,
     evalPath: new URL(evaluation.path, import.meta.url).pathname,
   }))
 );
@@ -50,7 +62,13 @@ let scores: Score[] = [];
 // Run all in parallel
 await Promise.all(
   tasks.map(async (task) => {
-    const result: RunnerResult = await pool.run(task);
+    const runnerArgs = {
+      evalPath: task.evalPath,
+      provider: task.provider,
+      model: task.model,
+    } satisfies RunnerArgs;
+
+    const result: RunnerResult = await pool.run(runnerArgs);
 
     if (!result.ok) {
       console.log({
@@ -63,6 +81,7 @@ await Promise.all(
 
     const scoreObject = {
       model: task.model,
+      framework: task.framework,
       category: task.category,
       value: result.value.score,
       updatedAt: new Date().toISOString(),
