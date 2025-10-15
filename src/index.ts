@@ -1,3 +1,6 @@
+import path from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+
 import Tinypool from "tinypool";
 
 import type {
@@ -5,6 +8,7 @@ import type {
   RunnerArgs,
   RunnerResult,
   Evaluation,
+  RunnerDebugPayload,
 } from "@/src/interfaces";
 
 import consoleReporter from "@/src/reporters/console";
@@ -50,7 +54,50 @@ const evaluations = [
   },
 ] satisfies Evaluation[];
 
+type DebugArtifact = {
+  provider: string;
+  model: string;
+  framework: string;
+  category: string;
+  evaluationPath: string;
+  score: number;
+  prompt: string;
+  response: string;
+  graders: RunnerDebugPayload["graders"];
+};
+
+type DebugError = {
+  provider: string;
+  model: string;
+  evaluationPath: string;
+  error: unknown;
+};
+
 const args = process.argv.slice(2);
+
+const parseBooleanFlag = (name: string, alias?: string) => {
+  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`));
+  if (equalsArg) {
+    const [, rawValue] = equalsArg.split("=", 2);
+    const value = rawValue.toLowerCase();
+    return !["false", "0", "no"].includes(value);
+  }
+
+  const index = args.findIndex(
+    (arg) => arg === `--${name}` || (alias && arg === alias)
+  );
+
+  if (index === -1) {
+    return false;
+  }
+
+  const value = args[index + 1];
+  if (value && !value.startsWith("-")) {
+    return !["false", "0", "no"].includes(value.toLowerCase());
+  }
+
+  return true;
+};
 
 const getEvalArg = () => {
   const equalsArg = args.find((arg) => arg.startsWith("--eval="));
@@ -64,7 +111,7 @@ const getEvalArg = () => {
   }
 
   const value = args[index + 1];
-  if (!value) {
+  if (!value || value.startsWith("-")) {
     console.error("Missing value for --eval");
     process.exit(1);
   }
@@ -83,6 +130,8 @@ const normalizeEvalPath = (value: string) => {
 };
 
 const evalArg = getEvalArg();
+
+const debugEnabled = parseBooleanFlag("debug", "-d");
 
 const selectedEvaluations = (() => {
   if (!evalArg) {
@@ -113,6 +162,23 @@ const selectedEvaluations = (() => {
   return [target];
 })();
 
+const debugArtifacts: DebugArtifact[] = [];
+const debugErrors: DebugError[] = [];
+
+let debugRunDirectory: string | undefined;
+let debugRunTimestamp: string | undefined;
+
+if (debugEnabled) {
+  debugRunTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  debugRunDirectory = path.join(
+    process.cwd(),
+    "debug-runs",
+    debugRunTimestamp
+  );
+  await mkdir(debugRunDirectory, { recursive: true });
+  console.log(`Debug mode enabled. Saving outputs to ${debugRunDirectory}`);
+}
+
 // Collect list of tasks to be run
 const tasks = models.flatMap((model) =>
   selectedEvaluations.map((evaluation) => ({
@@ -121,6 +187,7 @@ const tasks = models.flatMap((model) =>
     category: evaluation.category,
     framework: evaluation.framework,
     evalPath: new URL(evaluation.path, import.meta.url).pathname,
+    evaluationPath: evaluation.path,
   }))
 );
 
@@ -134,6 +201,7 @@ await Promise.all(
       evalPath: task.evalPath,
       provider: task.provider,
       model: task.model,
+      debug: debugEnabled,
     } satisfies RunnerArgs;
 
     const result: RunnerResult = await pool.run(runnerArgs);
@@ -144,6 +212,14 @@ await Promise.all(
         task,
         error: result.error,
       });
+      if (debugEnabled) {
+        debugErrors.push({
+          provider: task.provider,
+          model: task.model,
+          evaluationPath: task.evaluationPath,
+          error: result.error,
+        });
+      }
       return;
     }
 
@@ -155,8 +231,88 @@ await Promise.all(
       updatedAt: new Date().toISOString(),
     };
     scores.push(scoreObject);
+
+    if (debugEnabled && result.value.debug) {
+      debugArtifacts.push({
+        provider: task.provider,
+        model: task.model,
+        framework: task.framework,
+        category: task.category,
+        evaluationPath: task.evaluationPath,
+        score: result.value.score,
+        prompt: result.value.debug.prompt,
+        response: result.value.debug.response,
+        graders: result.value.debug.graders,
+      });
+    }
   })
 );
+
+const sanitizeForFilename = (value: string) =>
+  value.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+if (debugEnabled && debugRunDirectory && debugRunTimestamp) {
+  for (const artifact of debugArtifacts) {
+    const evaluationSlug = artifact.evaluationPath
+      .split("/")
+      .filter(Boolean)
+      .join("__");
+    const evaluationDir = path.join(debugRunDirectory, evaluationSlug);
+    await mkdir(evaluationDir, { recursive: true });
+
+    const fileSafeName = sanitizeForFilename(
+      `${artifact.provider}__${artifact.model}`
+    );
+
+    const gradersRows =
+      artifact.graders.length > 0
+        ? artifact.graders
+            .map(
+              // TODO(voz): To make things pretty we could swap true/false for ✅/❌
+              ([name, passed]) => `| ${name} | ${passed ? "true" : "false"} |`
+            )
+            .join("\n")
+        : "| (none) | - |";
+
+    const debugContent = `---
+provider: ${artifact.provider}
+model: ${artifact.model}
+framework: ${artifact.framework}
+category: ${artifact.category}
+evaluation: ${artifact.evaluationPath}
+score: ${artifact.score.toFixed(2)}
+run_at: ${debugRunTimestamp}
+---
+
+## Prompt
+~~~
+${artifact.prompt.trimEnd()}
+~~~
+
+## Response
+~~~
+${artifact.response.trimEnd()}
+~~~
+
+## Graders
+| name | passed |
+| --- | --- |
+${gradersRows}
+`;
+
+    const filePath = path.join(evaluationDir, `${fileSafeName}.md`);
+    await writeFile(filePath, debugContent, "utf8");
+  }
+
+  if (debugErrors.length > 0) {
+    const errorsPath = path.join(debugRunDirectory, "errors.json");
+    await writeFile(
+      errorsPath,
+      JSON.stringify(debugErrors, null, 2),
+      "utf8"
+    );
+  }
+}
 
 // Report
 consoleReporter(scores);
