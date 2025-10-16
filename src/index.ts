@@ -84,6 +84,16 @@ const evaluations = [
   },
   {
     framework: "Next.js",
+    category: "Checkout Flow",
+    path: "evals/checkout-flow/existing-payment-method",
+  },
+  {
+    framework: "Next.js",
+    category: "Checkout Flow",
+    path: "evals/checkout-flow/new-payment-method",
+  },
+  {
+    framework: "Next.js",
     category: "Organizations",
     path: "evals/003-organizations",
   },
