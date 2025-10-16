@@ -1,4 +1,5 @@
 import type { Result } from "@/src/utils/result";
+import type { ModelInfo, Provider } from "../providers";
 
 type Grader = (input: string) => Promise<boolean>;
 export type Graders = Record<string, Grader>;
@@ -22,17 +23,24 @@ export type RunnerResult = Result<{
  * Arguments to be passed to the runner
  */
 export type RunnerArgs = {
-  provider: string;
+  provider: Provider;
   model: string;
   evalPath: string;
   debug?: boolean;
 };
 
+/**
+ * Supported frameworks
+ */
+export type Framework = "Next.js"; // TODO(voz): Add more frameworks in the future
+
+/**
+ * Categories we test
+ */
+export type Category = "Fundamentals" | "Webhooks" | "API Routes" | "Checkout Flow";
 export type Evaluation = {
-  /** e.g. "Next.js", "React", "JavaScript" */
-  framework: string;
-  /** e.g. "Basic", "API Routes", "Webhooks" */
-  category: string;
+  framework: Framework;
+  category: Category;
   /** e.g. "evals/000-basic-nextjs" */
   path: string;
 };
@@ -41,9 +49,10 @@ export type Evaluation = {
  * A single score object for a model and category
  */
 export type Score = {
-  model: string; // e.g., "claude-sonnet-4-0"
-  framework: string; // e.g., "Next.js", "React", "JavaScript"
-  category: string; // e.g., "Basic", "API Routes", "Webhooks"
-  value: number; // 0..1
-  updatedAt?: string; // ISO date
+  model: string;
+  label: string;
+  framework: Framework;
+  category: Category;
+  value: number;
+  updatedAt?: string;
 };
