@@ -13,7 +13,7 @@ import type {
 
 import consoleReporter from "@/src/reporters/console";
 import fileReporter from "@/src/reporters/file";
-import type { ModelInfo, Provider } from "./providers";
+import type { ModelInfo, Provider } from "@/src/providers";
 
 // Create a pool of workers to execute the main runner
 const pool = new Tinypool({

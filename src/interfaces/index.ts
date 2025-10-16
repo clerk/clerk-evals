@@ -1,5 +1,5 @@
 import type { Result } from "@/src/utils/result";
-import type { ModelInfo, Provider } from "../providers";
+import type { Provider } from "@/src/providers";
 
 type Grader = (input: string) => Promise<boolean>;
 export type Graders = Record<string, Grader>;
