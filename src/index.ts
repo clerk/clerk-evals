@@ -13,6 +13,7 @@ import type {
 
 import consoleReporter from "@/src/reporters/console";
 import fileReporter from "@/src/reporters/file";
+import type { ModelInfo, Provider } from "@/src/providers";
 
 // Create a pool of workers to execute the main runner
 const pool = new Tinypool({
@@ -27,14 +28,14 @@ const pool = new Tinypool({
  * Registered models
  * To be manually updated
  */
-const models = [
-  { provider: "openai", model: "gpt-4o" },
-  { provider: "openai", model: "gpt-5" },
-  { provider: "openai", model: "gpt-5-chat-latest" },
-  { provider: "anthropic", model: "claude-sonnet-4-0" },
-  { provider: "anthropic", model: "claude-sonnet-4-5" },
-  { provider: "anthropic", model: "claude-opus-4-0" },
-  { provider: "vercel", model: "v0-1.5-md" },
+const models: ModelInfo[] = [
+  { provider: "openai", name: "gpt-4o", label: "GPT-4o" },
+  { provider: "openai", name: "gpt-5", label: "GPT-5" },
+  { provider: "openai", name: "gpt-5-chat-latest", label: "GPT-5 (Chat, Latest)" },
+  { provider: "anthropic", name: "claude-sonnet-4-0", label: "Claude Sonnet 4.0" },
+  { provider: "anthropic", name: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+  { provider: "anthropic", name: "claude-opus-4-0", label: "Claude Opus 4.0" },
+  { provider: "vercel", name: "v0-1.5-md", label: "v0-1.5-md" },
 ];
 
 /**
@@ -228,7 +229,8 @@ if (debugEnabled) {
 const tasks = models.flatMap((model) =>
   selectedEvaluations.map((evaluation) => ({
     provider: model.provider,
-    model: model.model,
+    model: model.name,
+    label: model.label,
     category: evaluation.category,
     framework: evaluation.framework,
     evalPath: new URL(evaluation.path, import.meta.url).pathname,
@@ -242,12 +244,12 @@ let scores: Score[] = [];
 // Run all in parallel
 await Promise.all(
   tasks.map(async (task) => {
-    const runnerArgs = {
+    const runnerArgs: RunnerArgs = {
       evalPath: task.evalPath,
-      provider: task.provider,
+      provider: task.provider as Provider,
       model: task.model,
       debug: debugEnabled,
-    } satisfies RunnerArgs;
+    };
 
     const result: RunnerResult = await pool.run(runnerArgs);
 
@@ -268,14 +270,15 @@ await Promise.all(
       return;
     }
 
-    const scoreObject = {
+    const score: Score = {
       model: task.model,
+      label: task.label,
       framework: task.framework,
       category: task.category,
       value: result.value.score,
       updatedAt: new Date().toISOString(),
     };
-    scores.push(scoreObject);
+    scores.push(score);
 
     if (debugEnabled && result.value.debug) {
       debugArtifacts.push({
