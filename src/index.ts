@@ -51,32 +51,32 @@ const evaluations = [
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/webhooks",
+    path: "evals/webhooks/users/receive",
   },
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/webhooks-organization",
+    path: "evals/webhooks/organization",
   },
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/webhooks-billing",
+    path: "evals/webhooks/billing",
   },
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/webhooks-users",
+    path: "evals/webhooks/users/sync",
   },
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/webhooks-subscriptions",
+    path: "evals/webhooks/subscriptions",
   },
   {
     framework: "Next.js",
     category: "Webhooks",
-    path: "evals/webhooks-notifications",
+    path: "evals/webhooks/notifications",
   },
   {
     framework: "Next.js",
