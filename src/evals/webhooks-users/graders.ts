@@ -1,5 +1,5 @@
 import type { Graders } from "@/src/interfaces";
-import { PATTERNS, SCORERS } from "@/src/evals/constants";
+import { PATTERNS, SCORERS } from "@/src/scorers/constants";
 
 export const graders = {
   imports_verify_webhook: async (actual) =>

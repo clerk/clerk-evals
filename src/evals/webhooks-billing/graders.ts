@@ -1,5 +1,5 @@
 import type { Graders } from "@/src/interfaces";
-import { PATTERNS, SCORERS } from "@/src/evals/constants";
+import { PATTERNS, SCORERS } from "@/src/scorers/constants";
 
 const verifyImportPattern = PATTERNS.CLERK_BACKEND_WEBHOOKS_IMPORT;
 const verifyCallPattern = PATTERNS.CLERK_BACKEND_WEBHOOKS_VERIFY_WEBHOOK;
