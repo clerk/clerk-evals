@@ -31,10 +31,10 @@ const pool = new Tinypool({
 const models: ModelInfo[] = [
   { provider: "openai", name: "gpt-4o", label: "GPT-4o" },
   { provider: "openai", name: "gpt-5", label: "GPT-5" },
-  { provider: "openai", name: "gpt-5-chat-latest", label: "GPT-5 (Chat, Latest)" },
-  { provider: "anthropic", name: "claude-sonnet-4-0", label: "Claude Sonnet 4.0" },
+  { provider: "openai", name: "gpt-5-chat-latest", label: "GPT-5 Chat" },
+  { provider: "anthropic", name: "claude-sonnet-4-0", label: "Claude Sonnet 4" },
   { provider: "anthropic", name: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-  { provider: "anthropic", name: "claude-opus-4-0", label: "Claude Opus 4.0" },
+  { provider: "anthropic", name: "claude-opus-4-0", label: "Claude Opus 4" },
   { provider: "vercel", name: "v0-1.5-md", label: "v0-1.5-md" },
 ];
 
