@@ -78,6 +78,19 @@ bun start
 
 </details>
 
+**Debuging**
+
+```bash
+# Run a single evaluation
+bun run start:eval evals/002-apiroutes
+
+# Run in debug mode
+bun run start --debug
+
+# Run a single evaluation in debug mode
+bun run start:eval evals/002-apiroutes --debug
+```
+
 ## Overview
 
 This project is broken up into a few core pieces:

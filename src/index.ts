@@ -82,6 +82,11 @@ const evaluations = [
     category: "API Routes",
     path: "evals/002-apiroutes",
   },
+  {
+    framework: "Next.js",
+    category: "Organizations",
+    path: "evals/003-organizations",
+  },
 ] satisfies Evaluation[];
 
 type DebugArtifact = {
