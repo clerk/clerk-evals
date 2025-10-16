@@ -1,0 +1,6 @@
+{
+  "framework": "Next.js",
+  "category": "Webhooks: Users",
+  "name": "Sync user records",
+  "enabled": true
+}

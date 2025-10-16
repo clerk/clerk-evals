@@ -1,0 +1,6 @@
+{
+  "framework": "Next.js",
+  "category": "Webhooks: Users",
+  "name": "Receive user webhooks",
+  "enabled": true
+}

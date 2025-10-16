@@ -1,0 +1,6 @@
+{
+  "framework": "Next.js",
+  "category": "Webhooks: Organizations",
+  "name": "Organization membership webhooks",
+  "enabled": true
+}

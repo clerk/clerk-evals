@@ -1,0 +1,6 @@
+{
+  "framework": "Next.js",
+  "category": "Webhooks: Billing",
+  "name": "Billing webhook handler",
+  "enabled": true
+}

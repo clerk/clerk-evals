@@ -1,0 +1,6 @@
+{
+  "framework": "Next.js",
+  "category": "API Routes",
+  "name": "Protected API routes",
+  "enabled": true
+}
