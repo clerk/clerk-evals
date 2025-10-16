@@ -92,6 +92,11 @@ const evaluations = [
     category: "Checkout Flow",
     path: "evals/checkout-flow/new-payment-method",
   },
+  {
+    framework: "Next.js",
+    category: "Organizations",
+    path: "evals/003-organizations",
+  },
 ] satisfies Evaluation[];
 
 type DebugArtifact = {
