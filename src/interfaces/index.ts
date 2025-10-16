@@ -37,7 +37,7 @@ export type Framework = "Next.js"; // TODO(voz): Add more frameworks in the futu
 /**
  * Categories we test
  */
-export type Category = "Fundamentals" | "Webhooks" | "API Routes" | "Checkout Flow";
+export type Category = "Fundamentals" | "Webhooks" | "API Routes" | "Checkout Flow" | "Organizations";
 export type Evaluation = {
   framework: Framework;
   category: Category;
