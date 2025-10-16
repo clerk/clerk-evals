@@ -82,6 +82,16 @@ const evaluations = [
     category: "API Routes",
     path: "evals/002-apiroutes",
   },
+  {
+    framework: "Next.js",
+    category: "Checkout Flow",
+    path: "evals/checkout-flow/existing-payment-method",
+  },
+  {
+    framework: "Next.js",
+    category: "Checkout Flow",
+    path: "evals/checkout-flow/new-payment-method",
+  },
 ] satisfies Evaluation[];
 
 type DebugArtifact = {
