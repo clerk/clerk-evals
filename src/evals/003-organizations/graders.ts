@@ -7,6 +7,9 @@ export const graders = {
   import_function: async (actual) => actual.includes("clerkMiddleware"),
   middleware_file_name: async (actual) => actual.includes("middleware.ts"),
 
+  // Next.js dynamic route for org slug
+  orgs_dynamic_route: async (actual) => actual.includes("app/orgs/["),
+
   // llm-as-judge
   package_json_clerk_version: makeScorer(
     "Does the content contain a package.json codeblock, and does it specify @clerk/nextjs version >= 6.0.0 OR equal to 'latest'?"
@@ -15,10 +18,10 @@ export const graders = {
     "Does the content contain a .env.local codeblock, and does it specify CLERK_SECRET_KEY and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?"
   ),
 
-  // This is because Clerk forces orgs, if enabled, which is assumed to be
-  // the case for this particular test. Therefore, orgs should never be falsy
-  // if a user is signed in.
-  must_not_expect_falsy_org: makeScorer(
-    "The submission MUST NOT have any code that expects `orgId` or `orgSlug` to be falsy IF the user is signed in."
+  // Golden code looks like:
+  // import { auth } from "@clerk/nextjs/server";
+  // const { orgId, orgSlug } = await auth();
+  org_slug_from_await_auth: makeScorer(
+    "Does the content contain a codeblock that calls `await auth()` and accesses the `orgSlug`?"
   ),
 } satisfies Graders;
