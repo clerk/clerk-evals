@@ -1,6 +1,6 @@
 {
   "framework": "Next.js",
-  "category": "Webhooks: Subscriptions",
+  "category": "Webhooks",
   "name": "Subscription lifecycle webhooks",
   "enabled": true
 }
