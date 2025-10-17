@@ -6,9 +6,9 @@ A project to enable easy testing of prompts against various provider LLMs.
 
 ## Quickstart
 
-You will need a few API Keys. See [`.env.example`](./.env.example)
+Install [Bun](https://bun.sh) `>=1.3.0`, then gather the required API keys. See [`.env.example`](./.env.example)
 
-```
+```bash
 cp .env.example .env
 ```
 
