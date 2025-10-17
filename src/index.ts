@@ -7,13 +7,13 @@ import type {
   Score,
   RunnerArgs,
   RunnerResult,
-  Evaluation,
   RunnerDebugPayload,
 } from "@/src/interfaces";
 
 import consoleReporter from "@/src/reporters/console";
 import fileReporter from "@/src/reporters/file";
 import type { ModelInfo, Provider } from "@/src/providers";
+import { loadEvaluations } from "@/src/evals/loader";
 
 // Create a pool of workers to execute the main runner
 const pool = new Tinypool({
@@ -38,74 +38,13 @@ const models: ModelInfo[] = [
   { provider: "vercel", name: "v0-1.5-md", label: "v0-1.5-md" },
 ];
 
-/**
- * Registered evaluations
- * To be manually updated
- */
-const evaluations = [
-  {
-    framework: "Next.js",
-    category: "Fundamentals",
-    path: "evals/000-basic-nextjs",
-  },
-  {
-    framework: "Next.js",
-    category: "Webhooks",
-    path: "evals/webhooks/users/receive",
-  },
-  {
-    framework: "Next.js",
-    category: "Webhooks",
-    path: "evals/webhooks/organization",
-  },
-  {
-    framework: "Next.js",
-    category: "Webhooks",
-    path: "evals/webhooks/billing",
-  },
-  {
-    framework: "Next.js",
-    category: "Webhooks",
-    path: "evals/webhooks/users/sync",
-  },
-  {
-    framework: "Next.js",
-    category: "Webhooks",
-    path: "evals/webhooks/subscriptions",
-  },
-  {
-    framework: "Next.js",
-    category: "Webhooks",
-    path: "evals/webhooks/notifications",
-  },
-  {
-    framework: "Next.js",
-    category: "API Routes",
-    path: "evals/002-apiroutes",
-  },
-  {
-    framework: "Next.js",
-    category: "Checkout Flow",
-    path: "evals/checkout-flow/existing-payment-method",
-  },
-  {
-    framework: "Next.js",
-    category: "Checkout Flow",
-    path: "evals/checkout-flow/new-payment-method",
-  },
-  {
-    framework: "Next.js",
-    category: "Organizations",
-    path: "evals/003-organizations",
-  },
-] satisfies Evaluation[];
-
 type DebugArtifact = {
   provider: string;
   model: string;
   framework: string;
   category: string;
   evaluationPath: string;
+  evaluationName?: string;
   score: number;
   prompt: string;
   response: string;
@@ -179,30 +118,72 @@ const evalArg = getEvalArg();
 
 const debugEnabled = parseBooleanFlag("debug", "-d");
 
+const evalsRoot = new URL("./evals", import.meta.url);
+const allEvaluations = await loadEvaluations(evalsRoot);
+const enabledEvaluations = allEvaluations.filter(
+  (evaluation) => evaluation.enabled !== false
+);
+
+if (enabledEvaluations.length === 0) {
+  console.error(
+    "No enabled evaluations found under evals/. Add a config.json with `enabled: true` to at least one suite."
+  );
+  process.exit(1);
+}
+
+const findEvaluation = (value: string) => {
+  const normalizedPath = normalizeEvalPath(value);
+  const normalizedPathLower = normalizedPath.toLowerCase();
+  const normalizedSuffixLower = normalizedPathLower.replace(/^evals\//, "");
+  const valueLower = value.toLowerCase();
+
+  return allEvaluations.find((evaluation) => {
+    const pathLower = evaluation.path.toLowerCase();
+    const suffixLower = pathLower.replace(/^evals\//, "");
+    const suffixMatches =
+      normalizedSuffixLower.length > 0 &&
+      suffixLower.endsWith(normalizedSuffixLower);
+    return (
+      pathLower === normalizedPathLower ||
+      suffixLower === normalizedSuffixLower ||
+      suffixMatches ||
+      evaluation.name?.toLowerCase() === valueLower
+    );
+  });
+};
+
 const selectedEvaluations = (() => {
   if (!evalArg) {
-    return evaluations;
+    return enabledEvaluations;
   }
 
-  const normalized = normalizeEvalPath(evalArg);
-  const target = evaluations.find(
-    (evaluation) =>
-      evaluation.path === normalized ||
-      evaluation.path.endsWith(`/${normalized}`) ||
-      evaluation.path.endsWith(`/${evalArg}`)
-  );
+  const target = findEvaluation(evalArg);
 
   if (!target) {
+    const available = enabledEvaluations
+      .map((evaluation) =>
+        evaluation.name
+          ? `${evaluation.name} [${evaluation.path.replace(/^evals\//, "")}]`
+          : evaluation.path.replace(/^evals\//, "")
+      )
+      .join(", ");
     console.error(
-      `No evaluation matching "${evalArg}". Available evaluations: ${evaluations
-        .map((evaluation) => evaluation.path)
-        .join(", ")}`
+      `No evaluation matching "${evalArg}". Available evaluations: ${available}`
+    );
+    process.exit(1);
+  }
+
+  if (target.enabled === false) {
+    console.error(
+      `Evaluation "${target.name ?? target.path}" is disabled. Update ${
+        target.path
+      }/config.json to enable it.`
     );
     process.exit(1);
   }
 
   console.log(
-    `Running single evaluation "${target.path}" for all registered models`
+    `Running single evaluation "${target.name ?? target.path}" for all registered models`
   );
 
   return [target];
@@ -235,6 +216,7 @@ const tasks = models.flatMap((model) =>
     framework: evaluation.framework,
     evalPath: new URL(evaluation.path, import.meta.url).pathname,
     evaluationPath: evaluation.path,
+    evaluationName: evaluation.name,
   }))
 );
 
@@ -287,6 +269,7 @@ await Promise.all(
         framework: task.framework,
         category: task.category,
         evaluationPath: task.evaluationPath,
+        evaluationName: task.evaluationName,
         score: result.value.score,
         prompt: result.value.debug.prompt,
         response: result.value.debug.response,
@@ -315,12 +298,13 @@ if (debugEnabled && debugRunDirectory && debugRunTimestamp) {
     const gradersRows =
       artifact.graders.length > 0
         ? artifact.graders
-            .map(
-              // TODO(voz): To make things pretty we could swap true/false for ✅/❌
-              ([name, passed]) => `| ${name} | ${passed ? "true" : "false"} |`
-            )
+            .map(([name, passed]) => `| ${name} | ${passed ? "true" : "false"} |`)
             .join("\n")
         : "| (none) | - |";
+
+    const evaluationNameLine = artifact.evaluationName
+      ? `evaluation_name: ${artifact.evaluationName}\n`
+      : "";
 
     const debugContent = `---
 provider: ${artifact.provider}
@@ -328,7 +312,7 @@ model: ${artifact.model}
 framework: ${artifact.framework}
 category: ${artifact.category}
 evaluation: ${artifact.evaluationPath}
-score: ${artifact.score.toFixed(2)}
+${evaluationNameLine}score: ${artifact.score.toFixed(2)}
 run_at: ${debugRunTimestamp}
 ---
 

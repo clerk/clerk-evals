@@ -43,6 +43,10 @@ export type Evaluation = {
   category: Category;
   /** e.g. "evals/000-basic-nextjs" */
   path: string;
+  /** Optional human-friendly label */
+  name?: string;
+  /** Opt-out flag to disable an evaluation without removing it */
+  enabled?: boolean;
 };
 
 /**
