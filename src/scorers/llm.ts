@@ -11,12 +11,26 @@ init({
 
 const MODEL_FOR_BRAINTRUST_LLM_AS_JUDGE = 'gpt-4.1'
 
-export const makeScorer = (criteria: string) => {
+export type LLMJudgeConfig =
+  | string
+  | {
+      /** Prompt passed to the judge */
+      criteria: string
+      /** Optional supplemental input */
+      input?: string
+      /** Override the default judge model */
+      model?: string
+    }
+
+export const makeScorer = (config: LLMJudgeConfig) => {
+  const { criteria, input = '', model = MODEL_FOR_BRAINTRUST_LLM_AS_JUDGE } =
+    typeof config === 'string' ? { criteria: config } : config
+
   const scorer = ClosedQA.partial({
-    model: MODEL_FOR_BRAINTRUST_LLM_AS_JUDGE,
+    model,
   })
   return async (actual: string) => {
-    const score = await scorer({ input: '', output: actual, criteria })
+    const score = await scorer({ input, output: actual, criteria })
     return score.score === 1
   }
 }

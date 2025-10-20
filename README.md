@@ -123,6 +123,28 @@ At the moment, **evaluations** are simply folders that contain:
 - `PROMPT.md`: the instruction for which we're evaluating the model's output on
 - `graders.ts`: a module containing grader functions which return `true/false` signalling if the model's output passed or failed. This is essentially our acceptance criteria.
 
+### Graders
+
+Shared grader primitives live in [`src/graders/index.ts`](./src/graders/index.ts). Use them to declare new checks with a consistent, terse shape:
+
+```ts
+import { contains, defineGraders, judge } from '@/src/graders'
+import { llmChecks } from '@/src/graders/catalog'
+
+export const graders = defineGraders({
+  references_middleware: contains('middleware.ts'),
+  package_json: llmChecks.packageJsonClerkVersion,
+  custom_flow_description: judge(
+    'Does the answer walk through protecting a Next.js API route with Clerk auth() and explain the response states?',
+  ),
+})
+```
+
+- `contains` / `containsAny`: case-insensitive substring checks by default
+- `matches`: regex checks
+- `judge`: thin wrappers around the LLM-as-judge scorer. Shared prompts live in [`src/graders/catalog.ts`](./src/graders/catalog.ts); add new reusable prompts there.
+- `defineGraders`: preserves type inference for the exported `graders` record.
+
 ### Score
 
 For a given model, and evaluation, we'll retrieve a score from `0..1`, which is the percentage of grader functions that passed.
