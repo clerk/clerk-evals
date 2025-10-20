@@ -10,7 +10,11 @@
     "start": "bun src/index.ts",
     "start:eval": "bun src/index.ts --eval",
     "runner:main": "bun src/runners/main.ts",
-    "runner:dummy": "bun src/runners/dummy.ts"
+    "runner:dummy": "bun src/runners/dummy.ts",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "biome check --write --unsafe ."
   },
   "keywords": [],
   "author": "",
@@ -23,5 +27,8 @@
     "autoevals": "^0.0.131",
     "openai": "^6.2.0",
     "tinypool": "^2.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.6"
   }
 }
