@@ -1,6 +1,4 @@
 {
-  "framework": "Next.js",
-  "category": "Webhooks",
   "name": "Email and SMS webhooks",
   "enabled": true
 }

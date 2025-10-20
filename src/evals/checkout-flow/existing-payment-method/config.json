@@ -1,6 +1,4 @@
 {
-  "framework": "Next.js",
-  "category": "Checkout Flow",
   "name": "Checkout with existing payment method",
   "enabled": true
 }

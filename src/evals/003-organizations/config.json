@@ -1,6 +1,4 @@
 {
-  "framework": "Next.js",
-  "category": "Organizations",
   "name": "Organization slug sync",
   "enabled": true
 }

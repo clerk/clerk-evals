@@ -8,12 +8,12 @@ import type { Evaluation } from "@/src/interfaces";
 const REQUIRED_FILES = ["PROMPT.md", "graders.ts"];
 const CONFIG_FILENAMES = ["config.json"];
 const DEFAULT_FRAMEWORK = "Next.js";
+const CATEGORY_CONFIG_FILENAME = "category.json";
 
 export type LoadedEvaluation = Evaluation & { enabled: boolean };
 
 type EvaluationConfig = {
   framework?: string;
-  category?: string;
   name?: string;
   enabled?: boolean;
 };
@@ -59,9 +59,9 @@ const toTitleCase = (value: string) =>
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
 
-const deriveCategory = (relativePath: string) => {
+const deriveCategorySegment = (relativePath: string) => {
   const [first] = relativePath.split("/");
-  return first ? toTitleCase(first) : "General";
+  return first ?? "";
 };
 
 const deriveName = (relativePath: string) => {
@@ -75,10 +75,39 @@ export const loadEvaluations = async (
 ): Promise<LoadedEvaluation[]> => {
   const rootPath = typeof baseDir === "string" ? baseDir : fileURLToPath(baseDir);
   const evaluations: LoadedEvaluation[] = [];
+  const categoryMetadata = new Map<string, { name?: string }>();
+
+  const readCategoryMetadata = async (dir: string, relative: string) => {
+    if (!relative) {
+      return;
+    }
+    const segments = relative.split("/");
+    if (segments.length !== 1) {
+      return;
+    }
+    const categoryConfigPath = path.join(dir, CATEGORY_CONFIG_FILENAME);
+    if (!(await fileExists(categoryConfigPath))) {
+      return;
+    }
+    const raw = await readFile(categoryConfigPath, "utf8");
+    try {
+      const parsed = JSON.parse(raw) as { name?: string };
+      categoryMetadata.set(segments[0] ?? "", { name: parsed.name });
+    } catch (error) {
+      throw new Error(
+        `Failed to parse ${categoryConfigPath}: ${(error as Error).message}`
+      );
+    }
+  };
+
+  const getCategoryLabel = (segment: string) =>
+    segment ? categoryMetadata.get(segment)?.name ?? toTitleCase(segment) : "General";
 
   const walk = async (current: string) => {
+    const relative = path.relative(rootPath, current).split(path.sep).join("/");
+    await readCategoryMetadata(current, relative);
+
     if (await isEvaluationDirectory(current)) {
-      const relative = path.relative(rootPath, current).split(path.sep).join("/");
       if (!relative) {
         return;
       }
@@ -86,9 +115,12 @@ export const loadEvaluations = async (
       const config = await readConfig(current);
       const evaluationPath = `evals/${relative}`;
 
+      const categorySegment = deriveCategorySegment(relative);
+      const category = getCategoryLabel(categorySegment);
+
       evaluations.push({
         framework: (config.framework ?? DEFAULT_FRAMEWORK) as Evaluation["framework"],
-        category: config.category ?? deriveCategory(relative),
+        category,
         path: evaluationPath,
         name: config.name ?? deriveName(relative),
         enabled: config.enabled ?? true,
