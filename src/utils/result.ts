@@ -7,18 +7,18 @@
  */
 export type Result<T, E = unknown> =
   | { ok: true; value: T; error?: never }
-  | { ok: false; value?: never; error: E };
+  | { ok: false; value?: never; error: E }
 
 /**
  * Creates a successful Result containing the given value.
  */
 export function OK<V>(value: V): Result<V, never> {
-  return { ok: true, value };
+  return { ok: true, value }
 }
 
 /**
  * Creates an error Result containing the given error.
  */
 export function ERR<E>(error: E): Result<never, E> {
-  return { ok: false, error };
+  return { ok: false, error }
 }
