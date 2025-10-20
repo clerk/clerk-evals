@@ -1,9 +1,6 @@
 import type { Provider } from '@/src/providers'
 import type { Result } from '@/src/utils/result'
 
-type Grader = (input: string) => Promise<boolean>
-export type Graders = Record<string, Grader>
-
 export type RunnerDebugPayload = {
   prompt: string
   response: string

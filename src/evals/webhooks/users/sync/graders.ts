@@ -1,22 +1,23 @@
-import type { Graders } from '@/src/interfaces'
+import { contains, containsAny, defineGraders } from '@/src/graders'
 import { PATTERNS, SCORERS } from '@/src/scorers/constants'
 
-export const graders = {
-  imports_verify_webhook: async (actual) => PATTERNS.CLERK_BACKEND_WEBHOOKS_IMPORT.test(actual),
+export const graders = defineGraders({
+  imports_verify_webhook: async (actual) =>
+    PATTERNS.CLERK_BACKEND_WEBHOOKS_IMPORT.test(actual),
   calls_verify_webhook: async (actual) =>
     PATTERNS.CLERK_BACKEND_WEBHOOKS_VERIFY_WEBHOOK.test(actual),
-  mentions_env_secret: async (actual) => actual.includes('CLERK_WEBHOOK_SIGNING_SECRET'),
-  handles_user_updated: async (actual) => actual.includes('user.updated'),
-  handles_user_deleted: async (actual) => actual.includes('user.deleted'),
-  logs_user_id: async (actual) => actual.includes('evt.data.id') || actual.includes('userId'),
-  logs_primary_email: async (actual) =>
-    actual.includes('primary_email') ||
-    actual.includes('primaryEmailAddress') ||
-    actual.includes('primaryEmail'),
+  mentions_env_secret: contains('CLERK_WEBHOOK_SIGNING_SECRET'),
+  handles_user_updated: contains('user.updated'),
+  handles_user_deleted: contains('user.deleted'),
+  logs_user_id: containsAny(['evt.data.id', 'userId']),
+  logs_primary_email: containsAny([
+    'primary_email',
+    'primaryEmailAddress',
+    'primaryEmail',
+  ]),
   warns_on_delete: async (actual) =>
-    actual.includes('console.warn') && actual.includes('user.deleted'),
-
+    (await contains('console.warn')(actual)) && (await contains('user.deleted')(actual)),
   verify_webhook_called_correctly: SCORERS.VERIFY_WEBHOOK_CALLED_CORRECTLY,
   http_responses: SCORERS.HTTP_RESPONSES,
   no_svix: SCORERS.NO_SVIX,
-} satisfies Graders
+})

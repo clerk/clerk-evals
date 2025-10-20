@@ -1,9 +1,10 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { generateText } from 'ai'
-import type { Graders, RunnerArgs, RunnerResult } from '@/src/interfaces'
+import type { RunnerArgs, RunnerResult } from '@/src/interfaces'
 import { getModel } from '@/src/providers'
 import { ERR, OK } from '@/src/utils/result'
+import type { Graders } from '@/src/graders'
 
 /**
  * Instruct the model to output all files as fenced code blocks,
