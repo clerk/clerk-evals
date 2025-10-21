@@ -28,10 +28,6 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false,
-
-    // // Node.js types for Bun runtime
-    // "types": ["node"],
-    // "typeRoots": ["./src/types", "./node_modules/@types"]
+    "noPropertyAccessFromIndexSignature": false
   }
 }
