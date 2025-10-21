@@ -44,8 +44,8 @@ const models: ModelInfo[] = [
 const evaluations = [
   {
     framework: 'Next.js',
-    category: 'Fundamentals',
-    path: 'evals/000-basic-nextjs',
+    category: 'Authentication',
+    path: 'evals/authentication-protect',
   },
   {
     framework: 'Next.js',
@@ -80,7 +80,7 @@ const evaluations = [
   {
     framework: 'Next.js',
     category: 'API Routes',
-    path: 'evals/002-apiroutes',
+    path: 'evals/apiroutes',
   },
   {
     framework: 'Next.js',
@@ -94,8 +94,13 @@ const evaluations = [
   },
   {
     framework: 'Next.js',
+    category: 'Users',
+    path: 'evals/users-current-user',
+  },
+  {
+    framework: 'Next.js',
     category: 'Organizations',
-    path: 'evals/003-organizations',
+    path: 'evals/organizations',
   },
 ] satisfies Evaluation[]
 
@@ -232,9 +237,17 @@ const tasks = models.flatMap((model) =>
 // Accumulate scores
 const scores: Score[] = []
 
+// Progress output
+console.log(
+  `Starting ${tasks.length} tasks across ${models.length} models and ${selectedEvaluations.length} evaluations (up to 10 workers)...`,
+)
+
+let completed = 0
+
 // Run all in parallel
 await Promise.all(
-  tasks.map(async (task) => {
+  tasks.map(async (task, index) => {
+    console.log(`[start ${index + 1}/${tasks.length}] ${task.model} → ${task.evaluationPath}`)
     const runnerArgs: RunnerArgs = {
       evalPath: task.evalPath,
       provider: task.provider as Provider,
@@ -242,47 +255,52 @@ await Promise.all(
       debug: debugEnabled,
     }
 
-    const result: RunnerResult = await pool.run(runnerArgs)
+    try {
+      const result: RunnerResult = await pool.run(runnerArgs)
 
-    if (!result.ok) {
-      console.log({
-        message: 'Runner errored',
-        task,
-        error: result.error,
-      })
-      if (debugEnabled) {
-        debugErrors.push({
-          provider: task.provider,
-          model: task.model,
-          evaluationPath: task.evaluationPath,
+      if (!result.ok) {
+        console.log({
+          message: 'Runner errored',
+          task,
           error: result.error,
         })
+        if (debugEnabled) {
+          debugErrors.push({
+            provider: task.provider,
+            model: task.model,
+            evaluationPath: task.evaluationPath,
+            error: result.error,
+          })
+        }
+        return
       }
-      return
-    }
 
-    const score: Score = {
-      model: task.model,
-      label: task.label,
-      framework: task.framework,
-      category: task.category,
-      value: result.value.score,
-      updatedAt: new Date().toISOString(),
-    }
-    scores.push(score)
-
-    if (debugEnabled && result.value.debug) {
-      debugArtifacts.push({
-        provider: task.provider,
+      const score: Score = {
         model: task.model,
+        label: task.label,
         framework: task.framework,
         category: task.category,
-        evaluationPath: task.evaluationPath,
-        score: result.value.score,
-        prompt: result.value.debug.prompt,
-        response: result.value.debug.response,
-        graders: result.value.debug.graders,
-      })
+        value: result.value.score,
+        updatedAt: new Date().toISOString(),
+      }
+      scores.push(score)
+
+      if (debugEnabled && result.value.debug) {
+        debugArtifacts.push({
+          provider: task.provider,
+          model: task.model,
+          framework: task.framework,
+          category: task.category,
+          evaluationPath: task.evaluationPath,
+          score: result.value.score,
+          prompt: result.value.debug.prompt,
+          response: result.value.debug.response,
+          graders: result.value.debug.graders,
+        })
+      }
+    } finally {
+      completed += 1
+      console.log(`[done  ${completed}/${tasks.length}] ${task.model} → ${task.evaluationPath}`)
     }
   }),
 )
@@ -344,5 +362,9 @@ ${gradersRows}
 }
 
 // Report
-consoleReporter(scores)
 fileReporter(scores)
+if (debugEnabled) {
+  consoleReporter(scores)
+} else {
+  console.log('Scores written to: scores.json')
+}

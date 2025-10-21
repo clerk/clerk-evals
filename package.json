@@ -10,7 +10,6 @@
     "start": "bun src/index.ts",
     "start:eval": "bun src/index.ts --eval",
     "runner:main": "bun src/runners/main.ts",
-    "runner:dummy": "bun src/runners/dummy.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -30,6 +29,7 @@
     "tinypool": "^2.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.6"
+    "@biomejs/biome": "^2.2.6",
+    "@types/node": "^24.9.1"
   }
 }

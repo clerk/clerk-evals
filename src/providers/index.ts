@@ -62,7 +62,7 @@ const anthropic = createAnthropic({
 })
 
 const vercel = createVercel({
-  apiKey: process.env.VERCEL_API_KEY,
+  apiKey: process.env.V0_API_KEY,
 })
 
 export function getModel(provider: Provider, model: string) {

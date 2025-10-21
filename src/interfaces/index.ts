@@ -38,7 +38,7 @@ export type Category = string
 export type Evaluation = {
   framework: Framework
   category: Category
-  /** e.g. "evals/000-basic-nextjs" */
+  /** e.g. "evals/basic-nextjs" */
   path: string
 }
 

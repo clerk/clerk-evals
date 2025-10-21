@@ -78,7 +78,7 @@ export default async function exec({
 // For conditional below
 declare global {
   interface ImportMeta {
-    main?: boolean
+    main: boolean
   }
 }
 
@@ -90,7 +90,7 @@ if (import.meta.main) {
   const result = await exec({
     provider: 'openai',
     model: 'gpt-4o',
-    evalPath: new URL('../evals/000-basic-nextjs', import.meta.url).pathname,
+    evalPath: new URL('../evals/basic-nextjs', import.meta.url).pathname,
   })
 
   console.log(result)

@@ -1,6 +1,6 @@
 # clerk-evals
 
-A project to enable easy testing of prompts against various provider LLMs.
+This repository hosts public evaluation suites used by Clerk to test how LLMs perform at writing Clerk code (primarily in Next.js). If an AI contributor is asked to "create a new eval suite for the Waitlist feature", it should add a new folder under `src/evals/` with a `PROMPT.md` and `graders.ts`, then register it in `src/index.ts`.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -17,6 +17,17 @@ Run the eval suite (might take about 50s)
 ```bash
 bun i
 bun start
+```
+
+## Add a new evaluation
+
+For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVALS.md). In short:
+
+- Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
+- Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
+- Append an entry to the `evaluations` array in `src/index.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+- Run `bun run start:eval src/evals/your-eval` (optionally `--debug`).
+
 ```
 
 <details>
@@ -82,13 +93,13 @@ bun start
 
 ```bash
 # Run a single evaluation
-bun run start:eval evals/002-apiroutes
+bun run start:eval evals/apiroutes
 
 # Run in debug mode
 bun run start --debug
 
 # Run a single evaluation in debug mode
-bun run start:eval evals/002-apiroutes --debug
+bun run start:eval evals/apiroutes --debug
 ```
 
 ## Overview
@@ -108,7 +119,7 @@ A **runner** takes a simple object as an argument:
 {
   "provider": "openai",
   "model": "gpt-5",
-  "evalPath": "/absolute/path/to/clerk-evals/src/evals/000-basic-nextjs
+  "evalPath": "/absolute/path/to/clerk-evals/src/evals/basic-nextjs
 }
 ```
 
