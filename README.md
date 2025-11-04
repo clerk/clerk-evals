@@ -28,8 +28,6 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 - Append an entry to the `evaluations` array in `src/index.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
 - Run `bun run start:eval src/evals/your-eval` (optionally `--debug`).
 
-```
-
 <details>
 <summary>Example scores</summary>
 
