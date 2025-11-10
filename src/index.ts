@@ -13,6 +13,7 @@ import type {
 import type { ModelInfo, Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
+import { rateLimiter } from '@/src/utils/rate-limiter'
 
 // Create a pool of workers to execute the main runner
 const pool = new Tinypool({
@@ -244,7 +245,7 @@ console.log(
 
 let completed = 0
 
-// Run all in parallel
+// Run all tasks with rate limiting per provider
 await Promise.all(
   tasks.map(async (task, index) => {
     console.log(`[start ${index + 1}/${tasks.length}] ${task.model} → ${task.evaluationPath}`)
@@ -256,7 +257,10 @@ await Promise.all(
     }
 
     try {
-      const result: RunnerResult = await pool.run(runnerArgs)
+      // Schedule task through rate limiter to prevent API rate limit errors
+      const result: RunnerResult = await rateLimiter.schedule(task.provider, () =>
+        pool.run(runnerArgs),
+      )
 
       if (!result.ok) {
         console.log({
