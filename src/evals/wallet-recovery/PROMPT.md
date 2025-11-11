@@ -14,16 +14,3 @@ Create a React app that demonstrates different wallet recovery methods:
 3. Set the default recovery method
 4. For automatic recovery, configure the backend endpoint (`createEncryptedSessionEndpoint`)
 5. Demonstrate how recovery works in the application flow
-
-## Acceptance Criteria
-
-- Configures `uiConfig.walletRecovery` in OpenfortProvider
-- Mentions or uses `RecoveryMethod` enum from `@openfort/react`
-- References at least two recovery methods: AUTOMATIC, PASSKEY, or PASSWORD
-- Sets `defaultMethod` in walletRecovery configuration
-- For automatic recovery, includes `createEncryptedSessionEndpoint` configuration
-- Explains or demonstrates how recovery process works for users
-- Includes TypeScript types
-- Discusses backend requirements for automatic recovery (optional but preferred)
-- Code follows Openfort best practices
-

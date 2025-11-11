@@ -14,16 +14,3 @@ Create a React app that demonstrates embedded wallet functionality:
 4. Show how to interact with the created wallet
 5. Use Openfort React hooks to manage wallet state
 6. Support wallet operations like getting the wallet address and checking wallet status
-
-## Acceptance Criteria
-
-- Configures `walletConfig` in OpenfortProvider with `shieldPublishableKey`
-- Optionally configures `createEncryptedSessionEndpoint` for automatic recovery
-- Demonstrates wallet creation using Openfort UI components or hooks
-- Shows how to access wallet information (address, status)
-- Uses hooks like `useEmbeddedWallet`, `useWalletClient`, or similar from `@openfort/react`
-- Demonstrates proper error handling for wallet operations
-- Shows wallet address display
-- Code includes TypeScript types
-- Follows React and Openfort best practices
-
