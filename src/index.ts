@@ -106,7 +106,7 @@ Usage:
 Options:
   --help, -h              Show this help message
   --eval, -e <path>       Run a specific evaluation (e.g., evals/basic-setup)
-  --model, -m <model>     Run only for a specific model (e.g., claude-sonnet-4-5)
+  --model, -m <models>    Run only for specific model(s) (e.g., gpt-4o or gpt-4o,claude-sonnet-4-5)
   --debug, -d             Enable debug mode (saves prompts, responses, and grading details)
 
 Available models:
@@ -119,6 +119,7 @@ Examples:
   bun start                                      # Run all evals on all models
   bun start --eval evals/basic-setup             # Run one eval on all models
   bun start --model claude-sonnet-4-5            # Run all evals on one model
+  bun start --model gpt-4o,claude-sonnet-4-5     # Run all evals on multiple models
   bun start --eval evals/basic-setup --model gpt-4o --debug
 `)
   process.exit(0)
@@ -169,7 +170,8 @@ const getEvalArg = () => {
 const getModelArg = () => {
   const equalsArg = args.find((arg) => arg.startsWith('--model='))
   if (equalsArg) {
-    return equalsArg.split('=', 2)[1]
+    const value = equalsArg.split('=', 2)[1]
+    return value?.split(',').map((m) => m.trim()).filter(Boolean)
   }
 
   const index = args.findIndex((arg) => arg === '--model' || arg === '-m')
@@ -183,7 +185,7 @@ const getModelArg = () => {
     process.exit(1)
   }
 
-  return value
+  return value.split(',').map((m) => m.trim()).filter(Boolean)
 }
 
 const normalizeEvalPath = (value: string) => {
@@ -234,26 +236,36 @@ const selectedEvaluations = (() => {
 })()
 
 const selectedModels = (() => {
-  if (!modelArg) {
+  if (!modelArg || modelArg.length === 0) {
     return models
   }
 
-  const target = models.find(
-    (model) => model.name === modelArg || model.label === modelArg,
-  )
-
-  if (!target) {
-    console.error(
-      `No model matching "${modelArg}". Available models: ${models
-        .map((model) => `${model.name} (${model.label})`)
-        .join(', ')}`,
+  const targets = modelArg.map((arg) => {
+    const target = models.find(
+      (model) => model.name === arg || model.label === arg,
     )
-    process.exit(1)
+
+    if (!target) {
+      console.error(
+        `No model matching "${arg}". Available models: ${models
+          .map((model) => `${model.name} (${model.label})`)
+          .join(', ')}`,
+      )
+      process.exit(1)
+    }
+
+    return target
+  })
+
+  if (targets.length === 1 && targets[0]) {
+    console.log(`Running for single model "${targets[0].name}" (${targets[0].label})`)
+  } else {
+    console.log(
+      `Running for ${targets.length} models: ${targets.map((m) => m.name).join(', ')}`,
+    )
   }
 
-  console.log(`Running for single model "${target.name}" (${target.label})`)
-
-  return [target]
+  return targets
 })()
 
 const debugArtifacts: DebugArtifact[] = []
