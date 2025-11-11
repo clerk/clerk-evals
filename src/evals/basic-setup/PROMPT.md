@@ -1,18 +1,12 @@
 # Task
 
-Set up a new React application with Openfort embedded wallet infrastructure from scratch.
+Set up a new React application with Openfort embedded wallet infrastructure.
 
 ## Requirements
 
-Create a basic React app that demonstrates the initial setup of Openfort with the following:
+Create a React app that:
 
-1. Install all required dependencies (`@openfort/react`, `wagmi`, `viem`, `@tanstack/react-query`)
-2. Configure the providers correctly:
-   - Set up Wagmi config using `getDefaultConfig` from `@openfort/react`
-   - Configure QueryClient from TanStack Query
-   - Set up OpenfortProvider with:
-     - `publishableKey`
-     - `walletConfig` with `shieldPublishableKey`
-3. Wrap the application with the provider hierarchy (WagmiProvider > QueryClientProvider > OpenfortProvider)
-4. Include basic usage with the `OpenfortButton` component
-5. Provide clear instructions on environment variable setup
+1. Includes all necessary dependencies for Openfort integration
+2. Properly configures and wraps the application with required providers
+3. Includes a basic UI element to interact with Openfort
+4. Uses environment variables for configuration

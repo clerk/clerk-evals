@@ -4,20 +4,10 @@ Demonstrate comprehensive usage of Openfort React hooks in a React application.
 
 ## Requirements
 
-Create a React app that showcases various Openfort and Wagmi hooks:
+Create a React app that:
 
-1. Authentication hooks:
-   - Check authentication state
-   - Access user information
-2. Wallet management hooks:
-   - Access wallet information
-   - Check connection status
-   - Manage wallet client
-3. Blockchain interaction hooks (from Wagmi):
-   - `useAccount` - Get connected account info
-   - `useWalletClient` - Access wallet client
-   - `useBalance` - Get account balance
-   - `useChainId` - Get current chain ID
-   - `useSwitchChain` - Switch between chains
-4. Show practical examples of using these hooks in components
-5. Demonstrate proper TypeScript usage with hook return types
+1. Uses hooks to check authentication state and access user information
+2. Uses hooks to access wallet information and manage connections
+3. Uses blockchain interaction hooks for account info, balance, and chain management
+4. Shows practical examples in React components
+5. Uses proper TypeScript typing

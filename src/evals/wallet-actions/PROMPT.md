@@ -4,15 +4,10 @@ Implement wallet actions (signing and sending transactions) in a React applicati
 
 ## Requirements
 
-Create a React app that demonstrates common wallet operations:
+Create a React app that:
 
-1. Set up Openfort with proper wallet configuration
-2. Demonstrate transaction signing:
-   - Sign messages
-   - Sign typed data
-3. Demonstrate sending transactions:
-   - Send native tokens (ETH, etc.)
-   - Interact with smart contracts
-4. Use Wagmi hooks for wallet operations (`useWalletClient`, `useAccount`, `useSendTransaction`, `useSignMessage`)
-5. Show proper transaction status handling
-6. Include error handling for failed transactions
+1. Configures Openfort properly
+2. Demonstrates message and typed data signing
+3. Demonstrates sending transactions and interacting with smart contracts
+4. Uses appropriate hooks for wallet operations
+5. Handles transaction status and errors
