@@ -96,6 +96,34 @@ type DebugError = {
 
 const args = process.argv.slice(2)
 
+const showHelp = () => {
+  console.log(`
+Openfort Evals - Evaluate LLMs on Openfort code generation
+
+Usage:
+  bun start [options]
+
+Options:
+  --help, -h              Show this help message
+  --eval, -e <path>       Run a specific evaluation (e.g., evals/basic-setup)
+  --model, -m <model>     Run only for a specific model (e.g., claude-sonnet-4-5)
+  --debug, -d             Enable debug mode (saves prompts, responses, and grading details)
+
+Available models:
+${models.map((m) => `  - ${m.name} (${m.label})`).join('\n')}
+
+Available evaluations:
+${evaluations.map((e) => `  - ${e.path} (${e.category})`).join('\n')}
+
+Examples:
+  bun start                                      # Run all evals on all models
+  bun start --eval evals/basic-setup             # Run one eval on all models
+  bun start --model claude-sonnet-4-5            # Run all evals on one model
+  bun start --eval evals/basic-setup --model gpt-4o --debug
+`)
+  process.exit(0)
+}
+
 const parseBooleanFlag = (name: string, alias?: string) => {
   const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
   if (equalsArg) {
@@ -138,6 +166,26 @@ const getEvalArg = () => {
   return value
 }
 
+const getModelArg = () => {
+  const equalsArg = args.find((arg) => arg.startsWith('--model='))
+  if (equalsArg) {
+    return equalsArg.split('=', 2)[1]
+  }
+
+  const index = args.findIndex((arg) => arg === '--model' || arg === '-m')
+  if (index === -1) {
+    return undefined
+  }
+
+  const value = args[index + 1]
+  if (!value || value.startsWith('-')) {
+    console.error('Missing value for --model')
+    process.exit(1)
+  }
+
+  return value
+}
+
 const normalizeEvalPath = (value: string) => {
   if (value.startsWith('./')) {
     return normalizeEvalPath(value.slice(2))
@@ -148,7 +196,13 @@ const normalizeEvalPath = (value: string) => {
   return `evals/${value}`
 }
 
+// Check for help flag first
+if (args.includes('--help') || args.includes('-h')) {
+  showHelp()
+}
+
 const evalArg = getEvalArg()
+const modelArg = getModelArg()
 
 const debugEnabled = parseBooleanFlag('debug', '-d')
 
@@ -179,6 +233,29 @@ const selectedEvaluations = (() => {
   return [target]
 })()
 
+const selectedModels = (() => {
+  if (!modelArg) {
+    return models
+  }
+
+  const target = models.find(
+    (model) => model.name === modelArg || model.label === modelArg,
+  )
+
+  if (!target) {
+    console.error(
+      `No model matching "${modelArg}". Available models: ${models
+        .map((model) => `${model.name} (${model.label})`)
+        .join(', ')}`,
+    )
+    process.exit(1)
+  }
+
+  console.log(`Running for single model "${target.name}" (${target.label})`)
+
+  return [target]
+})()
+
 const debugArtifacts: DebugArtifact[] = []
 const debugErrors: DebugError[] = []
 
@@ -193,7 +270,7 @@ if (debugEnabled) {
 }
 
 // Collect list of tasks to be run
-const tasks = models.flatMap((model) =>
+const tasks = selectedModels.flatMap((model) =>
   selectedEvaluations.map((evaluation) => ({
     provider: model.provider,
     model: model.name,
@@ -210,7 +287,7 @@ const scores: Score[] = []
 
 // Progress output
 console.log(
-  `Starting ${tasks.length} tasks across ${models.length} models and ${selectedEvaluations.length} evaluations (up to 10 workers)...`,
+  `Starting ${tasks.length} tasks across ${selectedModels.length} models and ${selectedEvaluations.length} evaluations (up to 10 workers)...`,
 )
 
 let completed = 0
