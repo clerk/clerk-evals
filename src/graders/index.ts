@@ -1,4 +1,4 @@
-import { makeScorer, type LLMJudgeConfig } from '@/src/scorers/llm'
+import { type LLMJudgeConfig, makeScorer } from '@/src/scorers/llm'
 
 type Grader = (input: string) => Promise<boolean>
 export type Graders = Record<string, Grader>
@@ -44,10 +44,7 @@ export const registerJudges = <const T extends Record<string, LLMJudgeConfig>>(
   entries: T,
 ): JudgeRegistry<T> => {
   const registry = {} as JudgeRegistry<T>
-  for (const [name, config] of Object.entries(entries) as [
-    keyof T,
-    LLMJudgeConfig
-  ][]) {
+  for (const [name, config] of Object.entries(entries) as [keyof T, LLMJudgeConfig][]) {
     registry[name] = makeScorer(config)
   }
   return registry

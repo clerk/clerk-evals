@@ -1,30 +1,31 @@
 # Adding a new evaluation
 
-This repository evaluates how well LLMs write Clerk code. Follow this checklist when you add a new evaluation.
+This repository evaluates how well LLMs write Openfort code. Follow this checklist when you add a new evaluation.
 
 ## 1) Create the folder
 
-- Choose a concise, descriptive slug, e.g. `src/evals/waitlist/` (no numeric prefix).
+- Choose a concise, descriptive slug, e.g. `src/evals/embedded-wallets/` (no numeric prefix).
 - Each evaluation folder contains exactly two required files:
   - `PROMPT.md`
   - `graders.ts`
 
 ## 2) Write PROMPT.md
 
-State the task and acceptance criteria in plain English. Be explicit about the framework (Next.js) and Clerk expectations.
+State the task and acceptance criteria in plain English. Be explicit about the framework (React/Next.js) and Openfort expectations.
 
 Example skeleton:
 
 ```md
 # Task
 
-Build a Waitlist feature in a Next.js app using Clerk.
+Set up embedded wallet creation in a React app using Openfort.
 
 ## Acceptance criteria
-- Includes `@clerk/nextjs` installation and env setup
-- Implements a protected API route to submit waitlist entries
-- Stores entries and returns appropriate responses
-- Documents the flow briefly
+- Includes `@openfort/react` installation and required dependencies
+- Configures OpenfortProvider with publishableKey and walletConfig
+- Sets up providers for Wagmi, TanStack Query, and Openfort
+- Implements wallet creation flow
+- Documents the setup steps
 ```
 
 ## 3) Implement graders.ts
@@ -36,10 +37,11 @@ import { contains, defineGraders } from '@/src/graders'
 import { llmChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
-  references_package: contains('@clerk/nextjs'),
-  env_vars_present: llmChecks.environmentVariables,
-  package_version_ok: llmChecks.packageJsonClerkVersion,
-  describes_waitlist_api: contains('/api/waitlist'),
+  references_package: contains('@openfort/react'),
+  has_wagmi: contains('wagmi'),
+  has_viem: contains('viem'),
+  package_version_ok: llmChecks.packageJsonOpenfortVersion,
+  openfort_provider_setup: contains('OpenfortProvider'),
 })
 ```
 
@@ -53,16 +55,16 @@ Append an entry in `src/index.ts` under `evaluations`:
 
 ```ts
 {
-  framework: 'Next.js',
-  category: 'Waitlist',
-  path: 'evals/waitlist',
+  framework: 'React',
+  category: 'Embedded Wallets',
+  path: 'evals/embedded-wallets',
 }
 ```
 
 ## 5) Run and iterate
 
 - Run all: `bun start`
-- Run one: `bun run start:eval src/evals/waitlist`
+- Run one: `bun run start:eval src/evals/embedded-wallets`
 - Debug artifacts: add `--debug` to write prompts, responses, and grader decisions under `debug-runs/`.
 
 ## 6) Style and checks

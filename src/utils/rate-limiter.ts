@@ -9,9 +9,9 @@ type ProviderKey = string
  * Default rate limits in requests per minute (RPM)
  */
 const DEFAULT_RATE_LIMITS = {
-  openai: 500,    // Usage tier 1
-  anthropic: 5,   // Free tier
-  vercel: 10,     // Free tier (10 requests per day)
+  openai: 500, // Usage tier 1
+  anthropic: 5, // Free tier
+  vercel: 10, // Free tier (10 requests per day)
 } as const
 
 type QueuedTask<T> = {

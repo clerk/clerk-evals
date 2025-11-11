@@ -1,10 +1,9 @@
 import { contains, defineGraders } from '@/src/graders'
-import { llmChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
-  mentions_clerk_pkg: contains('@clerk/nextjs'),
-  middleware_file: contains('middleware.ts'),
-  app_router_layout: contains('app/layout.tsx'),
-  env_vars_present: llmChecks.environmentVariables,
-  clerk_version_ok: llmChecks.packageJsonClerkVersion,
+  mentions_openfort_pkg: contains('@openfort/react'),
+  uses_wagmi: contains('wagmi'),
+  uses_viem: contains('viem'),
+  configures_providers: contains('OpenfortProvider'),
+  // Add more graders specific to your evaluation
 })

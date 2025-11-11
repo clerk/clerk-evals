@@ -1,7 +1,7 @@
 {
-  "name": "clerk-evals",
+  "name": "openfort-evals",
   "version": "0.0.0",
-  "description": "",
+  "description": "Public evaluation suites testing how LLMs perform at writing Openfort code",
   "type": "module",
   "engines": {
     "bun": ">=1.3.0"

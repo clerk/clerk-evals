@@ -44,64 +44,34 @@ const models: ModelInfo[] = [
  */
 const evaluations = [
   {
-    framework: 'Next.js',
+    framework: 'React',
+    category: 'Setup',
+    path: 'evals/basic-setup',
+  },
+  {
+    framework: 'React',
     category: 'Authentication',
-    path: 'evals/authentication-protect',
+    path: 'evals/authentication',
   },
   {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/users/receive',
+    framework: 'React',
+    category: 'Embedded Wallets',
+    path: 'evals/embedded-wallets',
   },
   {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/organization',
+    framework: 'React',
+    category: 'Wallet Recovery',
+    path: 'evals/wallet-recovery',
   },
   {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/billing',
+    framework: 'React',
+    category: 'Wallet Actions',
+    path: 'evals/wallet-actions',
   },
   {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/users/sync',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/subscriptions',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/notifications',
-  },
-  {
-    framework: 'Next.js',
-    category: 'API Routes',
-    path: 'evals/apiroutes',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Checkout Flow',
-    path: 'evals/checkout-flow/existing-payment-method',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Checkout Flow',
-    path: 'evals/checkout-flow/new-payment-method',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Users',
-    path: 'evals/users-current-user',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Organizations',
-    path: 'evals/organizations',
+    framework: 'React',
+    category: 'Hooks',
+    path: 'evals/hooks-usage',
   },
 ] satisfies Evaluation[]
 

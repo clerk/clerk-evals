@@ -1,6 +1,6 @@
-# clerk-evals
+# openfort-evals
 
-This repository hosts public evaluation suites used by Clerk to test how LLMs perform at writing Clerk code (primarily in Next.js). If an AI contributor is asked to "create a new eval suite for the Waitlist feature", it should add a new folder under `src/evals/` with a `PROMPT.md` and `graders.ts`, then register it in `src/index.ts`.
+This repository hosts public evaluation suites used to test how LLMs perform at writing Openfort code (primarily with React and Next.js). Openfort provides embedded wallet infrastructure, authentication, and blockchain integration. If an AI contributor is asked to "create a new eval suite for embedded wallet creation", it should add a new folder under `src/evals/` with a `PROMPT.md` and `graders.ts`, then register it in `src/index.ts`.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -12,7 +12,7 @@ Install [Bun](https://bun.sh) `>=1.3.0`, then gather the required API keys. See 
 cp .env.example .env
 ```
 
-Run the eval suite (might take about 50s)
+Run the eval suite
 
 ```bash
 bun i
@@ -25,7 +25,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
-- Append an entry to the `evaluations` array in `src/index.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+- Append an entry to the `evaluations` array in `src/index.ts` with `framework`, `category`, and `path` (e.g., `evals/embedded-wallets`).
 - Run `bun run start:eval src/evals/your-eval` (optionally `--debug`).
 
 <details>
@@ -35,49 +35,49 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 [
   {
     "model": "gpt-5-chat-latest",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 0.6666666666666666,
     "updatedAt": "2025-10-15T17:51:27.901Z"
   },
   {
     "model": "gpt-4o",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 0.3333333333333333,
     "updatedAt": "2025-10-15T17:51:30.871Z"
   },
   {
     "model": "claude-sonnet-4-0",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 0.5,
     "updatedAt": "2025-10-15T17:51:56.370Z"
   },
   {
     "model": "claude-sonnet-4-5",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 0.8333333333333334,
     "updatedAt": "2025-10-15T17:52:03.349Z"
   },
   {
     "model": "v0-1.5-md",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 1,
     "updatedAt": "2025-10-15T17:52:06.700Z"
   },
   {
     "model": "claude-opus-4-0",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 0.5,
     "updatedAt": "2025-10-15T17:52:06.898Z"
   },
   {
     "model": "gpt-5",
-    "framework": "Next.js",
+    "framework": "React",
     "category": "Fundamentals",
     "value": 0.5,
     "updatedAt": "2025-10-15T17:52:07.038Z"
@@ -117,7 +117,7 @@ A **runner** takes a simple object as an argument:
 {
   "provider": "openai",
   "model": "gpt-5",
-  "evalPath": "/absolute/path/to/clerk-evals/src/evals/basic-nextjs
+  "evalPath": "/absolute/path/to/openfort-evals/src/evals/basic-setup
 }
 ```
 
@@ -141,10 +141,10 @@ import { contains, defineGraders, judge } from '@/src/graders'
 import { llmChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
-  references_middleware: contains('middleware.ts'),
-  package_json: llmChecks.packageJsonClerkVersion,
-  custom_flow_description: judge(
-    'Does the answer walk through protecting a Next.js API route with Clerk auth() and explain the response states?',
+  references_providers: contains('providers.tsx'),
+  package_json: llmChecks.packageJsonOpenfortVersion,
+  openfort_setup: judge(
+    'Does the answer correctly set up OpenfortProvider with publishableKey and walletConfig?',
   ),
 })
 ```

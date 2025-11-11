@@ -1,19 +1,19 @@
 # Repository Guidelines
 
 ## Goals
-This project is meant for Clerk to write publicly viewable evals. These evals test how LLMs perform at writing code using Clerk.
+This project is meant to write publicly viewable evals for Openfort. These evals test how LLMs perform at writing code using Openfort's embedded wallet, authentication, and blockchain integration features.
 
 ## For AI Agents (default context)
-You are operating in a repository whose sole purpose is to evaluate how well LLMs write Clerk code. When a user asks for something like "create a new eval suite for the Waitlist feature", follow the steps below by default.
+You are operating in a repository whose sole purpose is to evaluate how well LLMs write Openfort code. When a user asks for something like "create a new eval suite for embedded wallet creation", follow the steps below by default.
 
-- Create a new evaluation folder under `src/evals/` using a concise kebab-case slug, e.g. `src/evals/waitlist/`.
+- Create a new evaluation folder under `src/evals/` using a concise kebab-case slug, e.g. `src/evals/embedded-wallets/`.
 - Inside that folder, add two files:
-  - `PROMPT.md`: plain-English task and acceptance criteria. Be explicit about the framework (Next.js) and Clerk expectations.
+  - `PROMPT.md`: plain-English task and acceptance criteria. Be explicit about the framework (React/Next.js) and Openfort expectations.
   - `graders.ts`: export a `graders` object using `defineGraders(...)` where each grader returns `boolean`. Prefer reusable judges from `@/src/graders/catalog`.
-- Register the new evaluation path in `src/index.ts` by appending an entry to the `evaluations` array with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+- Register the new evaluation path in `src/index.ts` by appending an entry to the `evaluations` array with `framework`, `category`, and `path` (e.g., `evals/embedded-wallets`).
 - Validate locally:
   - `bun start` to run all evals, or
-  - `bun run start:eval src/evals/waitlist` to run just the new suite
+  - `bun run start:eval src/evals/embedded-wallets` to run just the new suite
   - Add `--debug` to capture prompts, responses, and grading details
 - Style and structure:
   - Keep files TypeScript ESNext. Use the `@/*` path alias.
