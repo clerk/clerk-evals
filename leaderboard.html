@@ -5,17 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LLM Leaderboard - Openfort Evals</title>
     <style>
+        @font-face {
+            font-family: 'tiempos';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('https://www.openfort.io/fonts/tiempos-headline-light.woff2') format('woff2');
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
         :root {
-            --bg: #030304;
-            --panel: #0a0a0b;
-            --panel-alt: #0f0f11;
-            --panel-hover: #161618;
-            --border: rgba(255, 255, 255, 0.06);
-            --border-strong: rgba(255, 255, 255, 0.12);
-            --text: #f7f7f9;
-            --muted: #9ea0ad;
-            --shadow: 0 30px 70px rgba(3, 3, 5, 0.75);
-            --mono: 'IBM Plex Mono', 'Space Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+            --bg: #f1efeb;
+            --panel: #ffffff;
+            --panel-alt: #fafafa;
+            --panel-hover: #f5f5f5;
+            --border: rgba(0, 0, 0, 0.06);
+            --border-strong: rgba(0, 0, 0, 0.1);
+            --text: #18181b;
+            --text-secondary: #3f3f46;
+            --muted: #71717a;
+            --brand-red: #FF3B30;
+            --brand-orange: #ffa16e;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            --mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
         }
 
         * {
@@ -25,17 +38,15 @@
         }
 
         body {
-            font-family: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: var(--bg);
-            background-image:
-                radial-gradient(circle at 25% 20%, rgba(129, 140, 248, 0.18), transparent 45%),
-                radial-gradient(circle at 80% -10%, rgba(45, 212, 191, 0.12), transparent 35%),
-                linear-gradient(180deg, #040405 0%, #050506 35%, #020203 100%);
             color: var(--text);
             min-height: 100vh;
             padding: 3rem 1.5rem 4rem;
             line-height: 1.6;
             letter-spacing: -0.01em;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .container {
@@ -49,18 +60,17 @@
         }
 
         h1 {
-            font-size: clamp(2.2rem, 5vw, 3.6rem);
-            font-weight: 700;
-            background: linear-gradient(120deg, #b5a8ff 0%, #74f8d9 70%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-family: 'tiempos', Georgia, serif;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 400;
+            color: var(--brand-red);
             margin-bottom: 1rem;
+            letter-spacing: -0.02em;
         }
 
         .subtitle {
             font-size: 1.05rem;
-            color: var(--muted);
+            color: var(--text-secondary);
             max-width: 720px;
             margin: 0 auto;
             line-height: 1.8;
@@ -69,9 +79,9 @@
         .table-card {
             position: relative;
             padding: 2.5rem 2rem;
-            border-radius: 32px;
+            border-radius: 24px;
             border: 1px solid var(--border);
-            background: linear-gradient(180deg, rgba(18, 18, 19, 0.96) 0%, rgba(9, 9, 11, 0.96) 100%);
+            background: var(--panel);
             box-shadow: var(--shadow);
             overflow: hidden;
         }
@@ -109,14 +119,15 @@
         tbody tr {
             position: relative;
             background: var(--panel-alt);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            border-radius: 18px;
-            transition: background 0.2s ease, border-color 0.2s ease;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         tbody tr:hover {
             background: var(--panel-hover);
-            border-color: rgba(255, 255, 255, 0.08);
+            border-color: var(--border-strong);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
         tbody td {
@@ -128,11 +139,11 @@
         tbody td:first-child {
             text-align: left;
             padding-left: 1.5rem;
-            border-radius: 18px 0 0 18px;
+            border-radius: 16px 0 0 16px;
         }
 
         tbody td:last-child {
-            border-radius: 0 18px 18px 0;
+            border-radius: 0 16px 16px 0;
         }
 
         .model-cell {
@@ -143,7 +154,7 @@
 
         .rank {
             font-weight: 600;
-            color: #6b6d78;
+            color: var(--muted);
             font-size: 0.95rem;
             min-width: 2.25rem;
             font-variant-numeric: tabular-nums;
@@ -155,17 +166,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid var(--border-strong);
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--panel);
             padding: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .provider-emblem svg {
             width: 100%;
             height: 100%;
             fill: currentColor;
-            color: #f7f7f9;
+            color: var(--text);
         }
 
         .model-info {
@@ -180,12 +192,13 @@
             text-transform: uppercase;
             letter-spacing: 0.12em;
             color: var(--muted);
+            font-weight: 500;
         }
 
         .model-name {
             font-size: 1rem;
             font-weight: 600;
-            color: #f9fafb;
+            color: var(--text);
         }
 
         .score-badge {
@@ -193,17 +206,17 @@
             min-width: 70px;
             align-items: center;
             justify-content: center;
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid var(--border-strong);
             padding: 0.65rem 0.75rem;
             font-weight: 600;
             font-size: 0.95rem;
             font-family: var(--mono);
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #d1d5db;
-            background: rgba(255, 255, 255, 0.03);
-            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--panel-alt);
+            transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
         }
 
         .score-badge:hover {
@@ -211,27 +224,28 @@
         }
 
         .score-tier-blue {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: rgba(96, 165, 250, 0.4);
-            color: #93c5fd;
+            background: rgba(255, 59, 48, 0.08);
+            border-color: rgba(255, 59, 48, 0.2);
+            color: #FF3B30;
+            font-weight: 700;
         }
 
         .score-tier-gray {
-            background: rgba(107, 114, 128, 0.2);
-            border-color: rgba(156, 163, 175, 0.3);
-            color: #d1d5db;
+            background: rgba(255, 161, 110, 0.12);
+            border-color: rgba(255, 161, 110, 0.25);
+            color: #d97642;
         }
 
         .score-tier-red {
-            background: rgba(220, 38, 38, 0.2);
-            border-color: rgba(248, 113, 113, 0.4);
-            color: #fca5a5;
+            background: rgba(113, 113, 122, 0.08);
+            border-color: rgba(113, 113, 122, 0.2);
+            color: #71717a;
         }
 
         .score-empty {
-            color: #53555f;
-            border-color: rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.02);
+            color: var(--muted);
+            border-color: var(--border);
+            background: transparent;
         }
 
         .loading {
@@ -245,15 +259,15 @@
             display: inline-block;
             width: 1rem;
             height: 1rem;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-top-color: rgba(255, 255, 255, 0.65);
+            border: 2px solid var(--border);
+            border-top-color: var(--brand-red);
             border-radius: 50%;
             animation: spin 0.9s linear infinite;
             margin-right: 0.75rem;
         }
 
         .error {
-            color: #f87171;
+            color: var(--brand-red);
         }
 
         .footer {
@@ -267,13 +281,14 @@
         }
 
         .footer a {
-            color: #b8c0ff;
+            color: var(--brand-red);
             text-decoration: none;
             font-weight: 600;
+            transition: color 0.15s ease;
         }
 
         .footer a:hover {
-            text-decoration: underline;
+            color: var(--brand-orange);
         }
 
         .last-updated {
@@ -301,7 +316,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>LLM Leaderboard</h1>
+            <h1>Openfort's LLM Leaderboard</h1>
             <p class="subtitle">
                 Compare how different large language models perform at writing Openfort code and select the one that best fits your requirements.
             </p>
