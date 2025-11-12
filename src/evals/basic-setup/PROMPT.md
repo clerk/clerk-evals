@@ -1,12 +1,13 @@
 # Task
 
-Set up a new React application with Openfort embedded wallet infrastructure.
+Set up a new React application with Openfort embedded wallet infrastructure for Ethereum.
 
 ## Requirements
 
 Create a React app that:
 
 1. Includes all necessary dependencies for Openfort integration
-2. Properly configures and wraps the application with required providers
-3. Includes a basic UI element to interact with Openfort
-4. Uses environment variables for configuration
+2. Creates a `Providers` component that properly configures and wraps the application with all required providers for an Ethereum app
+3. Configures the app to connect to the **Base Sepolia** testnet chain
+4. Uses environment variables for sensitive keys
+5. Includes a basic UI element to interact with Openfort (e.g., a connect wallet button)
