@@ -191,7 +191,7 @@
             font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: var(--muted);
+            color: var(--brand-red);
             font-weight: 500;
         }
 
@@ -223,23 +223,23 @@
             transform: translateY(-1px);
         }
 
-        .score-tier-blue {
-            background: rgba(255, 59, 48, 0.08);
-            border-color: rgba(255, 59, 48, 0.2);
-            color: #FF3B30;
+        .score-tier-excellent {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.25);
+            color: #16a34a;
             font-weight: 700;
         }
 
-        .score-tier-gray {
-            background: rgba(255, 161, 110, 0.12);
-            border-color: rgba(255, 161, 110, 0.25);
-            color: #d97642;
+        .score-tier-normal {
+            background: #eee;
+            border-color: rgba(0, 0, 0, 0.12);
+            color: var(--text-secondary);
         }
 
-        .score-tier-red {
-            background: rgba(113, 113, 122, 0.08);
-            border-color: rgba(113, 113, 122, 0.2);
-            color: #71717a;
+        .score-tier-poor {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.25);
+            color: #dc2626;
         }
 
         .score-empty {
@@ -348,10 +348,10 @@
 
     <script>
         function getScoreClass(value) {
-            const percent = value * 100;
-            if (percent > 80) return 'score-tier-blue';
-            if (percent >= 50) return 'score-tier-gray';
-            return 'score-tier-red';
+            const percent = Math.round(value * 100);
+            if (percent >= 75) return 'score-tier-excellent';
+            if (percent >= 50) return 'score-tier-normal';
+            return 'score-tier-poor';
         }
 
         function formatPercent(value) {
