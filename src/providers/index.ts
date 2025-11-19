@@ -1,6 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createVercel } from '@ai-sdk/vercel'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 
 /**
  * Supported language model providers.
@@ -8,7 +9,7 @@ import { createVercel } from '@ai-sdk/vercel'
  * - "anthropic": For Anthropic models (e.g. Claude, Sonnet, Opus, etc.)
  * - "vercel": For Vercel AI models (e.g. v0-1.5-md)
  */
-export type Provider = 'openai' | 'anthropic' | 'vercel'
+export type Provider = 'openai' | 'anthropic' | 'vercel' | 'google'
 
 /**
  * Information about a specific model offered by a provider.
@@ -51,6 +52,10 @@ export const MODELS: ProviderModels = {
     { provider: 'anthropic', name: 'claude-opus-4-0', label: 'Claude Opus 4' },
   ],
   vercel: [{ provider: 'vercel', name: 'v0-1.5-md', label: 'v0-1.5-md' }],
+  google: [
+    { provider: 'google', name: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { provider: 'google', name: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
+  ],
 }
 
 const openai = createOpenAI({
@@ -65,6 +70,10 @@ const vercel = createVercel({
   apiKey: process.env.V0_API_KEY,
 })
 
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_API_KEY,
+})
+
 export function getModel(provider: Provider, model: string) {
   if (provider === 'openai') {
     return openai(model)
@@ -72,5 +81,7 @@ export function getModel(provider: Provider, model: string) {
     return anthropic(model)
   } else if (provider === 'vercel') {
     return vercel(model)
+  } else if (provider === 'google') {
+    return google(model)
   }
 }
