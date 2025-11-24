@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { generateText } from 'ai'
+import type { Graders } from '@/src/graders'
 import type { RunnerArgs, RunnerResult } from '@/src/interfaces'
 import { getModel } from '@/src/providers'
 import { ERR, OK } from '@/src/utils/result'
-import type { Graders } from '@/src/graders'
 
 /**
  * Instruct the model to output all files as fenced code blocks,
@@ -73,25 +73,4 @@ export default async function exec({
   } catch (error) {
     return ERR(error)
   }
-}
-
-// For conditional below
-declare global {
-  interface ImportMeta {
-    main: boolean
-  }
-}
-
-// Run this for one-off testing
-// bun run src/runners/main.ts
-if (import.meta.main) {
-  console.log('Running main')
-
-  const result = await exec({
-    provider: 'openai',
-    model: 'gpt-4o',
-    evalPath: new URL('../evals/basic-nextjs', import.meta.url).pathname,
-  })
-
-  console.log(result)
 }
