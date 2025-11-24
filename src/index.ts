@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import Tinypool from 'tinypool'
 
+import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type {
   Evaluation,
   RunnerArgs,
@@ -22,6 +23,9 @@ const pool = new Tinypool({
   idleTimeout: 10000,
   maxThreads: 10,
 })
+
+initDB()
+const runId = new Date().toISOString().replace(/[:.]/g, '-')
 
 /**
  * Registered models
@@ -236,9 +240,6 @@ const tasks = models.flatMap((model) =>
   })),
 )
 
-// Accumulate scores
-const scores: Score[] = []
-
 // Progress output
 console.log(
   `Starting ${tasks.length} tasks across ${models.length} models and ${selectedEvaluations.length} evaluations (up to 10 workers)...`,
@@ -266,6 +267,16 @@ await Promise.all(
           task,
           error: result.error,
         })
+
+        saveError(runId, {
+          model: task.model,
+          label: task.label,
+          framework: task.framework,
+          category: task.category,
+          evaluationPath: task.evaluationPath,
+          error: result.error,
+        })
+
         if (debugEnabled) {
           debugErrors.push({
             provider: task.provider,
@@ -285,7 +296,7 @@ await Promise.all(
         value: result.value.score,
         updatedAt: new Date().toISOString(),
       }
-      scores.push(score)
+      saveResult(runId, score)
 
       if (debugEnabled && result.value.debug) {
         debugArtifacts.push({
@@ -364,9 +375,10 @@ ${gradersRows}
 }
 
 // Report
-fileReporter(scores)
+const dbScores = getResults(runId)
+fileReporter(dbScores)
 if (debugEnabled) {
-  consoleReporter(scores)
+  consoleReporter(dbScores)
 } else {
   console.log('Scores written to: scores.json')
 }

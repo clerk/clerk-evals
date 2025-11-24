@@ -11,10 +11,7 @@ export const graders = defineGraders({
   handles_membership_created: contains('organizationMembership.created'),
   handles_membership_deleted: contains('organizationMembership.deleted'),
   logs_membership_id: containsAny(['evt.data.id', 'membership.id']),
-  logs_org_id: containsAny([
-    'evt.data.organization.id',
-    'organizationId',
-  ]),
+  logs_org_id: containsAny(['evt.data.organization.id', 'organizationId']),
   references_public_user_data: contains('publicUserData'),
   http_responses: SCORERS.HTTP_RESPONSES,
   does_not_use_svix: SCORERS.NO_SVIX,

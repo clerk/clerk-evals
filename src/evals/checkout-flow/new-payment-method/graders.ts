@@ -1,10 +1,4 @@
-import {
-  contains,
-  containsAny,
-  defineGraders,
-  judge,
-  matches,
-} from '@/src/graders'
+import { contains, containsAny, defineGraders, judge, matches } from '@/src/graders'
 
 const hasUseClient = containsAny(["'use client'", '"use client"'], {
   caseSensitive: true,
@@ -20,8 +14,7 @@ export const graders = defineGraders({
     (await contains('PaymentElement')(actual)),
   uses_use_payment_element: contains('usePaymentElement'),
   starts_checkout: async (actual) =>
-    (await matches(/checkout\.start\s*\(/)(actual)) ||
-    (await matches(/\.start\(\)/)(actual)),
+    (await matches(/checkout\.start\s*\(/)(actual)) || (await matches(/\.start\(\)/)(actual)),
   finalizes_checkout: async (actual) =>
     (await contains('finalize')(actual)) && (await contains('redirectUrl')(actual)),
   shows_plan_summary: containsAny(['checkout.plan', 'totals']),

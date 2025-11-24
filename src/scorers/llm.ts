@@ -23,8 +23,11 @@ export type LLMJudgeConfig =
     }
 
 export const makeScorer = (config: LLMJudgeConfig) => {
-  const { criteria, input = '', model = MODEL_FOR_BRAINTRUST_LLM_AS_JUDGE } =
-    typeof config === 'string' ? { criteria: config } : config
+  const {
+    criteria,
+    input = '',
+    model = MODEL_FOR_BRAINTRUST_LLM_AS_JUDGE,
+  } = typeof config === 'string' ? { criteria: config } : config
 
   const scorer = ClosedQA.partial({
     model,
