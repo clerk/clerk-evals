@@ -2,8 +2,7 @@ import { contains, containsAny, defineGraders } from '@/src/graders'
 import { PATTERNS, SCORERS } from '@/src/scorers/constants'
 
 export const graders = defineGraders({
-  imports_verify_webhook: async (actual) =>
-    PATTERNS.CLERK_BACKEND_WEBHOOKS_IMPORT.test(actual),
+  imports_verify_webhook: async (actual) => PATTERNS.CLERK_BACKEND_WEBHOOKS_IMPORT.test(actual),
   calls_verify_webhook: async (actual) =>
     PATTERNS.CLERK_BACKEND_WEBHOOKS_VERIFY_WEBHOOK.test(actual),
   mentions_env_secret: contains('CLERK_WEBHOOK_SIGNING_SECRET'),
