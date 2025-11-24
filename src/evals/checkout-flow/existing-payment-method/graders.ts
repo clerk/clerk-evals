@@ -1,11 +1,6 @@
 import { contains, containsAny, defineGraders, judge, matches } from '@/src/graders'
 
-const hasUseClient = containsAny(["'use client'", '"use client"'], {
-  caseSensitive: true,
-})
-
 export const graders = defineGraders({
-  declares_use_client: hasUseClient,
   imports_experimental_checkout: contains('@clerk/nextjs/experimental'),
   uses_checkout_provider: contains('CheckoutProvider'),
   uses_use_checkout: contains('useCheckout'),
