@@ -1,3 +1,3 @@
 # Task
 
-Create a Next.js app with a checkout page that uses Clerk for checkout.
+Create a Next.js app that uses Clerk Billing for subscriptions and include a checkout page.
