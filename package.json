@@ -26,7 +26,8 @@
     "ai": "^5.0.64",
     "autoevals": "^0.0.131",
     "openai": "^6.2.0",
-    "tinypool": "^2.0.0"
+    "tinypool": "^2.0.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.6",
