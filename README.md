@@ -72,6 +72,23 @@ bun run start --debug
 bun run start:eval evals/auth/routes --debug
 ```
 
+## MCP Runner
+
+Run evaluations with Clerk's MCP server, allowing LLMs to use SDK snippets and documentation tools during code generation.
+
+```bash
+bun start:mcp              # Local MCP server (localhost:8787)
+bun start:mcp:staging      # mcp.clerkstage.dev
+bun start:mcp:prod         # mcp.clerk.dev
+```
+
+Options:
+```bash
+--model="Sonnet 4.5"       # Filter by model name
+--eval=webhooks            # Filter by category or path
+--debug                    # Save transcripts to debug-runs/
+```
+
 ## Overview
 
 This project is broken up into a few core pieces:

@@ -53,23 +53,15 @@ async function isServerRunning(): Promise<boolean> {
 }
 
 export type MCPServerManagerOptions = {
-  /** URL to use. Defaults to MCP_SERVER_URL env var or local */
-  url?: string
-  /** Environment shorthand: 'local' | 'prod' | 'staging' */
+  /** Environment: 'local' | 'prod' | 'staging' */
   env?: MCPEnvironment
 }
 
 export function createMCPServerManager(options: MCPServerManagerOptions = {}): MCPServerManager {
   let serverProcess: Subprocess | null = null
-
-  // Priority: explicit url > env shorthand > MCP_SERVER_URL env var > local
-  const serverUrl =
-    options.url ||
-    (options.env ? MCP_ENVIRONMENTS[options.env] : null) ||
-    process.env.MCP_SERVER_URL ||
-    LOCAL_URL
-
-  const isRemote = serverUrl !== LOCAL_URL
+  const env = options.env || 'local'
+  const serverUrl = MCP_ENVIRONMENTS[env]
+  const isRemote = env !== 'local'
   let running = false
 
   return {

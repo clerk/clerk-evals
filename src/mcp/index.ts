@@ -97,14 +97,12 @@ const evalFilter = parseStringArg('eval')
 // MCP environment flags
 const useProd = parseBooleanFlag('prod') || parseBooleanFlag('production')
 const useStaging = parseBooleanFlag('staging')
-const customUrl = parseStringArg('url')
 
 // Determine MCP environment
-const getMCPConfig = (): { env?: MCPEnvironment; url?: string } => {
-  if (customUrl) return { url: customUrl }
-  if (useProd) return { env: 'prod' }
-  if (useStaging) return { env: 'staging' }
-  return { env: 'local' }
+const getMCPEnv = (): MCPEnvironment => {
+  if (useProd) return 'prod'
+  if (useStaging) return 'staging'
+  return 'local'
 }
 
 const filteredModels = modelFilter
@@ -129,10 +127,9 @@ async function main() {
     process.exit(1)
   }
 
-  const mcpConfig = getMCPConfig()
-  const mcpManager = createMCPServerManager(mcpConfig)
-  const envLabel = mcpConfig.url ? 'custom' : mcpConfig.env || 'local'
-  const runId = `mcp-${envLabel}-${new Date().toISOString().replace(/[:.]/g, '-')}`
+  const mcpEnv = getMCPEnv()
+  const mcpManager = createMCPServerManager({ env: mcpEnv })
+  const runId = `mcp-${mcpEnv}-${new Date().toISOString().replace(/[:.]/g, '-')}`
 
   let debugRunDirectory: string | undefined
   if (debugEnabled) {
