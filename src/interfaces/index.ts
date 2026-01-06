@@ -32,9 +32,9 @@ export type RunnerArgs = {
 export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the future
 
 /**
- * Categories we test
+ * Categories aligned with Clerk product verticals
  */
-export type Category = string
+export type Category = 'Auth' | 'Billing' | 'Organizations' | 'Webhooks'
 export type Evaluation = {
   framework: Framework
   category: Category
