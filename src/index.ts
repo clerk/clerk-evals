@@ -46,69 +46,76 @@ const models: ModelInfo[] = [
 ]
 
 /**
- * Registered evaluations
- * To be manually updated
+ * Registered evaluations organized by product verticals
+ * Categories: Auth, Billing, Organizations, Webhooks
  */
 const evaluations = [
+  // Auth vertical - core authentication flows
   {
     framework: 'Next.js',
-    category: 'Authentication',
-    path: 'evals/authentication-protect',
+    category: 'Auth',
+    path: 'evals/auth/protect',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Auth',
+    path: 'evals/auth/routes',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Auth',
+    path: 'evals/auth/users',
+  },
+  // Billing vertical - Clerk Commerce / Payments
+  {
+    framework: 'Next.js',
+    category: 'Billing',
+    path: 'evals/billing/checkout-new',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Billing',
+    path: 'evals/billing/checkout-existing',
+  },
+  // Organizations vertical - B2B / Multi-tenancy
+  {
+    framework: 'Next.js',
+    category: 'Organizations',
+    path: 'evals/organizations/url-sync',
+  },
+  // Webhooks - auth related events
+  {
+    framework: 'Next.js',
+    category: 'Webhooks',
+    path: 'evals/webhooks/auth/receive',
   },
   {
     framework: 'Next.js',
     category: 'Webhooks',
-    path: 'evals/webhooks/users/receive',
+    path: 'evals/webhooks/auth/sync',
+  },
+  // Webhooks - billing related events
+  {
+    framework: 'Next.js',
+    category: 'Webhooks',
+    path: 'evals/webhooks/billing/events',
   },
   {
     framework: 'Next.js',
     category: 'Webhooks',
-    path: 'evals/webhooks/organization',
+    path: 'evals/webhooks/billing/subscriptions',
   },
+  // Webhooks - organizations related events
   {
     framework: 'Next.js',
     category: 'Webhooks',
-    path: 'evals/webhooks/billing',
+    path: 'evals/webhooks/organizations/membership',
   },
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/users/sync',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/subscriptions',
-  },
+  // Webhooks - notifications
   {
     framework: 'Next.js',
     category: 'Webhooks',
     path: 'evals/webhooks/notifications',
-  },
-  {
-    framework: 'Next.js',
-    category: 'API Routes',
-    path: 'evals/apiroutes',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Checkout Flow',
-    path: 'evals/checkout-flow/existing-payment-method',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Checkout Flow',
-    path: 'evals/checkout-flow/new-payment-method',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Users',
-    path: 'evals/users-current-user',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Organizations',
-    path: 'evals/organizations',
   },
 ] satisfies Evaluation[]
 
