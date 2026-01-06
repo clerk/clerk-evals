@@ -10,6 +10,8 @@
     "start": "bun src/index.ts",
     "start:eval": "bun src/index.ts --eval",
     "start:mcp": "bun src/mcp/index.ts",
+    "start:mcp:prod": "bun src/mcp/index.ts --prod",
+    "start:mcp:staging": "bun src/mcp/index.ts --staging",
     "runner:main": "bun src/runners/main.ts",
     "runner:mcp": "bun src/runners/mcp.ts",
     "lint": "biome check .",

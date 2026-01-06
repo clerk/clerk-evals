@@ -9,9 +9,16 @@ const DEFAULT_PORT = 8787
 const LOCAL_URL = `http://localhost:${DEFAULT_PORT}/mcp`
 const HEALTH_URL = `http://localhost:${DEFAULT_PORT}/`
 
-// Allow remote MCP server via env var (e.g., https://mcp.clerk.dev/mcp)
-const MCP_SERVER_URL = process.env.MCP_SERVER_URL || LOCAL_URL
-const IS_REMOTE = MCP_SERVER_URL !== LOCAL_URL
+/**
+ * Known MCP server environments
+ */
+export const MCP_ENVIRONMENTS = {
+  local: LOCAL_URL,
+  prod: 'https://mcp.clerk.dev/mcp',
+  staging: 'https://mcp.clerkstage.dev/mcp',
+} as const
+
+export type MCPEnvironment = keyof typeof MCP_ENVIRONMENTS
 
 export type MCPServerManager = {
   start(): Promise<string>
@@ -45,9 +52,24 @@ async function isServerRunning(): Promise<boolean> {
   }
 }
 
-export function createMCPServerManager(): MCPServerManager {
+export type MCPServerManagerOptions = {
+  /** URL to use. Defaults to MCP_SERVER_URL env var or local */
+  url?: string
+  /** Environment shorthand: 'local' | 'prod' | 'staging' */
+  env?: MCPEnvironment
+}
+
+export function createMCPServerManager(options: MCPServerManagerOptions = {}): MCPServerManager {
   let serverProcess: Subprocess | null = null
-  const serverUrl = MCP_SERVER_URL
+
+  // Priority: explicit url > env shorthand > MCP_SERVER_URL env var > local
+  const serverUrl =
+    options.url ||
+    (options.env ? MCP_ENVIRONMENTS[options.env] : null) ||
+    process.env.MCP_SERVER_URL ||
+    LOCAL_URL
+
+  const isRemote = serverUrl !== LOCAL_URL
   let running = false
 
   return {
@@ -57,7 +79,7 @@ export function createMCPServerManager(): MCPServerManager {
       }
 
       // For remote servers, just mark as running (no local process to manage)
-      if (IS_REMOTE) {
+      if (isRemote) {
         console.log(`Using remote MCP server at ${serverUrl}`)
         running = true
         return serverUrl
@@ -100,7 +122,7 @@ export function createMCPServerManager(): MCPServerManager {
 
     async stop(): Promise<void> {
       // For remote servers, nothing to stop
-      if (IS_REMOTE) {
+      if (isRemote) {
         console.log('Remote MCP server - nothing to stop')
         running = false
         return
