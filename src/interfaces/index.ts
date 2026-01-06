@@ -1,10 +1,23 @@
 import type { Provider } from '@/src/providers'
 import type { Result } from '@/src/utils/result'
 
+export type ToolCallInfo = {
+  toolName: string
+  args: unknown
+}
+
+export type ToolResultInfo = {
+  toolName: string
+  result: unknown
+}
+
 export type RunnerDebugPayload = {
   prompt: string
   response: string
   graders: [string, boolean][]
+  toolCalls?: ToolCallInfo[]
+  toolResults?: ToolResultInfo[]
+  transcript?: string
 }
 
 /**
@@ -24,6 +37,14 @@ export type RunnerArgs = {
   model: string
   evalPath: string
   debug?: boolean
+}
+
+/**
+ * Extended runner args for MCP evaluations
+ */
+export type MCPRunnerArgs = RunnerArgs & {
+  mcpServerUrl: string
+  maxToolRounds?: number
 }
 
 /**
