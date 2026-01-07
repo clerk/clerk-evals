@@ -229,11 +229,11 @@ async function main() {
 
     // Report results
     const dbScores = getResults(runId)
-    fileReporter(dbScores)
+    fileReporter(dbScores, 'scores-mcp.json')
     if (debugEnabled) {
       consoleReporter(dbScores)
     } else {
-      console.log('Scores written to: scores.json')
+      console.log('Scores written to: scores-mcp.json')
     }
   } finally {
     await mcpManager.stop()

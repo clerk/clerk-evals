@@ -89,6 +89,44 @@ Options:
 --debug                    # Save transcripts to debug-runs/
 ```
 
+### Output Files
+
+| Runner | Output | Description |
+|--------|--------|-------------|
+| `bun start` | `scores.json` | Baseline scores (no tools) |
+| `bun start:mcp:*` | `scores-mcp.json` | MCP scores (with tools) |
+| `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
+
+### Workflow for llm-leaderboard
+
+To generate the enhanced format used by `clerk/clerk` llm-leaderboard:
+
+```bash
+# 1. Run baseline evaluations
+bun start
+
+# 2. Run MCP evaluations (prod recommended)
+bun start:mcp:prod
+
+# 3. Merge into llm-scores.json
+bun merge-scores
+```
+
+The merge script combines both score files and calculates improvement metrics:
+
+```json
+{
+  "model": "claude-sonnet-4-5",
+  "label": "Claude Sonnet 4.5",
+  "framework": "Next.js",
+  "category": "Auth",
+  "value": 0.83,
+  "provider": "anthropic",
+  "mcpScore": 0.95,
+  "improvement": 0.12
+}
+```
+
 ## Overview
 
 This project is broken up into a few core pieces:
