@@ -10,7 +10,7 @@ import { ERR, OK } from '@/src/utils/result'
 
 /**
  * System prompt for MCP evaluations.
- * Enhanced to mention available tools.
+ * Identical to baseline runner - tools are discovered dynamically via MCP.
  */
 const systemPrompt = `
 YOU MUST output all files as fenced code blocks, like so
@@ -18,26 +18,6 @@ YOU MUST output all files as fenced code blocks, like so
 \`\`\`lang file="path/to/file.ts"
 
 \`\`\`
-
-You have access to Clerk MCP tools that provide SDK snippets and documentation.
-IMPORTANT: Use these tools BEFORE writing code to get the latest Clerk patterns and APIs.
-
-Available tools:
-1. **clerk_sdk_snippet** - Get SDK code snippets. Use with a slug:
-   - "b2b-saas" (recommended): Complete B2B SaaS setup with orgs, billing, auth
-   - "organizations": Organization management patterns
-   - "auth-basics": Core authentication hooks (useUser, useAuth, useSession)
-   - "server-side": Server-side auth patterns for Next.js
-   - "billing-integration": Stripe billing with Clerk organizations
-   - Individual snippets: "use-user", "use-auth", "use-organization", etc.
-
-2. **list_clerk_sdk_snippets** - List all available snippets and bundles
-   - Use with tag filter: "auth", "organizations", "b2b", "billing", "webhooks"
-
-WORKFLOW:
-1. First, call clerk_sdk_snippet with the most relevant bundle for the task
-2. Read the patterns and code examples provided
-3. Apply those patterns to generate the requested code
 `
 
 /**

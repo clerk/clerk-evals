@@ -7,7 +7,7 @@ import type { Evaluation, MCPRunnerArgs, RunnerResult, Score } from '@/src/inter
 import type { ModelInfo, Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
-import { createMCPServerManager, type MCPEnvironment } from './server-manager'
+import { createMCPServerManager } from './server-manager'
 
 // Create pool for MCP runner
 const mcpPool = new Tinypool({
@@ -94,17 +94,6 @@ const debugEnabled = parseBooleanFlag('debug', '-d')
 const modelFilter = parseStringArg('model')
 const evalFilter = parseStringArg('eval')
 
-// MCP environment flags
-const useProd = parseBooleanFlag('prod') || parseBooleanFlag('production')
-const useStaging = parseBooleanFlag('staging')
-
-// Determine MCP environment
-const getMCPEnv = (): MCPEnvironment => {
-  if (useProd) return 'prod'
-  if (useStaging) return 'staging'
-  return 'local'
-}
-
 const filteredModels = modelFilter
   ? models.filter((m) => m.label.toLowerCase().includes(modelFilter.toLowerCase()))
   : models
@@ -127,9 +116,8 @@ async function main() {
     process.exit(1)
   }
 
-  const mcpEnv = getMCPEnv()
-  const mcpManager = createMCPServerManager({ env: mcpEnv })
-  const runId = `mcp-${mcpEnv}-${new Date().toISOString().replace(/[:.]/g, '-')}`
+  const mcpManager = createMCPServerManager()
+  const runId = `mcp-${new Date().toISOString().replace(/[:.]/g, '-')}`
 
   let debugRunDirectory: string | undefined
   if (debugEnabled) {
