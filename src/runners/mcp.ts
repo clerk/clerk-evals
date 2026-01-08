@@ -8,7 +8,8 @@
 import { experimental_createMCPClient } from '@ai-sdk/mcp'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { generateText, stepCountIs } from 'ai'
-import type { MCPRunnerArgs, RunnerResult, ToolCallInfo, ToolResultInfo } from '@/src/interfaces'
+import type { MCPRunnerArgs, RunnerResult } from '@/src/interfaces'
+import { buildMCPDebugPayload } from '@/src/utils/debug'
 import { ERR, OK } from '@/src/utils/result'
 import {
   computeScore,
@@ -18,45 +19,6 @@ import {
   runGraders,
   SYSTEM_PROMPT,
 } from './shared'
-
-/**
- * MCP tool call structure from AI SDK 0.0.12.
- * Note: AI SDK types say `args` but MCP transport returns `input`.
- */
-interface MCPToolCall {
-  type: 'tool-call'
-  toolCallId: string
-  toolName: string
-  input?: Record<string, unknown>
-  args?: Record<string, unknown>
-}
-
-/**
- * MCP tool result structure from AI SDK 0.0.12.
- * Note: AI SDK types say `result` but MCP transport returns `output`.
- */
-interface MCPToolResult {
-  type: 'tool-result'
-  toolCallId: string
-  toolName: string
-  output?: { content?: Array<{ type: string; text?: string }> }
-  result?: unknown
-}
-
-/**
- * Extracts text content from MCP tool result.
- * Handles both `output.content[0].text` (MCP format) and `result` (AI SDK typed).
- */
-function extractToolResultText(tr: MCPToolResult): string | undefined {
-  return tr.output?.content?.[0]?.text ?? (typeof tr.result === 'string' ? tr.result : undefined)
-}
-
-/**
- * Gets input from tool call (handles MCP's `input` vs AI SDK's `args`).
- */
-function getToolCallInput(tc: MCPToolCall): Record<string, unknown> | undefined {
-  return tc.input ?? tc.args
-}
 
 /**
  * MCP Runner - executes evaluations with MCP tool support
@@ -77,23 +39,13 @@ export default async function exec({
   let mcpClient: Awaited<ReturnType<typeof experimental_createMCPClient>> | null = null
 
   try {
-    // Connect to MCP server using StreamableHTTPClientTransport (0.0.12 API)
-    console.log(`[MCP] Connecting to ${mcpServerUrl}...`)
+    // Connect to MCP server
     const transport = new StreamableHTTPClientTransport(new URL(mcpServerUrl))
     mcpClient = await experimental_createMCPClient({ transport })
-    console.log(`[MCP] Connected successfully`)
-
-    // Get MCP tools
-    console.log(`[MCP] Fetching available tools...`)
     const mcpTools = await mcpClient.tools()
-    const toolNames = Object.keys(mcpTools)
-    console.log(`[MCP] Got ${toolNames.length} tools: ${toolNames.join(', ')}`)
 
-    // Load the prompt
+    // Load prompt and generate with tool support
     const prompt = await loadPrompt(evalPath)
-
-    // Generate with tool support and agentic loop
-    console.log(`[MCP] Starting generation with model ${model}...`)
     const response = await generateText({
       model: languageModel,
       prompt,
@@ -101,182 +53,29 @@ export default async function exec({
       tools: mcpTools,
       stopWhen: stepCountIs(maxToolRounds),
       maxTokens: 16384,
-      onStepFinish: (step) => {
-        const stepToolCalls = (step.toolCalls || []) as MCPToolCall[]
-        const stepToolResults = (step.toolResults || []) as MCPToolResult[]
-
-        if (stepToolCalls.length > 0) {
-          console.log(`\n[MCP] === TOOL CALLS ===`)
-          for (const tc of stepToolCalls) {
-            const input = getToolCallInput(tc)
-            console.log(`[MCP] Tool: ${tc.toolName}`)
-            console.log(`[MCP] Input: ${input ? JSON.stringify(input, null, 2) : '(no input)'}`)
-          }
-        }
-
-        if (stepToolResults.length > 0) {
-          console.log(`\n[MCP] === TOOL RESULTS ===`)
-          for (const tr of stepToolResults) {
-            const text = extractToolResultText(tr)
-            console.log(`[MCP] Tool: ${tr.toolName}`)
-            console.log(
-              `[MCP] Result: ${text ? (text.length > 300 ? `${text.slice(0, 300)}...` : text) : '(no result)'}`,
-            )
-          }
-        }
-
-        if (step.text && step.text.length > 0) {
-          console.log(`\n[MCP] === ASSISTANT TEXT ===`)
-          console.log(
-            `[MCP] ${step.text.length > 300 ? `${step.text.slice(0, 300)}...` : step.text}`,
-          )
-        }
-
-        console.log(`[MCP] Step finished: ${step.finishReason}`)
-      },
     })
 
-    // Summary logging
-    console.log(`\n[MCP] === GENERATION COMPLETE ===`)
-    console.log(`[MCP] Total steps: ${response.steps?.length || 0}`)
-    console.log(`[MCP] Final text length: ${response.text?.length || 0}`)
-    console.log(`[MCP] Finish reason: ${response.finishReason}`)
+    // Collect text from all steps
+    const fullResponse =
+      response.steps
+        ?.map((s) => s.text)
+        .filter(Boolean)
+        .join('\n\n') || response.text
 
-    // Extract tool usage info and combine all text from steps
-    const toolCalls: ToolCallInfo[] = []
-    const toolResults: ToolResultInfo[] = []
-    const allTextParts: string[] = []
-
-    // Build markdown chat transcript for debugging
-    const chatTranscript: string[] = []
-    chatTranscript.push('# MCP Evaluation Transcript\n')
-    chatTranscript.push('## System Prompt\n')
-    chatTranscript.push('```')
-    chatTranscript.push(SYSTEM_PROMPT.trim())
-    chatTranscript.push('```\n')
-    chatTranscript.push('## User Prompt\n')
-    chatTranscript.push('```markdown')
-    chatTranscript.push(prompt.trim())
-    chatTranscript.push('```\n')
-    chatTranscript.push('---\n')
-    chatTranscript.push('## Conversation\n')
-
-    if (response.steps) {
-      for (let stepIdx = 0; stepIdx < response.steps.length; stepIdx++) {
-        const step = response.steps[stepIdx]
-        chatTranscript.push(`### Step ${stepIdx + 1} (${step.finishReason})\n`)
-
-        // Assistant text
-        if (step.text) {
-          allTextParts.push(step.text)
-          chatTranscript.push('**Assistant:**\n')
-          const displayText =
-            step.text.length > 500
-              ? `${step.text.slice(0, 500)}...\n\n_(truncated, ${step.text.length} chars total)_`
-              : step.text
-          chatTranscript.push(displayText)
-          chatTranscript.push('\n')
-        }
-
-        // Tool calls
-        if (step.toolCalls && step.toolCalls.length > 0) {
-          const typedToolCalls = step.toolCalls as MCPToolCall[]
-          chatTranscript.push('**Tool Calls:**\n')
-          for (const tc of typedToolCalls) {
-            const input = getToolCallInput(tc)
-            toolCalls.push({
-              toolName: tc.toolName,
-              args: input || {},
-            })
-            chatTranscript.push(`\`${tc.toolName}\``)
-            chatTranscript.push('```json')
-            chatTranscript.push(JSON.stringify(input || {}, null, 2))
-            chatTranscript.push('```\n')
-          }
-        }
-
-        // Tool results
-        if (step.toolResults && step.toolResults.length > 0) {
-          const typedToolResults = step.toolResults as MCPToolResult[]
-          chatTranscript.push('**Tool Results:**\n')
-          for (const tr of typedToolResults) {
-            const textContent = extractToolResultText(tr)
-
-            toolResults.push({
-              toolName: tr.toolName,
-              result: textContent || '(no result)',
-            })
-
-            chatTranscript.push(`\`${tr.toolName}\` returned:`)
-            if (textContent) {
-              const displayResult =
-                textContent.length > 1000
-                  ? `${textContent.slice(0, 1000)}...\n\n_(truncated, ${textContent.length} chars total)_`
-                  : textContent
-              chatTranscript.push('```')
-              chatTranscript.push(displayResult)
-              chatTranscript.push('```\n')
-            } else {
-              chatTranscript.push('```')
-              chatTranscript.push('(no result)')
-              chatTranscript.push('```\n')
-            }
-          }
-        }
-
-        chatTranscript.push('---\n')
-      }
-    }
-
-    // Use combined text from all steps, or fall back to response.text
-    const fullResponse = allTextParts.length > 0 ? allTextParts.join('\n\n') : response.text
-
-    // Load and run graders
+    // Run graders
     const graders = await loadGraders(evalPath)
     const graderResults = await runGraders(graders, fullResponse)
     const score = computeScore(graderResults)
 
-    // Log grader results
-    console.log(`\n[MCP] === GRADER RESULTS ===`)
-    console.log(
-      `[MCP] Score: ${(score * 100).toFixed(1)}% (${graderResults.filter(([_, p]) => p).length}/${graderResults.length})`,
-    )
-    for (const [name, passed] of graderResults) {
-      console.log(`[MCP] ${passed ? 'PASS' : 'FAIL'}: ${name}`)
-    }
-
-    // Add grader results to transcript
-    chatTranscript.push('## Grader Results\n')
-    chatTranscript.push(
-      `**Score: ${(score * 100).toFixed(1)}%** (${graderResults.filter(([_, p]) => p).length}/${graderResults.length})\n`,
-    )
-    chatTranscript.push('| Grader | Result |')
-    chatTranscript.push('|--------|--------|')
-    for (const [name, passed] of graderResults) {
-      chatTranscript.push(`| ${name} | ${passed ? 'PASS' : 'FAIL'} |`)
-    }
-    chatTranscript.push('')
-
     return OK({
       score,
       debug: debug
-        ? {
-            prompt,
-            response: fullResponse,
-            graders: graderResults,
-            toolCalls,
-            toolResults,
-            transcript: chatTranscript.join('\n'),
-          }
+        ? buildMCPDebugPayload(response, prompt, fullResponse, graderResults)
         : undefined,
     })
   } catch (error) {
-    console.error(`[MCP] Error:`, error)
     return ERR(error)
   } finally {
-    // Always close MCP client
-    if (mcpClient) {
-      await mcpClient.close()
-    }
+    await mcpClient?.close()
   }
 }
