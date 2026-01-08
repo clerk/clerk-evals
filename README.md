@@ -34,70 +34,97 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 ```json
 [
   {
-    "model": "gpt-5-chat-latest",
-    "framework": "Next.js",
-    "category": "Fundamentals",
-    "value": 0.6666666666666666,
-    "updatedAt": "2025-10-15T17:51:27.901Z"
-  },
-  {
-    "model": "gpt-4o",
-    "framework": "Next.js",
-    "category": "Fundamentals",
-    "value": 0.3333333333333333,
-    "updatedAt": "2025-10-15T17:51:30.871Z"
-  },
-  {
-    "model": "claude-sonnet-4-0",
-    "framework": "Next.js",
-    "category": "Fundamentals",
-    "value": 0.5,
-    "updatedAt": "2025-10-15T17:51:56.370Z"
-  },
-  {
     "model": "claude-sonnet-4-5",
     "framework": "Next.js",
-    "category": "Fundamentals",
+    "category": "Auth",
     "value": 0.8333333333333334,
-    "updatedAt": "2025-10-15T17:52:03.349Z"
+    "updatedAt": "2026-01-06T17:51:27.901Z"
   },
   {
-    "model": "v0-1.5-md",
+    "model": "gpt-5-chat-latest",
     "framework": "Next.js",
-    "category": "Fundamentals",
-    "value": 1,
-    "updatedAt": "2025-10-15T17:52:06.700Z"
+    "category": "Auth",
+    "value": 0.6666666666666666,
+    "updatedAt": "2026-01-06T17:51:30.871Z"
   },
   {
-    "model": "claude-opus-4-0",
+    "model": "claude-opus-4-5",
     "framework": "Next.js",
-    "category": "Fundamentals",
-    "value": 0.5,
-    "updatedAt": "2025-10-15T17:52:06.898Z"
-  },
-  {
-    "model": "gpt-5",
-    "framework": "Next.js",
-    "category": "Fundamentals",
-    "value": 0.5,
-    "updatedAt": "2025-10-15T17:52:07.038Z"
+    "category": "Billing",
+    "value": 1.0,
+    "updatedAt": "2026-01-06T17:51:56.370Z"
   }
 ]
 ```
 
 </details>
 
-**Debuging**
+**Debugging**
 
 ```bash
 # Run a single evaluation
-bun run start:eval evals/apiroutes
+bun run start:eval evals/auth/routes
 
 # Run in debug mode
 bun run start --debug
 
 # Run a single evaluation in debug mode
-bun run start:eval evals/apiroutes --debug
+bun run start:eval evals/auth/routes --debug
+```
+
+## CLI Usage
+
+```bash
+bun start [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--mcp` | Enable MCP tools (uses mcp.clerk.dev by default) |
+| `--model "Sonnet"` | Filter models by label |
+| `--eval "protect"` | Filter evals by category or path |
+| `--debug` | Save outputs to debug-runs/ |
+
+```bash
+# Baseline (no tools)
+bun start --model "Sonnet" --eval "protect"
+
+# With MCP tools
+bun start --mcp --model "Sonnet" --eval "protect"
+
+# Local MCP server
+MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
+```
+
+### Output Files
+
+| Runner | Output | Description |
+|--------|--------|-------------|
+| `bun start` | `scores.json` | Baseline scores (no tools) |
+| `bun start:mcp` | `scores-mcp.json` | MCP scores (with tools) |
+| `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
+
+### Workflow for llm-leaderboard
+
+```bash
+bun start              # 1. Baseline -> scores.json
+bun start --mcp        # 2. MCP -> scores-mcp.json
+bun merge-scores       # 3. Merge -> llm-scores.json
+```
+
+The merge script combines both score files and calculates improvement metrics:
+
+```json
+{
+  "model": "claude-sonnet-4-5",
+  "label": "Claude Sonnet 4.5",
+  "framework": "Next.js",
+  "category": "Auth",
+  "value": 0.83,
+  "provider": "anthropic",
+  "mcpScore": 0.95,
+  "improvement": 0.12
+}
 ```
 
 ## Overview
@@ -117,7 +144,7 @@ A **runner** takes a simple object as an argument:
 {
   "provider": "openai",
   "model": "gpt-5",
-  "evalPath": "/absolute/path/to/clerk-evals/src/evals/basic-nextjs
+  "evalPath": "/absolute/path/to/clerk-evals/src/evals/auth/protect"
 }
 ```
 

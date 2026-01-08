@@ -1,25 +1,17 @@
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
 import { generateText } from 'ai'
-import type { Graders } from '@/src/graders'
 import type { RunnerArgs, RunnerResult } from '@/src/interfaces'
-import { getModel } from '@/src/providers'
 import { ERR, OK } from '@/src/utils/result'
+import {
+  computeScore,
+  loadGraders,
+  loadPrompt,
+  resolveModel,
+  runGraders,
+  SYSTEM_PROMPT,
+} from './shared'
 
 /**
- * Instruct the model to output all files as fenced code blocks,
- * for simplicity, and ease of one-shot evaluation.
- */
-const systemPrompt = `
-YOU MUST output all files as fenced code blocks, like so
-
-\`\`\`lang file="path/to/file.ts"
-
-\`\`\`\
-`
-
-/**
- * Our main runner implementation
+ * Baseline runner - executes evaluations without MCP tools.
  */
 export default async function exec({
   provider,
@@ -27,38 +19,23 @@ export default async function exec({
   evalPath,
   debug = false,
 }: RunnerArgs): Promise<RunnerResult> {
-  // Determine the language model
-  const languageModel = getModel(provider, model)
+  const languageModel = resolveModel(provider, model)
   if (!languageModel) {
     return ERR(new Error(`Unsupported: ${provider}/${model}`))
   }
 
   try {
-    // Load the prompt
-    const prompt = await fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+    const prompt = await loadPrompt(evalPath)
 
-    // Generate the answer
     const response = await generateText({
       model: languageModel,
       prompt,
-      system: systemPrompt,
+      system: SYSTEM_PROMPT,
     })
 
-    // Load the graders
-    const graderModule = (await import(path.join(evalPath, 'graders.ts'))) as {
-      graders: Graders
-    }
-
-    // Preserve the result of each grader
-    const graderResults = [] as [string, boolean][]
-    for (const [key, grader] of Object.entries(graderModule.graders)) {
-      const passed = await grader(response.text)
-      graderResults.push([key, passed])
-    }
-
-    // Fold the result into a percentage score
-    const score =
-      graderResults.filter(([_, isCorrect]) => isCorrect).length / (graderResults.length || 1)
+    const graders = await loadGraders(evalPath)
+    const graderResults = await runGraders(graders, response.text)
+    const score = computeScore(graderResults)
 
     return OK({
       score,
