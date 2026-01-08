@@ -72,20 +72,28 @@ bun run start --debug
 bun run start:eval evals/auth/routes --debug
 ```
 
-## MCP Runner
-
-Run evaluations with Clerk's MCP server, allowing LLMs to use SDK snippets and documentation tools during code generation.
+## CLI Usage
 
 ```bash
-bun start:mcp                                            # Local (localhost:8787)
-MCP_SERVER_URL=https://mcp.clerk.dev/mcp bun start:mcp   # Clerk's public MCP server
+bun start [options]
 ```
 
-Options:
+| Flag | Description |
+|------|-------------|
+| `--mcp` | Enable MCP tools (uses mcp.clerk.dev by default) |
+| `--model "Sonnet"` | Filter models by label |
+| `--eval "protect"` | Filter evals by category or path |
+| `--debug` | Save outputs to debug-runs/ |
+
 ```bash
---model="Sonnet 4.5"       # Filter by model name
---eval=webhooks            # Filter by category or path
---debug                    # Save transcripts to debug-runs/
+# Baseline (no tools)
+bun start --model "Sonnet" --eval "protect"
+
+# With MCP tools
+bun start --mcp --model "Sonnet" --eval "protect"
+
+# Local MCP server
+MCP_SERVER_URL=http://localhost:8787/mcp bun start --mcp
 ```
 
 ### Output Files
@@ -98,17 +106,10 @@ Options:
 
 ### Workflow for llm-leaderboard
 
-To generate the enhanced format used by `clerk/clerk` llm-leaderboard:
-
 ```bash
-# 1. Run baseline evaluations
-bun start
-
-# 2. Run MCP evaluations (against Clerk's public MCP server)
-MCP_SERVER_URL=https://mcp.clerk.dev/mcp bun start:mcp
-
-# 3. Merge into llm-scores.json
-bun merge-scores
+bun start              # 1. Baseline -> scores.json
+bun start --mcp        # 2. MCP -> scores-mcp.json
+bun merge-scores       # 3. Merge -> llm-scores.json
 ```
 
 The merge script combines both score files and calculates improvement metrics:

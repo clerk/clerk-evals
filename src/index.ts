@@ -2,142 +2,22 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import Tinypool from 'tinypool'
-
+import { EVALUATIONS, getAllModels } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type {
-  Evaluation,
+  MCPRunnerArgs,
   RunnerArgs,
   RunnerDebugPayload,
   RunnerResult,
   Score,
 } from '@/src/interfaces'
-import type { ModelInfo, Provider } from '@/src/providers'
+import type { Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 
-// Create a pool of workers to execute the main runner
-const pool = new Tinypool({
-  runtime: 'child_process',
-  filename: new URL('./runners/main.ts', import.meta.url).href,
-  isolateWorkers: true,
-  idleTimeout: 10000,
-  maxThreads: 10,
-})
+const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp'
 
-initDB()
-const runId = new Date().toISOString().replace(/[:.]/g, '-')
-
-/**
- * Registered models
- * To be manually updated
- */
-const models: ModelInfo[] = [
-  { provider: 'openai', name: 'gpt-4o', label: 'GPT-4o' },
-  { provider: 'openai', name: 'gpt-5', label: 'GPT-5' },
-  { provider: 'openai', name: 'gpt-5-chat-latest', label: 'GPT-5 Chat' },
-  { provider: 'anthropic', name: 'claude-sonnet-4-0', label: 'Claude Sonnet 4' },
-  { provider: 'anthropic', name: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
-  { provider: 'anthropic', name: 'claude-opus-4-0', label: 'Claude Opus 4' },
-  { provider: 'anthropic', name: 'claude-opus-4-5', label: 'Claude Opus 4.5' },
-  { provider: 'anthropic', name: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
-  { provider: 'vercel', name: 'v0-1.5-md', label: 'v0-1.5-md' },
-  { provider: 'google', name: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  { provider: 'google', name: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
-]
-
-/**
- * Registered evaluations organized by product verticals
- * Categories: Auth, Billing, Organizations, Webhooks
- */
-const evaluations = [
-  // Auth vertical - core authentication flows
-  {
-    framework: 'Next.js',
-    category: 'Auth',
-    path: 'evals/auth/protect',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Auth',
-    path: 'evals/auth/routes',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Auth',
-    path: 'evals/auth/users',
-  },
-  // Billing vertical - Clerk Commerce / Payments
-  {
-    framework: 'Next.js',
-    category: 'Billing',
-    path: 'evals/billing/checkout-new',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Billing',
-    path: 'evals/billing/checkout-existing',
-  },
-  // Organizations vertical - B2B / Multi-tenancy
-  {
-    framework: 'Next.js',
-    category: 'Organizations',
-    path: 'evals/organizations/url-sync',
-  },
-  // Webhooks - auth related events
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/auth/receive',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/auth/sync',
-  },
-  // Webhooks - billing related events
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/billing/events',
-  },
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/billing/subscriptions',
-  },
-  // Webhooks - organizations related events
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/organizations/membership',
-  },
-  // Webhooks - notifications
-  {
-    framework: 'Next.js',
-    category: 'Webhooks',
-    path: 'evals/webhooks/notifications',
-  },
-] satisfies Evaluation[]
-
-type DebugArtifact = {
-  provider: string
-  model: string
-  framework: string
-  category: string
-  evaluationPath: string
-  score: number
-  prompt: string
-  response: string
-  graders: RunnerDebugPayload['graders']
-}
-
-type DebugError = {
-  provider: string
-  model: string
-  evaluationPath: string
-  error: unknown
-}
-
+// CLI argument parsing
 const args = process.argv.slice(2)
 
 const parseBooleanFlag = (name: string, alias?: string) => {
@@ -149,157 +29,171 @@ const parseBooleanFlag = (name: string, alias?: string) => {
   }
 
   const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-
-  if (index === -1) {
-    return false
-  }
+  if (index === -1) return false
 
   const value = args[index + 1]
   if (value && !value.startsWith('-')) {
     return !['false', '0', 'no'].includes(value.toLowerCase())
   }
-
   return true
 }
 
-const getEvalArg = () => {
-  const equalsArg = args.find((arg) => arg.startsWith('--eval='))
-  if (equalsArg) {
-    return equalsArg.split('=', 2)[1]
-  }
+const parseStringArg = (name: string, alias?: string): string | undefined => {
+  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
+  if (equalsArg) return equalsArg.split('=', 2)[1]
 
-  const index = args.findIndex((arg) => arg === '--eval' || arg === '-e')
-  if (index === -1) {
-    return undefined
+  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
+  if (index !== -1 && args[index + 1] && !args[index + 1].startsWith('-')) {
+    return args[index + 1]
   }
-
-  const value = args[index + 1]
-  if (!value || value.startsWith('-')) {
-    console.error('Missing value for --eval')
-    process.exit(1)
-  }
-
-  return value
+  return undefined
 }
 
 const normalizeEvalPath = (value: string) => {
-  if (value.startsWith('./')) {
-    return normalizeEvalPath(value.slice(2))
-  }
-  if (value.startsWith('evals/')) {
-    return value
-  }
+  if (value.startsWith('./')) return normalizeEvalPath(value.slice(2))
+  if (value.startsWith('evals/')) return value
   return `evals/${value}`
 }
 
-const evalArg = getEvalArg()
-
+// Parse flags
+const mcpEnabled = parseBooleanFlag('mcp')
 const debugEnabled = parseBooleanFlag('debug', '-d')
+const modelFilter = parseStringArg('model', '-m')
+const evalFilter = parseStringArg('eval', '-e')
 
-const selectedEvaluations = (() => {
-  if (!evalArg) {
-    return evaluations
-  }
+// Setup
+initDB()
+const models = getAllModels()
+const evaluations = EVALUATIONS
 
-  const normalized = normalizeEvalPath(evalArg)
-  const target = evaluations.find(
-    (evaluation) =>
-      evaluation.path === normalized ||
-      evaluation.path.endsWith(`/${normalized}`) ||
-      evaluation.path.endsWith(`/${evalArg}`),
+// Filter models
+const filteredModels = modelFilter
+  ? models.filter((m) => m.label.toLowerCase().includes(modelFilter.toLowerCase()))
+  : models
+
+// Filter evaluations
+const filteredEvaluations = (() => {
+  if (!evalFilter) return evaluations
+
+  const normalized = normalizeEvalPath(evalFilter)
+  const matches = evaluations.filter(
+    (e) =>
+      e.path === normalized ||
+      e.path.endsWith(`/${normalized}`) ||
+      e.path.endsWith(`/${evalFilter}`) ||
+      e.category.toLowerCase().includes(evalFilter.toLowerCase()) ||
+      e.path.toLowerCase().includes(evalFilter.toLowerCase()),
   )
 
-  if (!target) {
+  if (matches.length === 0) {
     console.error(
-      `No evaluation matching "${evalArg}". Available evaluations: ${evaluations
-        .map((evaluation) => evaluation.path)
-        .join(', ')}`,
+      `No evaluation matching "${evalFilter}". Available: ${evaluations.map((e) => e.path).join(', ')}`,
     )
     process.exit(1)
   }
 
-  console.log(`Running single evaluation "${target.path}" for all registered models`)
-
-  return [target]
+  return matches
 })()
 
+if (filteredModels.length === 0) {
+  console.error(`No models match filter: "${modelFilter}"`)
+  process.exit(1)
+}
+
+// Create pool with appropriate runner
+const runnerPath = mcpEnabled ? './runners/mcp.ts' : './runners/main.ts'
+const pool = new Tinypool({
+  runtime: 'child_process',
+  filename: new URL(runnerPath, import.meta.url).href,
+  isolateWorkers: true,
+  idleTimeout: mcpEnabled ? 30000 : 10000,
+  maxThreads: mcpEnabled ? 8 : 10,
+})
+
+const mcpUrl = process.env.MCP_SERVER_URL || DEFAULT_MCP_URL
+const runId = `${mcpEnabled ? 'mcp-' : ''}${new Date().toISOString().replace(/[:.]/g, '-')}`
+
+type DebugArtifact = {
+  provider: string
+  model: string
+  framework: string
+  category: string
+  evaluationPath: string
+  score: number
+  prompt: string
+  response: string
+  graders: RunnerDebugPayload['graders']
+  transcript?: string
+}
+
 const debugArtifacts: DebugArtifact[] = []
-const debugErrors: DebugError[] = []
 
 let debugRunDirectory: string | undefined
-let debugRunTimestamp: string | undefined
-
 if (debugEnabled) {
-  debugRunTimestamp = new Date().toISOString().replace(/[:.]/g, '-')
-  debugRunDirectory = path.join(process.cwd(), 'debug-runs', debugRunTimestamp)
+  debugRunDirectory = path.join(process.cwd(), 'debug-runs', runId)
   await mkdir(debugRunDirectory, { recursive: true })
   console.log(`Debug mode enabled. Saving outputs to ${debugRunDirectory}`)
 }
 
-// Collect list of tasks to be run
-const tasks = models.flatMap((model) =>
-  selectedEvaluations.map((evaluation) => ({
+// Build tasks
+const tasks = filteredModels.flatMap((model) =>
+  filteredEvaluations.map((evaluation) => ({
     provider: model.provider,
     model: model.name,
     label: model.label,
     category: evaluation.category,
     framework: evaluation.framework,
-    evalPath: new URL(evaluation.path, import.meta.url).pathname,
+    evalPath: mcpEnabled
+      ? path.join(process.cwd(), 'src', evaluation.path)
+      : new URL(evaluation.path, import.meta.url).pathname,
     evaluationPath: evaluation.path,
   })),
 )
 
 // Progress output
+const mode = mcpEnabled ? `MCP (${mcpUrl})` : 'baseline'
+console.log(`\nMode: ${mode}`)
 console.log(
-  `Starting ${tasks.length} tasks across ${models.length} models and ${selectedEvaluations.length} evaluations (up to 10 workers)...`,
+  `Running ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
 )
 
 let completed = 0
 
 // Run all in parallel
 await Promise.all(
-  tasks.map(async (task, index) => {
-    console.log(`[start ${index + 1}/${tasks.length}] ${task.model} → ${task.evaluationPath}`)
-    const runnerArgs: RunnerArgs = {
+  tasks.map(async (task) => {
+    console.log(`[start] ${task.label} -> ${task.evaluationPath}`)
+
+    const baseArgs = {
       evalPath: task.evalPath,
       provider: task.provider as Provider,
       model: task.model,
       debug: debugEnabled,
     }
 
+    const runnerArgs: RunnerArgs | MCPRunnerArgs = mcpEnabled
+      ? { ...baseArgs, mcpServerUrl: mcpUrl, maxToolRounds: 10 }
+      : baseArgs
+
     try {
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        console.log({
-          message: 'Runner errored',
-          task,
-          error: result.error,
-        })
-
+        console.error(`[error] ${task.label}: ${result.error}`)
         saveError(runId, {
           model: task.model,
-          label: task.label,
+          label: mcpEnabled ? `${task.label} (MCP)` : task.label,
           framework: task.framework,
           category: task.category,
           evaluationPath: task.evaluationPath,
           error: result.error,
         })
-
-        if (debugEnabled) {
-          debugErrors.push({
-            provider: task.provider,
-            model: task.model,
-            evaluationPath: task.evaluationPath,
-            error: result.error,
-          })
-        }
         return
       }
 
       const score: Score = {
         model: task.model,
-        label: task.label,
+        label: mcpEnabled ? `${task.label} (MCP)` : task.label,
         framework: task.framework,
         category: task.category,
         value: result.value.score,
@@ -307,8 +201,8 @@ await Promise.all(
       }
       saveResult(runId, score)
 
-      if (debugEnabled && result.value.debug) {
-        debugArtifacts.push({
+      if (debugEnabled && result.value.debug && debugRunDirectory) {
+        const artifact: DebugArtifact = {
           provider: task.provider,
           model: task.model,
           framework: task.framework,
@@ -318,43 +212,56 @@ await Promise.all(
           prompt: result.value.debug.prompt,
           response: result.value.debug.response,
           graders: result.value.debug.graders,
-        })
+          transcript: result.value.debug.transcript,
+        }
+        debugArtifacts.push(artifact)
+
+        // Write debug files immediately for MCP mode
+        if (mcpEnabled) {
+          const debugPath = path.join(
+            debugRunDirectory,
+            `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.json`,
+          )
+          await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
+
+          if (result.value.debug.transcript) {
+            const transcriptPath = path.join(
+              debugRunDirectory,
+              `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.md`,
+            )
+            await writeFile(transcriptPath, result.value.debug.transcript)
+          }
+        }
       }
     } finally {
-      completed += 1
-      console.log(`[done  ${completed}/${tasks.length}] ${task.model} → ${task.evaluationPath}`)
+      completed++
+      console.log(`[done ${completed}/${tasks.length}] ${task.label} -> ${task.evaluationPath}`)
     }
   }),
 )
 
-const sanitizeForFilename = (value: string) => value.replace(/[^a-zA-Z0-9._-]/g, '_')
+// Write baseline debug artifacts (non-MCP mode)
+if (debugEnabled && debugRunDirectory && !mcpEnabled) {
+  const sanitize = (v: string) => v.replace(/[^a-zA-Z0-9._-]/g, '_')
 
-if (debugEnabled && debugRunDirectory && debugRunTimestamp) {
   for (const artifact of debugArtifacts) {
-    const evaluationSlug = artifact.evaluationPath.split('/').filter(Boolean).join('__')
-    const evaluationDir = path.join(debugRunDirectory, evaluationSlug)
-    await mkdir(evaluationDir, { recursive: true })
+    const evalSlug = artifact.evaluationPath.split('/').filter(Boolean).join('__')
+    const evalDir = path.join(debugRunDirectory, evalSlug)
+    await mkdir(evalDir, { recursive: true })
 
-    const fileSafeName = sanitizeForFilename(`${artifact.provider}__${artifact.model}`)
-
+    const fileName = sanitize(`${artifact.provider}__${artifact.model}`)
     const gradersRows =
       artifact.graders.length > 0
-        ? artifact.graders
-            .map(
-              // TODO(voz): To make things pretty we could swap true/false for ✅/❌
-              ([name, passed]) => `| ${name} | ${passed ? 'true' : 'false'} |`,
-            )
-            .join('\n')
+        ? artifact.graders.map(([name, passed]) => `| ${name} | ${passed} |`).join('\n')
         : '| (none) | - |'
 
-    const debugContent = `---
+    const content = `---
 provider: ${artifact.provider}
 model: ${artifact.model}
 framework: ${artifact.framework}
 category: ${artifact.category}
 evaluation: ${artifact.evaluationPath}
 score: ${artifact.score.toFixed(2)}
-run_at: ${debugRunTimestamp}
 ---
 
 ## Prompt
@@ -372,22 +279,19 @@ ${artifact.response.trimEnd()}
 | --- | --- |
 ${gradersRows}
 `
-
-    const filePath = path.join(evaluationDir, `${fileSafeName}.md`)
-    await writeFile(filePath, debugContent, 'utf8')
-  }
-
-  if (debugErrors.length > 0) {
-    const errorsPath = path.join(debugRunDirectory, 'errors.json')
-    await writeFile(errorsPath, JSON.stringify(debugErrors, null, 2), 'utf8')
+    await writeFile(path.join(evalDir, `${fileName}.md`), content, 'utf8')
   }
 }
 
 // Report
+const outputFile = mcpEnabled ? 'scores-mcp.json' : 'scores.json'
 const dbScores = getResults(runId)
-fileReporter(dbScores)
+fileReporter(dbScores, outputFile)
+
 if (debugEnabled) {
   consoleReporter(dbScores)
 } else {
-  console.log('Scores written to: scores.json')
+  console.log(`Scores written to: ${outputFile}`)
 }
+
+await pool.destroy()
