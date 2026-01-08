@@ -15,7 +15,7 @@ import type { Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 
-const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp'
+const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp' // Zero-config default
 
 // CLI argument parsing
 const args = process.argv.slice(2)
@@ -110,7 +110,7 @@ const pool = new Tinypool({
   maxThreads: mcpEnabled ? 8 : 10,
 })
 
-const mcpUrl = process.env.MCP_SERVER_URL || DEFAULT_MCP_URL
+const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
 const runId = `${mcpEnabled ? 'mcp-' : ''}${new Date().toISOString().replace(/[:.]/g, '-')}`
 
 type DebugArtifact = {

@@ -12,9 +12,9 @@
  */
 
 import fs from 'node:fs'
+import { MODELS } from '@/src/config'
 import type { Score } from '@/src/interfaces'
-
-type Provider = 'anthropic' | 'openai' | 'google' | 'vercel'
+import type { Provider } from '@/src/providers'
 
 type EnhancedScore = Score & {
   provider: Provider
@@ -23,22 +23,14 @@ type EnhancedScore = Score & {
   toolsUsed?: string[]
 }
 
-const MODEL_PROVIDERS: Record<string, Provider> = {
-  'gpt-4o': 'openai',
-  'gpt-5': 'openai',
-  'gpt-5-chat-latest': 'openai',
-  'claude-sonnet-4-0': 'anthropic',
-  'claude-sonnet-4-5': 'anthropic',
-  'claude-opus-4-0': 'anthropic',
-  'claude-opus-4-5': 'anthropic',
-  'claude-haiku-4-5': 'anthropic',
-  'v0-1.5-md': 'vercel',
-  'gemini-2.5-flash': 'google',
-  'gemini-3-pro-preview': 'google',
-}
-
+/** Lookup provider from model name using MODELS config */
 function getProvider(model: string): Provider {
-  return MODEL_PROVIDERS[model] || 'openai'
+  for (const [provider, models] of Object.entries(MODELS)) {
+    if (models.some((m) => m.name === model)) {
+      return provider as Provider
+    }
+  }
+  return 'openai' // fallback
 }
 
 function loadScores(filename: string): Score[] {

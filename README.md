@@ -93,7 +93,7 @@ bun start --model "Sonnet" --eval "protect"
 bun start --mcp --model "Sonnet" --eval "protect"
 
 # Local MCP server
-MCP_SERVER_URL=http://localhost:8787/mcp bun start --mcp
+MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 ```
 
 ### Output Files

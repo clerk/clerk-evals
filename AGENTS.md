@@ -27,20 +27,20 @@ See `docs/ADDING_EVALS.md` for a concrete, copy-pastable template and end-to-end
 ## Environment Setup & Secrets
 This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, then copy `.env.example` to `.env` and populate `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `V0_API_KEY`. Avoid checking secrets into version control; reference them through `process.env` only.
 
-For MCP evaluations, set `MCP_SERVER_URL` to point to any MCP-compliant server (defaults to `http://localhost:8787/mcp`).
+For MCP evaluations, the runner connects to `https://mcp.clerk.dev/mcp` by default. Override with `MCP_SERVER_URL_OVERRIDE` for local testing.
 
 ## Build, Test, and Development Commands
 `bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun run start:eval src/evals/apiroutes`, and add `--debug` to capture prompts, responses, and grader decisions. Use `bun run runner:main` for quick smoke tests of the main runner implementation. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
 
 ### MCP Evaluations
-Run evaluations with MCP tool support using `bun start:mcp`. The MCP runner connects to any MCP-compliant server specified by `MCP_SERVER_URL`:
+Run evaluations with MCP tool support using `bun start:mcp`. Connects to `https://mcp.clerk.dev/mcp` by default (zero-config):
 
 ```bash
-# Local MCP server (default: http://localhost:8787/mcp)
+# Production MCP server (default)
 bun start:mcp
 
-# Remote MCP server
-MCP_SERVER_URL=https://example.com/mcp bun start:mcp
+# Local MCP server override
+MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start:mcp
 
 # Filter by model or eval
 bun start:mcp --model "Sonnet" --eval "organizations" --debug
