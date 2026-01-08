@@ -77,9 +77,8 @@ bun run start:eval evals/auth/routes --debug
 Run evaluations with Clerk's MCP server, allowing LLMs to use SDK snippets and documentation tools during code generation.
 
 ```bash
-bun start:mcp              # Local MCP server (localhost:8787)
-bun start:mcp:staging      # mcp.clerkstage.dev
-bun start:mcp:prod         # mcp.clerk.dev
+bun start:mcp                                            # Local (localhost:8787)
+MCP_SERVER_URL=https://mcp.clerk.dev/mcp bun start:mcp   # Clerk's public MCP server
 ```
 
 Options:
@@ -94,7 +93,7 @@ Options:
 | Runner | Output | Description |
 |--------|--------|-------------|
 | `bun start` | `scores.json` | Baseline scores (no tools) |
-| `bun start:mcp:*` | `scores-mcp.json` | MCP scores (with tools) |
+| `bun start:mcp` | `scores-mcp.json` | MCP scores (with tools) |
 | `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
 
 ### Workflow for llm-leaderboard
@@ -105,8 +104,8 @@ To generate the enhanced format used by `clerk/clerk` llm-leaderboard:
 # 1. Run baseline evaluations
 bun start
 
-# 2. Run MCP evaluations (prod recommended)
-bun start:mcp:prod
+# 2. Run MCP evaluations (against Clerk's public MCP server)
+MCP_SERVER_URL=https://mcp.clerk.dev/mcp bun start:mcp
 
 # 3. Merge into llm-scores.json
 bun merge-scores
