@@ -8,7 +8,7 @@ import type { ModelInfo, Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 
-const DEFAULT_MCP_URL = 'http://localhost:8787/mcp'
+const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp'
 
 // Create pool for MCP runner
 const mcpPool = new Tinypool({
