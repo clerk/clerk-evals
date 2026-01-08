@@ -5,15 +5,19 @@
  * Version 1.0+ requires Standard Schema which MCP servers don't provide.
  * See: https://github.com/modelcontextprotocol/typescript-sdk/issues/283
  */
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
 import { experimental_createMCPClient } from '@ai-sdk/mcp'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { generateText, stepCountIs } from 'ai'
-import type { Graders } from '@/src/graders'
 import type { MCPRunnerArgs, RunnerResult, ToolCallInfo, ToolResultInfo } from '@/src/interfaces'
-import { getModel } from '@/src/providers'
 import { ERR, OK } from '@/src/utils/result'
+import {
+  computeScore,
+  loadGraders,
+  loadPrompt,
+  resolveModel,
+  runGraders,
+  SYSTEM_PROMPT,
+} from './shared'
 
 /**
  * MCP tool call structure from AI SDK 0.0.12.
@@ -55,18 +59,6 @@ function getToolCallInput(tc: MCPToolCall): Record<string, unknown> | undefined 
 }
 
 /**
- * System prompt for MCP evaluations.
- * Identical to baseline runner - tools are discovered dynamically via MCP.
- */
-const systemPrompt = `
-YOU MUST output all files as fenced code blocks, like so
-
-\`\`\`lang file="path/to/file.ts"
-
-\`\`\`
-`
-
-/**
  * MCP Runner - executes evaluations with MCP tool support
  */
 export default async function exec({
@@ -77,7 +69,7 @@ export default async function exec({
   maxToolRounds = 10,
   debug = false,
 }: MCPRunnerArgs): Promise<RunnerResult> {
-  const languageModel = getModel(provider, model)
+  const languageModel = resolveModel(provider, model)
   if (!languageModel) {
     return ERR(new Error(`Unsupported: ${provider}/${model}`))
   }
@@ -98,14 +90,14 @@ export default async function exec({
     console.log(`[MCP] Got ${toolNames.length} tools: ${toolNames.join(', ')}`)
 
     // Load the prompt
-    const prompt = await fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+    const prompt = await loadPrompt(evalPath)
 
     // Generate with tool support and agentic loop
     console.log(`[MCP] Starting generation with model ${model}...`)
     const response = await generateText({
       model: languageModel,
       prompt,
-      system: systemPrompt,
+      system: SYSTEM_PROMPT,
       tools: mcpTools,
       stopWhen: stepCountIs(maxToolRounds),
       maxTokens: 16384,
@@ -160,7 +152,7 @@ export default async function exec({
     chatTranscript.push('# MCP Evaluation Transcript\n')
     chatTranscript.push('## System Prompt\n')
     chatTranscript.push('```')
-    chatTranscript.push(systemPrompt.trim())
+    chatTranscript.push(SYSTEM_PROMPT.trim())
     chatTranscript.push('```\n')
     chatTranscript.push('## User Prompt\n')
     chatTranscript.push('```markdown')
@@ -240,18 +232,9 @@ export default async function exec({
     const fullResponse = allTextParts.length > 0 ? allTextParts.join('\n\n') : response.text
 
     // Load and run graders
-    const graderModule = (await import(path.join(evalPath, 'graders.ts'))) as {
-      graders: Graders
-    }
-
-    const graderResults: [string, boolean][] = []
-    for (const [key, grader] of Object.entries(graderModule.graders)) {
-      const passed = await grader(fullResponse)
-      graderResults.push([key, passed])
-    }
-
-    const score =
-      graderResults.filter(([_, isCorrect]) => isCorrect).length / (graderResults.length || 1)
+    const graders = await loadGraders(evalPath)
+    const graderResults = await runGraders(graders, fullResponse)
+    const score = computeScore(graderResults)
 
     // Log grader results
     console.log(`\n[MCP] === GRADER RESULTS ===`)
