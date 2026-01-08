@@ -7,7 +7,8 @@ import type { Evaluation, MCPRunnerArgs, RunnerResult, Score } from '@/src/inter
 import type { ModelInfo, Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
-import { createMCPServerManager } from './server-manager'
+
+const DEFAULT_MCP_URL = 'http://localhost:8787/mcp'
 
 // Create pool for MCP runner
 const mcpPool = new Tinypool({
@@ -116,7 +117,7 @@ async function main() {
     process.exit(1)
   }
 
-  const mcpManager = createMCPServerManager()
+  const mcpUrl = process.env.MCP_SERVER_URL || DEFAULT_MCP_URL
   const runId = `mcp-${new Date().toISOString().replace(/[:.]/g, '-')}`
 
   let debugRunDirectory: string | undefined
@@ -127,12 +128,7 @@ async function main() {
   }
 
   try {
-    console.log('Starting MCP server...')
-    const mcpUrl = await mcpManager.start()
-    console.log(`MCP server running at ${mcpUrl}\n`)
-
-    // Wait for server to be ready
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    console.log(`Using MCP server at ${mcpUrl}\n`)
 
     const tasks = filteredModels.flatMap((model) =>
       filteredEvals.map((evaluation) => ({ model, evaluation })),
@@ -224,7 +220,6 @@ async function main() {
       console.log('Scores written to: scores-mcp.json')
     }
   } finally {
-    await mcpManager.stop()
     await mcpPool.destroy()
   }
 }
