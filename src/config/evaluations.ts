@@ -4,6 +4,9 @@ import type { Evaluation } from '@/src/interfaces'
  * Shared evaluations for baseline and MCP runners.
  */
 export const EVALUATIONS: Evaluation[] = [
+  // Quickstarts - getting started guides
+  { framework: 'Next.js', category: 'Quickstarts', path: 'evals/quickstarts/nextjs' },
+  { framework: 'React', category: 'Quickstarts', path: 'evals/quickstarts/react-vite' },
   // Auth
   { framework: 'Next.js', category: 'Auth', path: 'evals/auth/protect' },
   { framework: 'Next.js', category: 'Auth', path: 'evals/auth/routes' },

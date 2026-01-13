@@ -47,3 +47,14 @@ export const organizationsUIChecks = registerJudges({
   usesCreateOrganization:
     'Does the solution use the <CreateOrganization> component from @clerk/nextjs?',
 })
+
+/**
+ * Shared assertions for Quickstart evaluations
+ */
+export const quickstartChecks = registerJudges({
+  usesClerkMiddleware:
+    'Does the solution use clerkMiddleware() from @clerk/nextjs/server (not the deprecated authMiddleware)?',
+  usesClerkProvider: 'Does the solution wrap the app with <ClerkProvider>?',
+  noDeprecatedPatterns:
+    'Does the solution avoid deprecated patterns like authMiddleware, _app.tsx, pages router, or frontendApi?',
+})
