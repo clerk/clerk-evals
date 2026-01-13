@@ -35,5 +35,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 scores.json
+scores-mcp.json
+llm-scores.json
+mcp-comparison-*.json
+mcp-comparison-*.md
 
 debug-runs/

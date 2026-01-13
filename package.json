@@ -8,8 +8,10 @@
   },
   "scripts": {
     "start": "bun src/index.ts",
-    "start:eval": "bun src/index.ts --eval",
+    "start:mcp": "bun src/index.ts --mcp",
     "runner:main": "bun src/runners/main.ts",
+    "runner:mcp": "bun src/runners/mcp.ts",
+    "merge-scores": "bun src/merge-scores.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -22,8 +24,10 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.25",
     "@ai-sdk/google": "^2.0.38",
+    "@ai-sdk/mcp": "^0.0.12",
     "@ai-sdk/openai": "^2.0.46",
     "@ai-sdk/vercel": "^1.0.22",
+    "@modelcontextprotocol/sdk": "^1.17.3",
     "ai": "^5.0.64",
     "autoevals": "^0.0.131",
     "openai": "^6.2.0",
