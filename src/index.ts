@@ -117,6 +117,12 @@ const evaluations = [
     category: 'Webhooks',
     path: 'evals/webhooks/notifications',
   },
+  // Quickstart - zero-config keyless flow
+  {
+    framework: 'Next.js',
+    category: 'Quickstart',
+    path: 'evals/quickstart/keyless',
+  },
 ] satisfies Evaluation[]
 
 type DebugArtifact = {
