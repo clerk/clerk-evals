@@ -39,12 +39,10 @@ usage() {
   echo "  --help                     Show this help"
   echo ""
   echo "Examples:"
-  echo "  $0                                          # Run all models"
-  echo "  $0 --models \"GPT-5.2,GPT-5.2 Codex\"         # Run specific models"
-  echo "  $0 --models \"Gemini\" --baseline-only        # All Gemini models, baseline only"
-  echo "  $0 --mcp-only                               # All models, MCP only"
-  echo ""
-  echo "Model name matching is fuzzy - 'Gemini' matches all Gemini models"
+  echo "  $0                                              # Run all models"
+  echo "  $0 --models \"GPT-5.2,GPT-5.2 Codex\"             # Run specific models"
+  echo "  $0 --models \"Claude Sonnet 4\" --baseline-only   # Single model, baseline only"
+  echo "  $0 --mcp-only                                   # All models, MCP only"
 }
 
 # Parse arguments
@@ -90,15 +88,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Filter models based on --models argument
+# Filter models based on --models argument (exact match, case-sensitive)
 MODELS=()
 if [ -n "$FILTER" ]; then
   IFS=',' read -ra FILTER_PARTS <<< "$FILTER"
-  for model in "${ALL_MODELS[@]}"; do
-    for part in "${FILTER_PARTS[@]}"; do
-      # Trim whitespace
-      part=$(echo "$part" | xargs)
-      if [[ "$model" == *"$part"* ]]; then
+  for part in "${FILTER_PARTS[@]}"; do
+    part=$(echo "$part" | xargs)  # Trim whitespace
+    for model in "${ALL_MODELS[@]}"; do
+      if [[ "$model" == "$part" ]]; then
         MODELS+=("$model")
         break
       fi
@@ -106,8 +103,8 @@ if [ -n "$FILTER" ]; then
   done
 
   if [ ${#MODELS[@]} -eq 0 ]; then
-    echo "No models matched filter: $FILTER"
-    echo "Use --list to see available models"
+    echo "No models matched: $FILTER"
+    echo "Use --list to see available models (exact match required)"
     exit 1
   fi
 else
