@@ -9,9 +9,11 @@
   "scripts": {
     "start": "bun src/index.ts",
     "start:mcp": "bun src/index.ts --mcp",
+    "run:all": "./run-evals.sh",
+    "export": "bun export-from-db.ts",
+    "merge-scores": "bun src/merge-scores.ts",
     "runner:main": "bun src/runners/main.ts",
     "runner:mcp": "bun src/runners/mcp.ts",
-    "merge-scores": "bun src/merge-scores.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
