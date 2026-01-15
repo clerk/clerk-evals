@@ -4,24 +4,19 @@
 TIMEOUT_SECONDS=300  # 5 min per model (16 evals each)
 MAX_RETRIES=2
 
-# ALL available models
 ALL_MODELS=(
-  # Anthropic
-  "Claude Sonnet 4"
-  "Claude Sonnet 4.5"
-  "Claude Opus 4"
-  "Claude Opus 4.5"
-  "Claude Haiku 4.5"
-  # OpenAI
-  "GPT-4o"
-  "GPT-5"
-  "GPT-5 Chat"
-  "GPT-5.2"
-  "GPT-5.2 Codex"
-  # Google
-  "Gemini 2.5 Flash"
-  "Gemini 3 Pro Preview"
-  # Vercel
+  "claude-sonnet-4-0"
+  "claude-sonnet-4-5"
+  "claude-opus-4-0"
+  "claude-opus-4-5"
+  "claude-haiku-4-5"
+  "gpt-4o"
+  "gpt-5"
+  "gpt-5-chat-latest"
+  "gpt-5.2"
+  "gpt-5.2-codex"
+  "gemini-2.5-flash"
+  "gemini-3-pro-preview"
   "v0-1.5-md"
   "v0-1.5-lg"
 )
@@ -39,10 +34,10 @@ usage() {
   echo "  --help                     Show this help"
   echo ""
   echo "Examples:"
-  echo "  $0                                              # Run all models"
-  echo "  $0 --models \"GPT-5.2,GPT-5.2 Codex\"             # Run specific models"
-  echo "  $0 --models \"Claude Sonnet 4\" --baseline-only   # Single model, baseline only"
-  echo "  $0 --mcp-only                                   # All models, MCP only"
+  echo "  $0"
+  echo "  $0 --models \"gpt-5.2,gpt-5.2-codex\""
+  echo "  $0 --models \"claude-sonnet-4-0\" --baseline-only"
+  echo "  $0 --mcp-only"
 }
 
 # Parse arguments
@@ -104,7 +99,7 @@ if [ -n "$FILTER" ]; then
 
   if [ ${#MODELS[@]} -eq 0 ]; then
     echo "No models matched: $FILTER"
-    echo "Use --list to see available models (exact match required)"
+    echo "Use --list to see available models"
     exit 1
   fi
 else
