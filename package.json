@@ -9,7 +9,7 @@
   "scripts": {
     "start": "bun src/index.ts",
     "start:mcp": "bun src/index.ts --mcp",
-    "run:all": "./run-evals.sh",
+    "start:all": "./run-evals.sh",
     "export": "bun export-from-db.ts",
     "merge-scores": "bun src/merge-scores.ts",
     "runner:main": "bun src/runners/main.ts",
