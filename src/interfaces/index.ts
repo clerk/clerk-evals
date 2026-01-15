@@ -55,7 +55,13 @@ export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the futur
 /**
  * Categories aligned with Clerk product verticals
  */
-export type Category = 'Auth' | 'Billing' | 'Organizations' | 'Webhooks'
+export type Category =
+  | 'Auth'
+  | 'User Management'
+  | 'UI Components'
+  | 'Organizations'
+  | 'Webhooks'
+  | 'Billing'
 export type Evaluation = {
   framework: Framework
   category: Category
