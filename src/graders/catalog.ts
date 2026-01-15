@@ -65,3 +65,14 @@ export const uiComponentChecks = registerJudges({
     'Does the solution add custom menu items to UserButton using UserButton.MenuItems, UserButton.Action, or UserButton.Link?',
   usesUserProfile: 'Does the solution use the <UserProfile> component from @clerk/nextjs?',
 })
+
+/**
+ * Shared assertions for Quickstart evaluations
+ */
+export const quickstartChecks = registerJudges({
+  usesClerkMiddleware:
+    'Does the solution use clerkMiddleware() from @clerk/nextjs/server (not the deprecated authMiddleware)?',
+  usesClerkProvider: 'Does the solution wrap the app with <ClerkProvider>?',
+  noDeprecatedPatterns:
+    'Does the solution avoid deprecated patterns like authMiddleware, _app.tsx, pages router, or frontendApi?',
+})
