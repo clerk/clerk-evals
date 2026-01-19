@@ -1,6 +1,16 @@
 import type { Provider } from '@/src/providers'
 import type { Result } from '@/src/utils/result'
 
+// Re-export agent types
+export type {
+  AgentExecResult,
+  AgentInfo,
+  AgentMCPConfig,
+  AgentRunnerArgs,
+  AgentType,
+} from './agent'
+export { AGENTS, getAgentInfo, getAllAgentTypes } from './agent'
+
 export type ToolCallInfo = {
   toolName: string
   args: unknown

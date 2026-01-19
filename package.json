@@ -9,6 +9,9 @@
   "scripts": {
     "start": "bun src/index.ts",
     "start:mcp": "bun src/index.ts --mcp",
+    "start:agent": "bun src/agent-index.ts",
+    "agent:claude": "bun src/agent-index.ts --agent claude-code",
+    "agent:claude:mcp": "bun src/agent-index.ts --agent claude-code --mcp",
     "runner:main": "bun src/runners/main.ts",
     "runner:mcp": "bun src/runners/mcp.ts",
     "merge-scores": "bun src/merge-scores.ts",
