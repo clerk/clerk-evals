@@ -1,0 +1,10 @@
+[
+  {
+    "model": "claude-code",
+    "label": "Claude Code",
+    "framework": "Next.js",
+    "category": "Auth",
+    "value": 0.5,
+    "updatedAt": "2026-01-19T21:30:17.572Z"
+  }
+]

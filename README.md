@@ -81,16 +81,16 @@ bun start [options]
 | Flag | Description |
 |------|-------------|
 | `--mcp` | Enable MCP tools (uses mcp.clerk.dev by default) |
-| `--model "Sonnet"` | Filter models by label |
+| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive) |
 | `--eval "protect"` | Filter evals by category or path |
 | `--debug` | Save outputs to debug-runs/ |
 
 ```bash
 # Baseline (no tools)
-bun start --model "Sonnet" --eval "protect"
+bun start --model "claude-sonnet-4-0" --eval "protect"
 
 # With MCP tools
-bun start --mcp --model "Sonnet" --eval "protect"
+bun start --mcp --model "claude-sonnet-4-0" --eval "protect"
 
 # Local MCP server
 MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp

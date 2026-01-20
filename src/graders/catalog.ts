@@ -49,6 +49,24 @@ export const organizationsUIChecks = registerJudges({
 })
 
 /**
+ * Shared UI component assertions for UI Components vertical
+ * Tests appearance customization and component composition patterns
+ */
+export const uiComponentChecks = registerJudges({
+  usesAppearanceProp:
+    'Does the solution use the appearance prop to customize Clerk component styling?',
+  usesVariablesCustomization:
+    'Does the solution customize component colors or styling using the variables property of the appearance prop?',
+  usesElementsCustomization:
+    'Does the solution customize specific elements using the elements property of the appearance prop with CSS classes or styles?',
+  usesLayoutCustomization:
+    'Does the solution use the layout property for logo, social button configuration, or other structural customization?',
+  usesCustomMenuItem:
+    'Does the solution add custom menu items to UserButton using UserButton.MenuItems, UserButton.Action, or UserButton.Link?',
+  usesUserProfile: 'Does the solution use the <UserProfile> component from @clerk/nextjs?',
+})
+
+/**
  * Shared assertions for Quickstart evaluations
  */
 export const quickstartChecks = registerJudges({

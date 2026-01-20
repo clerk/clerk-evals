@@ -1,0 +1,55 @@
+{
+  "prompt": "YOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nBuild a Next.js webhook Route Handler at `app/api/webhooks/route.ts` that reacts to Clerk billing events.\n\n## Requirements\n\n- Use Clerk's `verifyWebhook` helper from `@clerk/backend/webhooks` and lean on the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable for verification.\n- When a `subscriptionItem.freeTrialEnding` webhook arrives, log the subscription item ID and its status with `console.warn`.\n- When the webhook type is `paymentAttempt.updated`, examine `evt.data.status`. Log successful attempts with `console.log`, but if the status is `\"failed\"` log with `console.error` and include the payment attempt's `type`.\n- Always respond with a `200` result after verification succeeds. Return a `400` response if signature verification fails.\n",
+  "response": "I'll build a Next.js webhook Route Handler that handles Clerk billing events with proper verification.\n\n```typescript file=\"app/api/webhooks/route.ts\"\nimport { verifyWebhook } from '@clerk/backend/webhooks';\nimport { NextRequest, NextResponse } from 'next/server';\n\nexport async function POST(req: NextRequest) {\n  // Get the webhook signature from headers\n  const svixId = req.headers.get('svix-id');\n  const svixTimestamp = req.headers.get('svix-timestamp');\n  const svixSignature = req.headers.get('svix-signature');\n\n  // Check if all required headers are present\n  if (!svixId || !svixTimestamp || !svixSignature) {\n    return NextResponse.json(\n      { error: 'Missing webhook headers' },\n      { status: 400 }\n    );\n  }\n\n  // Get the raw body\n  const payload = await req.text();\n\n  // Verify the webhook\n  try {\n    const evt = verifyWebhook(payload, {\n      'svix-id': svixId,\n      'svix-timestamp': svixTimestamp,\n      'svix-signature': svixSignature,\n      secret: process.env.CLERK_WEBHOOK_SIGNING_SECRET!,\n    });\n\n    // Handle subscriptionItem.freeTrialEnding event\n    if (evt.type === 'subscriptionItem.freeTrialEnding') {\n      console.warn(\n        `Free trial ending for subscription item: ${evt.data.id}, status: ${evt.data.status}`\n      );\n    }\n\n    // Handle paymentAttempt.updated event\n    if (evt.type === 'paymentAttempt.updated') {\n      if (evt.data.status === 'failed') {\n        console.error(\n          `Payment attempt failed - ID: ${evt.data.id}, type: ${evt.data.type}`\n        );\n      } else if (evt.data.status === 'succeeded') {\n        console.log(\n          `Payment attempt succeeded - ID: ${evt.data.id}`\n        );\n      }\n    }\n\n    return NextResponse.json({ received: true }, { status: 200 });\n  } catch (err) {\n    console.error('Webhook verification failed:', err);\n    return NextResponse.json(\n      { error: 'Invalid webhook signature' },\n      { status: 400 }\n    );\n  }\n}\n```\n\nThis Route Handler:\n\n1. **Verifies webhooks** using `verifyWebhook` from `@clerk/backend/webhooks` with the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable\n2. **Handles `subscriptionItem.freeTrialEnding`** events by logging the subscription item ID and status with `console.warn`\n3. **Handles `paymentAttempt.updated`** events by:\n   - Logging successful attempts with `console.log`\n   - Logging failed attempts with `console.error` and including the payment attempt's `type`\n4. **Returns 200** after successful verification\n5. **Returns 400** if signature verification fails or headers are missing\n\nThe webhook handler follows Next.js App Router conventions and uses proper error handling for security.\n",
+  "graders": [
+    [
+      "imports_verify_webhook",
+      true
+    ],
+    [
+      "calls_verify_webhook",
+      false
+    ],
+    [
+      "mentions_env_secret",
+      true
+    ],
+    [
+      "handles_free_trial_event",
+      true
+    ],
+    [
+      "warns_on_free_trial",
+      true
+    ],
+    [
+      "handles_payment_attempt",
+      true
+    ],
+    [
+      "inspects_failed_status",
+      true
+    ],
+    [
+      "logs_payment_type",
+      true
+    ],
+    [
+      "uses_console_error_for_failures",
+      true
+    ],
+    [
+      "http_responses",
+      true
+    ],
+    [
+      "verify_webhook_called_correctly",
+      false
+    ],
+    [
+      "does_not_use_svix",
+      true
+    ]
+  ],
+  "transcript": "# Claude Code Agent Transcript\n\n## Execution Info\n- **Duration**: 12.43s\n- **Exit Code**: 0\n- **Success**: true\n\n## Prompt\n```markdown\nYOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nBuild a Next.js webhook Route Handler at `app/api/webhooks/route.ts` that reacts to Clerk billing events.\n\n## Requirements\n\n- Use Clerk's `verifyWebhook` helper from `@clerk/backend/webhooks` and lean on the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable for verification.\n- When a `subscriptionItem.freeTrialEnding` webhook arrives, log the subscription item ID and its status with `console.warn`.\n- When the webhook type is `paymentAttempt.updated`, examine `evt.data.status`. Log successful attempts with `console.log`, but if the status is `\"failed\"` log with `console.error` and include the payment attempt's `type`.\n- Always respond with a `200` result after verification succeeds. Return a `400` response if signature verification fails.\n```\n\n## Output\n```\nI'll build a Next.js webhook Route Handler that handles Clerk billing events with proper verification.\n\n```typescript file=\"app/api/webhooks/route.ts\"\nimport { verifyWebhook } from '@clerk/backend/webhooks';\nimport { NextRequest, NextResponse } from 'next/server';\n\nexport async function POST(req: NextRequest) {\n  // Get the webhook signature from headers\n  const svixId = req.headers.get('svix-id');\n  const svixTimestamp = req.headers.get('svix-timestamp');\n  const svixSignature = req.headers.get('svix-signature');\n\n  // Check if all required headers are present\n  if (!svixId || !svixTimestamp || !svixSignature) {\n    return NextResponse.json(\n      { error: 'Missing webhook headers' },\n      { status: 400 }\n    );\n  }\n\n  // Get the raw body\n  const payload = await req.text();\n\n  // Verify the webhook\n  try {\n    const evt = verifyWebhook(payload, {\n      'svix-id': svixId,\n      'svix-timestamp': svixTimestamp,\n      'svix-signature': svixSignature,\n      secret: process.env.CLERK_WEBHOOK_SIGNING_SECRET!,\n    });\n\n    // Handle subscriptionItem.freeTrialEnding event\n    if (evt.type === 'subscriptionItem.freeTrialEnding') {\n      console.warn(\n        `Free trial ending for subscription item: ${evt.data.id}, status: ${evt.data.status}`\n      );\n    }\n\n    // Handle paymentAttempt.updated event\n    if (evt.type === 'paymentAttempt.updated') {\n      if (evt.data.status === 'failed') {\n        console.error(\n          `Payment attempt failed - ID: ${evt.data.id}, type: ${evt.data.type}`\n        );\n      } else if (evt.data.status === 'succeeded') {\n        console.log(\n          `Payment attempt succeeded - ID: ${evt.data.id}`\n        );\n      }\n    }\n\n    return NextResponse.json({ received: true }, { status: 200 });\n  } catch (err) {\n    console.error('Webhook verification failed:', err);\n    return NextResponse.json(\n      { error: 'Invalid webhook signature' },\n      { status: 400 }\n    );\n  }\n}\n```\n\nThis Route Handler:\n\n1. **Verifies webhooks** using `verifyWebhook` from `@clerk/backend/webhooks` with the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable\n2. **Handles `subscriptionItem.freeTrialEnding`** events by logging the subscription item ID and status with `console.warn`\n3. **Handles `paymentAttempt.updated`** events by:\n   - Logging successful attempts with `console.log`\n   - Logging failed attempts with `console.error` and including the payment attempt's `type`\n4. **Returns 200** after successful verification\n5. **Returns 400** if signature verification fails or headers are missing\n\nThe webhook handler follows Next.js App Router conventions and uses proper error handling for security.\n\n```\n\n## Grader Results\n**Score: 83.3%** (10/12)\n\n| Grader | Result |\n|--------|--------|\n| imports_verify_webhook | PASS |\n| calls_verify_webhook | FAIL |\n| mentions_env_secret | PASS |\n| handles_free_trial_event | PASS |\n| warns_on_free_trial | PASS |\n| handles_payment_attempt | PASS |\n| inspects_failed_status | PASS |\n| logs_payment_type | PASS |\n| uses_console_error_for_failures | PASS |\n| http_responses | PASS |\n| verify_webhook_called_correctly | FAIL |\n| does_not_use_svix | PASS |\n"
+}

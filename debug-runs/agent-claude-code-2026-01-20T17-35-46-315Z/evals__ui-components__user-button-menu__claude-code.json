@@ -1,0 +1,51 @@
+{
+  "prompt": "YOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nCreate a Next.js header component that extends the Clerk UserButton with custom menu items: an \"Open Settings\" action that triggers a handler, and a \"View Dashboard\" link that navigates to `/dashboard`. Each item should have its own icon.\n",
+  "response": "I've created a Next.js header component with a Clerk UserButton that includes custom menu items:\n\n```tsx file=\"header.tsx\"\n'use client';\n\nimport { UserButton } from '@clerk/nextjs';\nimport { Settings, LayoutDashboard } from 'lucide-react';\n\nexport function Header() {\n  const handleOpenSettings = () => {\n    console.log('Settings opened');\n    // Add your settings handler logic here\n  };\n\n  return (\n    <header className=\"flex items-center justify-between px-6 py-4 border-b\">\n      <div className=\"flex items-center gap-4\">\n        <h1 className=\"text-xl font-semibold\">My App</h1>\n      </div>\n\n      <UserButton afterSignOutUrl=\"/\">\n        <UserButton.MenuItems>\n          <UserButton.Action\n            label=\"Open Settings\"\n            labelIcon={<Settings className=\"w-4 h-4\" />}\n            onClick={handleOpenSettings}\n          />\n          <UserButton.Link\n            label=\"View Dashboard\"\n            labelIcon={<LayoutDashboard className=\"w-4 h-4\" />}\n            href=\"/dashboard\"\n          />\n        </UserButton.MenuItems>\n      </UserButton>\n    </header>\n  );\n}\n```\n\n**Key features:**\n\n1. **\"Open Settings\" action**: Uses `UserButton.Action` with a Settings icon from lucide-react and triggers the `handleOpenSettings` handler\n2. **\"View Dashboard\" link**: Uses `UserButton.Link` with a Dashboard icon and navigates to `/dashboard`\n3. **Client Component**: Marked with `'use client'` directive for Next.js App Router\n4. **Icons**: Uses lucide-react for clean, consistent icons (Settings and LayoutDashboard)\n\nThe component is ready to use in your Next.js application. You can customize the `handleOpenSettings` function with your specific settings logic.\n",
+  "graders": [
+    [
+      "user_button_component",
+      true
+    ],
+    [
+      "client_directive",
+      true
+    ],
+    [
+      "menu_items",
+      true
+    ],
+    [
+      "custom_action",
+      true
+    ],
+    [
+      "custom_link",
+      true
+    ],
+    [
+      "label_prop",
+      true
+    ],
+    [
+      "label_icon_prop",
+      true
+    ],
+    [
+      "onClick_handler",
+      true
+    ],
+    [
+      "href_prop",
+      true
+    ],
+    [
+      "import_from_clerk",
+      true
+    ],
+    [
+      "custom_menu_structure",
+      true
+    ]
+  ],
+  "transcript": "# Claude Code Agent Transcript\n\n## Execution Info\n- **Duration**: 15.86s\n- **Exit Code**: 0\n- **Success**: true\n\n## Prompt\n```markdown\nYOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nCreate a Next.js header component that extends the Clerk UserButton with custom menu items: an \"Open Settings\" action that triggers a handler, and a \"View Dashboard\" link that navigates to `/dashboard`. Each item should have its own icon.\n```\n\n## Output\n```\nI've created a Next.js header component with a Clerk UserButton that includes custom menu items:\n\n```tsx file=\"header.tsx\"\n'use client';\n\nimport { UserButton } from '@clerk/nextjs';\nimport { Settings, LayoutDashboard } from 'lucide-react';\n\nexport function Header() {\n  const handleOpenSettings = () => {\n    console.log('Settings opened');\n    // Add your settings handler logic here\n  };\n\n  return (\n    <header className=\"flex items-center justify-between px-6 py-4 border-b\">\n      <div className=\"flex items-center gap-4\">\n        <h1 className=\"text-xl font-semibold\">My App</h1>\n      </div>\n\n      <UserButton afterSignOutUrl=\"/\">\n        <UserButton.MenuItems>\n          <UserButton.Action\n            label=\"Open Settings\"\n            labelIcon={<Settings className=\"w-4 h-4\" />}\n            onClick={handleOpenSettings}\n          />\n          <UserButton.Link\n            label=\"View Dashboard\"\n            labelIcon={<LayoutDashboard className=\"w-4 h-4\" />}\n            href=\"/dashboard\"\n          />\n        </UserButton.MenuItems>\n      </UserButton>\n    </header>\n  );\n}\n```\n\n**Key features:**\n\n1. **\"Open Settings\" action**: Uses `UserButton.Action` with a Settings icon from lucide-react and triggers the `handleOpenSettings` handler\n2. **\"View Dashboard\" link**: Uses `UserButton.Link` with a Dashboard icon and navigates to `/dashboard`\n3. **Client Component**: Marked with `'use client'` directive for Next.js App Router\n4. **Icons**: Uses lucide-react for clean, consistent icons (Settings and LayoutDashboard)\n\nThe component is ready to use in your Next.js application. You can customize the `handleOpenSettings` function with your specific settings logic.\n\n```\n\n## Grader Results\n**Score: 100.0%** (11/11)\n\n| Grader | Result |\n|--------|--------|\n| user_button_component | PASS |\n| client_directive | PASS |\n| menu_items | PASS |\n| custom_action | PASS |\n| custom_link | PASS |\n| label_prop | PASS |\n| label_icon_prop | PASS |\n| onClick_handler | PASS |\n| href_prop | PASS |\n| import_from_clerk | PASS |\n| custom_menu_structure | PASS |\n"
+}

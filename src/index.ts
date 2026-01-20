@@ -66,9 +66,9 @@ initDB()
 const models = getAllModels()
 const evaluations = EVALUATIONS
 
-// Filter models
+// Filter models - exact match on name only (case-insensitive, deterministic)
 const filteredModels = modelFilter
-  ? models.filter((m) => m.label.toLowerCase().includes(modelFilter.toLowerCase()))
+  ? models.filter((m) => m.name.toLowerCase() === modelFilter.toLowerCase())
   : models
 
 // Filter evaluations
@@ -179,7 +179,9 @@ await Promise.all(
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        console.error(`[error] ${task.label}: ${result.error}`)
+        const errorMsg =
+          typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error
+        console.error(`[error] ${task.label}: ${errorMsg}`)
         saveError(runId, {
           model: task.model,
           label: mcpEnabled ? `${task.label} (MCP)` : task.label,

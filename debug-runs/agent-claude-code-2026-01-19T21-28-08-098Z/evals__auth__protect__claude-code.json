@@ -1,0 +1,17 @@
+{
+  "prompt": "YOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nBuild a Clerk-enabled Next.js App Router admin area that enforces both authentication and authorization for an organization settings page.\n",
+  "response": "env: node: No such file or directory\n",
+  "graders": [
+    ["admin_page_file", false],
+    ["admin_route_handler_file", false],
+    ["middleware_file_name", false],
+    ["import_auth_helper", false],
+    ["redirect_to_sign_in", false],
+    ["auth_protect_usage", false],
+    ["has_permission_check", false],
+    ["package_json_clerk_version", false],
+    ["environment_variables", false],
+    ["authorization_logic", false]
+  ],
+  "transcript": "# Claude Code Agent Transcript\n\n## Execution Info\n- **Duration**: 0.00s\n- **Exit Code**: 127\n- **Success**: false\n\n## Prompt\n```markdown\nYOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nBuild a Clerk-enabled Next.js App Router admin area that enforces both authentication and authorization for an organization settings page.\n```\n\n## Output\n```\nenv: node: No such file or directory\n\n```\n\n## Grader Results\n**Score: 0.0%** (0/10)\n\n| Grader | Result |\n|--------|--------|\n| admin_page_file | FAIL |\n| admin_route_handler_file | FAIL |\n| middleware_file_name | FAIL |\n| import_auth_helper | FAIL |\n| redirect_to_sign_in | FAIL |\n| auth_protect_usage | FAIL |\n| has_permission_check | FAIL |\n| package_json_clerk_version | FAIL |\n| environment_variables | FAIL |\n| authorization_logic | FAIL |\n"
+}

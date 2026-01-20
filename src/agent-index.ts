@@ -13,6 +13,7 @@
 import { execSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { parseArgs } from 'util'
 import Tinypool from 'tinypool'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
@@ -45,50 +46,31 @@ function resolveAgentPath(agentType: AgentType): string | undefined {
 
 const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp'
 
-// CLI argument parsing
-const args = process.argv.slice(2)
+// CLI argument parsing using util.parseArgs
+const { values } = parseArgs({
+  args: Bun.argv,
+  options: {
+    agent: { type: 'string', short: 'a' },
+    mcp: { type: 'boolean', default: false },
+    debug: { type: 'boolean', short: 'd', default: false },
+    eval: { type: 'string', short: 'e' },
+    timeout: { type: 'string', short: 't' },
+  },
+  strict: true,
+  allowPositionals: true,
+})
 
-const parseBooleanFlag = (name: string, alias?: string) => {
-  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) {
-    const [, rawValue] = equalsArg.split('=', 2)
-    const value = rawValue?.toLowerCase()
-    return !['false', '0', 'no'].includes(value ?? '')
-  }
-
-  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  if (index === -1) return false
-
-  const value = args[index + 1]
-  if (value && !value.startsWith('-')) {
-    return !['false', '0', 'no'].includes(value.toLowerCase())
-  }
-  return true
-}
-
-const parseStringArg = (name: string, alias?: string): string | undefined => {
-  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) return equalsArg.split('=', 2)[1]
-
-  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  if (index !== -1 && args[index + 1] && !args[index + 1].startsWith('-')) {
-    return args[index + 1]
-  }
-  return undefined
-}
+const agentArg = values.agent
+const mcpEnabled = values.mcp
+const debugEnabled = values.debug
+const evalFilter = values.eval
+const timeoutArg = values.timeout
 
 const normalizeEvalPath = (value: string) => {
   if (value.startsWith('./')) return normalizeEvalPath(value.slice(2))
   if (value.startsWith('evals/')) return value
   return `evals/${value}`
 }
-
-// Parse flags
-const agentArg = parseStringArg('agent', '-a')
-const mcpEnabled = parseBooleanFlag('mcp')
-const debugEnabled = parseBooleanFlag('debug', '-d')
-const evalFilter = parseStringArg('eval', '-e')
-const timeoutArg = parseStringArg('timeout', '-t')
 
 // Validate agent
 if (!agentArg) {
