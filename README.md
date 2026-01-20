@@ -96,12 +96,49 @@ bun start --mcp --model "claude-sonnet-4-0" --eval "protect"
 MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 ```
 
+## Agent Evals
+
+Run evaluations using AI coding agents (Claude Code, Cursor) instead of direct LLM calls:
+
+```bash
+bun start:agent --agent claude-code [options]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--agent, -a` | Agent type (required): `claude-code`, `cursor` |
+| `--mcp` | Enable MCP tools |
+| `--eval, -e` | Filter evals by path |
+| `--debug, -d` | Save outputs to debug-runs/ |
+| `--timeout, -t` | Timeout per eval (ms) |
+
+**Shortcuts:**
+
+```bash
+bun agent:claude        # claude-code baseline
+bun agent:claude:mcp    # claude-code with MCP
+```
+
+**Examples:**
+
+```bash
+# Run all evals with Claude Code
+bun start:agent --agent claude-code
+
+# Run specific eval with debug output
+bun start:agent -a claude-code -e auth/protect -d
+
+# Run with MCP tools enabled
+bun start:agent --agent claude-code --mcp
+```
+
 ### Output Files
 
 | Runner | Output | Description |
 |--------|--------|-------------|
 | `bun start` | `scores.json` | Baseline scores (no tools) |
 | `bun start:mcp` | `scores-mcp.json` | MCP scores (with tools) |
+| `bun start:agent` | `agent-scores.json` | Agent evaluation scores |
 | `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
 
 ### Workflow for llm-leaderboard
