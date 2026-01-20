@@ -40,4 +40,5 @@ llm-scores.json
 mcp-comparison-*.json
 mcp-comparison-*.md
 
-debug-runs/agent-scores.json
+debug-runs/
+agent-scores.json
