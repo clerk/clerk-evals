@@ -179,7 +179,8 @@ await Promise.all(
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error
+        const errorMsg =
+          typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error
         console.error(`[error] ${task.label}: ${errorMsg}`)
         saveError(runId, {
           model: task.model,

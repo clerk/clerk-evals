@@ -1,0 +1,55 @@
+{
+  "prompt": "YOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nImplement a Next.js webhook Route Handler at `app/api/webhooks/route.ts` that reacts to top-level Clerk subscription events.\n\n## Requirements\n\n- Import `verifyWebhook` from `@clerk/backend/webhooks` and validate webhook signatures using the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable.\n- When the webhook type is `subscription.created`, log the subscription ID and payer ID so you can persist them in your billing system.\n- When the webhook type is `subscription.pastDue`, log an error that includes the subscription ID and the current status from the payload.\n- Always return a `200` response after the webhook is verified. If verification fails, return a `400` response.\n- Leave the route unauthenticated so Clerk can deliver webhooks.\n",
+  "response": "I'll implement a Next.js webhook Route Handler that handles Clerk subscription events with proper signature verification.\n\n```typescript file=\"app/api/webhooks/route.ts\"\nimport { verifyWebhook } from '@clerk/backend/webhooks';\nimport { headers } from 'next/headers';\nimport { NextResponse } from 'next/server';\n\nexport async function POST(req: Request) {\n  // Get the webhook signature from headers\n  const headerPayload = await headers();\n  const svix_id = headerPayload.get('svix-id');\n  const svix_timestamp = headerPayload.get('svix-timestamp');\n  const svix_signature = headerPayload.get('svix-signature');\n\n  // If there are no headers, return 400\n  if (!svix_id || !svix_timestamp || !svix_signature) {\n    return NextResponse.json(\n      { error: 'Missing webhook headers' },\n      { status: 400 }\n    );\n  }\n\n  // Get the body as text\n  const body = await req.text();\n\n  // Verify the webhook signature\n  try {\n    const payload = verifyWebhook(body, {\n      'svix-id': svix_id,\n      'svix-timestamp': svix_timestamp,\n      'svix-signature': svix_signature,\n    }, process.env.CLERK_WEBHOOK_SIGNING_SECRET!);\n\n    // Handle different webhook types\n    const { type, data } = payload as {\n      type: string;\n      data: {\n        id: string;\n        payer_id?: string;\n        status?: string;\n      };\n    };\n\n    switch (type) {\n      case 'subscription.created':\n        console.log('Subscription created:', {\n          subscriptionId: data.id,\n          payerId: data.payer_id,\n        });\n        break;\n\n      case 'subscription.pastDue':\n        console.error('Subscription past due:', {\n          subscriptionId: data.id,\n          status: data.status,\n        });\n        break;\n    }\n\n    return NextResponse.json({ success: true }, { status: 200 });\n  } catch (err) {\n    console.error('Webhook verification failed:', err);\n    return NextResponse.json(\n      { error: 'Webhook verification failed' },\n      { status: 400 }\n    );\n  }\n}\n```\n\nThis implementation:\n\n1. **Verifies webhook signatures** using `verifyWebhook` from `@clerk/backend/webhooks` with the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable\n2. **Handles `subscription.created`** by logging the subscription ID and payer ID for persistence in your billing system\n3. **Handles `subscription.pastDue`** by logging an error with the subscription ID and current status\n4. **Returns 200** after successful verification and processing\n5. **Returns 400** if verification fails or required headers are missing\n6. **Remains unauthenticated** (no auth middleware) so Clerk can deliver webhooks directly\n\nThe route extracts the Svix headers (`svix-id`, `svix-timestamp`, `svix-signature`) that Clerk uses for webhook signing, verifies the signature, and then processes the webhook based on its type.\n",
+  "graders": [
+    [
+      "imports_verify_webhook",
+      true
+    ],
+    [
+      "calls_verify_webhook",
+      false
+    ],
+    [
+      "mentions_env_secret",
+      true
+    ],
+    [
+      "handles_subscription_created",
+      true
+    ],
+    [
+      "logs_payer_id",
+      true
+    ],
+    [
+      "handles_subscription_past_due",
+      true
+    ],
+    [
+      "logs_subscription_id",
+      false
+    ],
+    [
+      "errors_on_past_due",
+      true
+    ],
+    [
+      "references_status_field",
+      false
+    ],
+    [
+      "verify_webhook_called_correctly",
+      false
+    ],
+    [
+      "http_responses",
+      true
+    ],
+    [
+      "no_svix",
+      false
+    ]
+  ],
+  "transcript": "# Claude Code Agent Transcript\n\n## Execution Info\n- **Duration**: 13.14s\n- **Exit Code**: 0\n- **Success**: true\n\n## Prompt\n```markdown\nYOU MUST output all files as fenced code blocks, like so\n\n```lang file=\"path/to/file.ts\"\n// file content\n```\n\nDo not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n# Task\n\nImplement a Next.js webhook Route Handler at `app/api/webhooks/route.ts` that reacts to top-level Clerk subscription events.\n\n## Requirements\n\n- Import `verifyWebhook` from `@clerk/backend/webhooks` and validate webhook signatures using the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable.\n- When the webhook type is `subscription.created`, log the subscription ID and payer ID so you can persist them in your billing system.\n- When the webhook type is `subscription.pastDue`, log an error that includes the subscription ID and the current status from the payload.\n- Always return a `200` response after the webhook is verified. If verification fails, return a `400` response.\n- Leave the route unauthenticated so Clerk can deliver webhooks.\n```\n\n## Output\n```\nI'll implement a Next.js webhook Route Handler that handles Clerk subscription events with proper signature verification.\n\n```typescript file=\"app/api/webhooks/route.ts\"\nimport { verifyWebhook } from '@clerk/backend/webhooks';\nimport { headers } from 'next/headers';\nimport { NextResponse } from 'next/server';\n\nexport async function POST(req: Request) {\n  // Get the webhook signature from headers\n  const headerPayload = await headers();\n  const svix_id = headerPayload.get('svix-id');\n  const svix_timestamp = headerPayload.get('svix-timestamp');\n  const svix_signature = headerPayload.get('svix-signature');\n\n  // If there are no headers, return 400\n  if (!svix_id || !svix_timestamp || !svix_signature) {\n    return NextResponse.json(\n      { error: 'Missing webhook headers' },\n      { status: 400 }\n    );\n  }\n\n  // Get the body as text\n  const body = await req.text();\n\n  // Verify the webhook signature\n  try {\n    const payload = verifyWebhook(body, {\n      'svix-id': svix_id,\n      'svix-timestamp': svix_timestamp,\n      'svix-signature': svix_signature,\n    }, process.env.CLERK_WEBHOOK_SIGNING_SECRET!);\n\n    // Handle different webhook types\n    const { type, data } = payload as {\n      type: string;\n      data: {\n        id: string;\n        payer_id?: string;\n        status?: string;\n      };\n    };\n\n    switch (type) {\n      case 'subscription.created':\n        console.log('Subscription created:', {\n          subscriptionId: data.id,\n          payerId: data.payer_id,\n        });\n        break;\n\n      case 'subscription.pastDue':\n        console.error('Subscription past due:', {\n          subscriptionId: data.id,\n          status: data.status,\n        });\n        break;\n    }\n\n    return NextResponse.json({ success: true }, { status: 200 });\n  } catch (err) {\n    console.error('Webhook verification failed:', err);\n    return NextResponse.json(\n      { error: 'Webhook verification failed' },\n      { status: 400 }\n    );\n  }\n}\n```\n\nThis implementation:\n\n1. **Verifies webhook signatures** using `verifyWebhook` from `@clerk/backend/webhooks` with the `CLERK_WEBHOOK_SIGNING_SECRET` environment variable\n2. **Handles `subscription.created`** by logging the subscription ID and payer ID for persistence in your billing system\n3. **Handles `subscription.pastDue`** by logging an error with the subscription ID and current status\n4. **Returns 200** after successful verification and processing\n5. **Returns 400** if verification fails or required headers are missing\n6. **Remains unauthenticated** (no auth middleware) so Clerk can deliver webhooks directly\n\nThe route extracts the Svix headers (`svix-id`, `svix-timestamp`, `svix-signature`) that Clerk uses for webhook signing, verifies the signature, and then processes the webhook based on its type.\n\n```\n\n## Grader Results\n**Score: 58.3%** (7/12)\n\n| Grader | Result |\n|--------|--------|\n| imports_verify_webhook | PASS |\n| calls_verify_webhook | FAIL |\n| mentions_env_secret | PASS |\n| handles_subscription_created | PASS |\n| logs_payer_id | PASS |\n| handles_subscription_past_due | PASS |\n| logs_subscription_id | FAIL |\n| errors_on_past_due | PASS |\n| references_status_field | FAIL |\n| verify_webhook_called_correctly | FAIL |\n| http_responses | PASS |\n| no_svix | FAIL |\n"
+}

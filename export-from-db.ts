@@ -1,24 +1,24 @@
-import { Database } from "bun:sqlite";
-import fs from "node:fs";
+import { Database } from 'bun:sqlite'
+import fs from 'node:fs'
 
-const db = new Database("evals.db");
+const db = new Database('evals.db')
 
 interface DBRow {
-  model: string;
-  label: string;
-  framework: string;
-  category: string;
-  value: number;
-  updatedAt: string;
+  model: string
+  label: string
+  framework: string
+  category: string
+  value: number
+  updatedAt: string
 }
 
 interface Score {
-  model: string;
-  label: string;
-  framework: string;
-  category: string;
-  value: number;
-  updatedAt: string;
+  model: string
+  label: string
+  framework: string
+  category: string
+  value: number
+  updatedAt: string
 }
 
 // Get BASELINE results (average of latest run per model+category)
@@ -41,10 +41,10 @@ const baselineQuery = db.query(`
   ) latest ON r.model = latest.model AND r.run_id = latest.latest_run
   WHERE r.label NOT LIKE '%(MCP)%'
   GROUP BY r.model, r.category
-`);
+`)
 
-const baseline = baselineQuery.all() as DBRow[];
-console.log(`Baseline scores: ${baseline.length}`);
+const baseline = baselineQuery.all() as DBRow[]
+console.log(`Baseline scores: ${baseline.length}`)
 
 // Get MCP results (average of latest run per model+category)
 const mcpQuery = db.query(`
@@ -64,33 +64,33 @@ const mcpQuery = db.query(`
   ) latest ON r.model = latest.model AND r.run_id = latest.latest_run
   WHERE r.label LIKE '%(MCP)%'
   GROUP BY r.model, r.category
-`);
+`)
 
-const mcp = mcpQuery.all() as DBRow[];
-console.log(`MCP scores: ${mcp.length}`);
+const mcp = mcpQuery.all() as DBRow[]
+console.log(`MCP scores: ${mcp.length}`)
 
 // Show breakdown by model
-console.log("\nBaseline per model:");
-const baselineCounts = new Map<string, number>();
+console.log('\nBaseline per model:')
+const baselineCounts = new Map<string, number>()
 for (const s of baseline) {
-  const count = baselineCounts.get(s.label) || 0;
-  baselineCounts.set(s.label, count + 1);
+  const count = baselineCounts.get(s.label) || 0
+  baselineCounts.set(s.label, count + 1)
 }
 for (const [model, count] of baselineCounts.entries()) {
-  console.log(`  ${model}: ${count}/6 categories`);
+  console.log(`  ${model}: ${count}/6 categories`)
 }
 
-console.log("\nMCP per model:");
-const mcpCounts = new Map<string, number>();
+console.log('\nMCP per model:')
+const mcpCounts = new Map<string, number>()
 for (const s of mcp) {
-  const count = mcpCounts.get(s.label) || 0;
-  mcpCounts.set(s.label, count + 1);
+  const count = mcpCounts.get(s.label) || 0
+  mcpCounts.set(s.label, count + 1)
 }
 for (const [model, count] of mcpCounts.entries()) {
-  console.log(`  ${model}: ${count}/6 categories`);
+  console.log(`  ${model}: ${count}/6 categories`)
 }
 
-fs.writeFileSync("scores.json", JSON.stringify(baseline, null, 2));
-fs.writeFileSync("scores-mcp.json", JSON.stringify(mcp, null, 2));
+fs.writeFileSync('scores.json', JSON.stringify(baseline, null, 2))
+fs.writeFileSync('scores-mcp.json', JSON.stringify(mcp, null, 2))
 
-console.log("\nExported to scores.json and scores-mcp.json");
+console.log('\nExported to scores.json and scores-mcp.json')
