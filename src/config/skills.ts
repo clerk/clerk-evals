@@ -26,9 +26,9 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/user-management/profile-page': ['nextjs-patterns'],
 
   // UI Components - mixed needs
-  'evals/ui-components/sign-in-customization': ['appearance'],
-  'evals/ui-components/user-button-menu': ['appearance'],
-  'evals/ui-components/user-profile-embed': ['appearance'],
+  'evals/ui-components/sign-in-customization': ['custom-ui'],
+  'evals/ui-components/user-button-menu': ['custom-ui'],
+  'evals/ui-components/user-profile-embed': ['custom-ui'],
   'evals/ui-components/organization-switcher': ['managing-orgs'],
 
   // Organizations
@@ -41,8 +41,8 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/webhooks/notifications': ['syncing-users'],
 
   // Billing - checkout vs webhooks
-  'evals/billing/checkout-new': ['custom-flows'],
-  'evals/billing/checkout-existing': ['custom-flows'],
+  'evals/billing/checkout-new': ['custom-ui'],
+  'evals/billing/checkout-existing': ['custom-ui'],
   'evals/billing/events-webhook': ['syncing-users'],
   'evals/billing/subscriptions-webhook': ['syncing-users'],
 }
@@ -52,9 +52,9 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
  */
 export const SKILL_MAPPING: Record<string, string[]> = {
   Quickstarts: ['setup', 'nextjs-patterns'],
-  Auth: ['nextjs-patterns', 'custom-flows'],
+  Auth: ['nextjs-patterns', 'custom-ui'],
   'User Management': ['nextjs-patterns'],
-  'UI Components': ['custom-flows'],
+  'UI Components': ['custom-ui'],
   Organizations: ['managing-orgs', 'nextjs-patterns'],
   Webhooks: ['syncing-users'],
   Billing: ['nextjs-patterns'],
