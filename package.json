@@ -13,6 +13,8 @@
     "start:agent": "bun src/agent-index.ts",
     "agent:claude": "bun src/agent-index.ts --agent claude-code",
     "agent:claude:mcp": "bun src/agent-index.ts --agent claude-code --mcp",
+    "agent:skills": "bun src/agent-index.ts --agent claude-code --skills",
+    "agent:skills:mcp": "bun src/agent-index.ts --agent claude-code --skills --mcp",
     "export": "bun export-from-db.ts",
     "merge-scores": "bun src/merge-scores.ts",
     "runner:main": "bun src/runners/main.ts",

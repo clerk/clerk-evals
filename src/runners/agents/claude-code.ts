@@ -22,6 +22,7 @@ import {
   createTempMCPConfig,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
+  setupSkills,
 } from './shared'
 
 /**
@@ -111,6 +112,7 @@ export default async function exec({
   evalPath,
   debug = false,
   mcpConfig,
+  skillsConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
   executablePath,
   envPath,
@@ -137,7 +139,35 @@ export default async function exec({
       mcpConfigPath = await createTempMCPConfig(workDir, mcpConfig)
     }
 
+    // 3b. Setup skills if enabled
+    if (skillsConfig?.enabled) {
+      const linkedSkills = await setupSkills(
+        workDir,
+        skillsConfig.sourcePath,
+        skillsConfig.evalPath,
+      )
+      if (debug && linkedSkills.length > 0) {
+        console.log(
+          `[skills] Loaded skills for ${skillsConfig.evalPath}: ${linkedSkills.join(', ')}`,
+        )
+        // Debug: verify CLAUDE.md was created
+        const fs = await import('node:fs/promises')
+        const claudeMdPath = `${workDir}/CLAUDE.md`
+        try {
+          const content = await fs.readFile(claudeMdPath, 'utf8')
+          console.log(`[skills] CLAUDE.md created at: ${claudeMdPath}`)
+          console.log(`[skills] CLAUDE.md size: ${content.length} chars`)
+          console.log(`[skills] CLAUDE.md preview: ${content.slice(0, 200)}...`)
+        } catch (e) {
+          console.log(`[skills] ERROR: CLAUDE.md not found at ${claudeMdPath}`)
+        }
+      }
+    }
+
     // 4. Execute Claude Code CLI
+    if (debug) {
+      console.log(`[debug] Executing Claude Code in workDir: ${workDir}`)
+    }
     const result = await execClaude(prompt, workDir, timeout, executablePath, envPath)
 
     if (!result.success && !result.output) {
