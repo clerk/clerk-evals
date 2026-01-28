@@ -3,6 +3,7 @@
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { symlinkSkills } from '@/src/config/skills'
 import type { AgentMCPConfig } from '@/src/interfaces/agent'
 
 /**
@@ -118,4 +119,22 @@ export async function cleanupTempWorkDir(workDir: string): Promise<void> {
   } catch {
     // Ignore cleanup errors
   }
+}
+
+/**
+ * Setup skills for Claude Code auto-discovery.
+ * Creates CLAUDE.md with skill content in the working directory.
+ * Claude Code automatically loads CLAUDE.md at startup.
+ *
+ * @param workDir - Temporary working directory for the eval
+ * @param skillsSourcePath - Path to the skills repo
+ * @param evalPath - Eval path for skill mapping (e.g., 'evals/auth/protect')
+ * @returns Array of skill names that were successfully loaded
+ */
+export async function setupSkills(
+  workDir: string,
+  skillsSourcePath: string,
+  evalPath: string,
+): Promise<string[]> {
+  return symlinkSkills(evalPath, skillsSourcePath, workDir)
 }

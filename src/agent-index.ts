@@ -13,8 +13,8 @@
 import { execSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { parseArgs } from 'util'
 import Tinypool from 'tinypool'
+import { parseArgs } from 'util'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type {
@@ -52,6 +52,8 @@ const { values } = parseArgs({
   options: {
     agent: { type: 'string', short: 'a' },
     mcp: { type: 'boolean', default: false },
+    skills: { type: 'boolean', default: false },
+    'skills-path': { type: 'string' },
     debug: { type: 'boolean', short: 'd', default: false },
     eval: { type: 'string', short: 'e' },
     timeout: { type: 'string', short: 't' },
@@ -62,6 +64,8 @@ const { values } = parseArgs({
 
 const agentArg = values.agent
 const mcpEnabled = values.mcp
+const skillsEnabled = values.skills
+const skillsPath = values['skills-path'] || path.join(process.cwd(), '..', 'skills', 'skills')
 const debugEnabled = values.debug
 const evalFilter = values.eval
 const timeoutArg = values.timeout
@@ -137,7 +141,10 @@ const pool = new Tinypool({
 })
 
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
-const runId = `agent-${agentType}${mcpEnabled ? '-mcp' : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`
+const runIdSuffix = [skillsEnabled ? 'skills' : '', mcpEnabled ? 'mcp' : '']
+  .filter(Boolean)
+  .join('-')
+const runId = `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`
 
 type DebugArtifact = {
   agent: string
@@ -170,8 +177,14 @@ const tasks = filteredEvaluations.map((evaluation) => ({
 }))
 
 // Progress output
-const mode = mcpEnabled ? `Agent (${agentInfo.label} + MCP)` : `Agent (${agentInfo.label})`
+const modeLabels: string[] = [agentInfo.label]
+if (skillsEnabled) modeLabels.push('Skills')
+if (mcpEnabled) modeLabels.push('MCP')
+const mode = `Agent (${modeLabels.join(' + ')})`
 console.log(`\nMode: ${mode}`)
+if (skillsEnabled) {
+  console.log(`Skills Path: ${skillsPath}`)
+}
 if (mcpEnabled) {
   console.log(`MCP Server: ${mcpUrl}`)
 }
@@ -194,6 +207,13 @@ await Promise.all(
             serverUrl: mcpUrl,
           }
         : undefined,
+      skillsConfig: skillsEnabled
+        ? {
+            enabled: true,
+            sourcePath: skillsPath,
+            evalPath: task.evaluationPath,
+          }
+        : undefined,
       timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
       executablePath,
       envPath: process.env.PATH,
@@ -210,9 +230,12 @@ await Promise.all(
               ? JSON.stringify(result.error)
               : String(result.error)
         console.error(`[error] ${task.agent}: ${errorMsg}`)
+        const errorLabelParts: string[] = [agentInfo.label]
+        if (skillsEnabled) errorLabelParts.push('Skills')
+        if (mcpEnabled) errorLabelParts.push('MCP')
         saveError(runId, {
           model: task.agent,
-          label: mcpEnabled ? `${agentInfo.label} (MCP)` : agentInfo.label,
+          label: errorLabelParts.join(' + '),
           framework: task.framework,
           category: task.category,
           evaluationPath: task.evaluationPath,
@@ -221,9 +244,12 @@ await Promise.all(
         return
       }
 
+      const labelParts: string[] = [agentInfo.label]
+      if (skillsEnabled) labelParts.push('Skills')
+      if (mcpEnabled) labelParts.push('MCP')
       const score: Score = {
         model: task.agent,
-        label: mcpEnabled ? `${agentInfo.label} (MCP)` : agentInfo.label,
+        label: labelParts.join(' + '),
         framework: task.framework,
         category: task.category,
         value: result.value.score,
