@@ -5,13 +5,14 @@ import type { Evaluation } from '@/src/interfaces'
  * Categories aligned with Clerk product verticals.
  */
 export const EVALUATIONS: Evaluation[] = [
-  // Quickstarts (3 evals)
+  // Quickstarts (4 evals)
   { framework: 'Next.js', category: 'Quickstarts', path: 'evals/quickstarts/nextjs' },
   {
     framework: 'Next.js',
     category: 'Quickstarts',
     path: 'evals/quickstarts/nextjs-app-router',
   },
+  { framework: 'Next.js', category: 'Quickstarts', path: 'evals/quickstarts/keyless' },
   { framework: 'React', category: 'Quickstarts', path: 'evals/quickstarts/react-vite' },
 
   // Auth (2 evals)
