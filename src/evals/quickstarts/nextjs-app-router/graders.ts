@@ -1,9 +1,9 @@
-import { contains, defineGraders, judge } from '@/src/graders'
+import { contains, containsAny, defineGraders, judge } from '@/src/graders'
 import { authUIChecks, llmChecks, quickstartChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
-  // Correct middleware setup
-  middleware_file: contains('middleware.ts'),
+  // Correct middleware/proxy setup (proxy.ts in Next.js 16+, middleware.ts in 15 and earlier)
+  middleware_or_proxy_file: containsAny(['proxy.ts', 'middleware.ts']),
   clerk_middleware_import: contains("from '@clerk/nextjs/server'"),
   clerk_middleware_usage: contains('clerkMiddleware'),
 
@@ -34,8 +34,8 @@ export const graders = defineGraders({
   ),
 
   // Verification steps from the prompt
-  verifies_middleware: judge(
-    'Does the response verify that clerkMiddleware() is used in middleware.ts?',
+  verifies_middleware_or_proxy: judge(
+    'Does the response verify that clerkMiddleware() is used in either middleware.ts or proxy.ts?',
   ),
   verifies_clerk_provider: judge(
     'Does the response verify that <ClerkProvider> wraps the app in app/layout.tsx?',
