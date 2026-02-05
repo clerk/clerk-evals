@@ -7,6 +7,7 @@ export type {
   AgentInfo,
   AgentMCPConfig,
   AgentRunnerArgs,
+  AgentSkillsConfig,
   AgentType,
 } from './agent'
 export { AGENTS, getAgentInfo, getAllAgentTypes } from './agent'
@@ -66,6 +67,7 @@ export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the futur
  * Categories aligned with Clerk product verticals
  */
 export type Category =
+  | 'Quickstarts'
   | 'Auth'
   | 'User Management'
   | 'UI Components'

@@ -21,6 +21,18 @@ export type AgentMCPConfig = {
 }
 
 /**
+ * Skills configuration for agent runners.
+ * When enabled, creates CLAUDE.md with relevant skill content for auto-discovery.
+ */
+export type AgentSkillsConfig = {
+  enabled: boolean
+  /** Path to the skills repo (e.g., /path/to/skills/skills) */
+  sourcePath: string
+  /** Eval path for skill mapping (e.g., 'evals/auth/protect') */
+  evalPath: string
+}
+
+/**
  * Arguments passed to agent runners.
  */
 export type AgentRunnerArgs = {
@@ -32,6 +44,8 @@ export type AgentRunnerArgs = {
   debug?: boolean
   /** MCP configuration (optional) */
   mcpConfig?: AgentMCPConfig
+  /** Skills configuration (optional) */
+  skillsConfig?: AgentSkillsConfig
   /** Timeout in milliseconds (default: 600000 = 10 min) */
   timeout?: number
   /** Full path to the CLI executable (resolved in main process) */
