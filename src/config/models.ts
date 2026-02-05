@@ -42,6 +42,7 @@ export const MODELS: ProviderModels = {
     { provider: 'anthropic', name: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
     { provider: 'anthropic', name: 'claude-opus-4-0', label: 'Claude Opus 4' },
     { provider: 'anthropic', name: 'claude-opus-4-5', label: 'Claude Opus 4.5' },
+    { provider: 'anthropic', name: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
     { provider: 'anthropic', name: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
   ],
   vercel: [
