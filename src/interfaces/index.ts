@@ -12,6 +12,16 @@ export type {
 } from './agent'
 export { AGENTS, getAgentInfo, getAllAgentTypes } from './agent'
 
+/**
+ * Skill metadata extracted from SKILL.md frontmatter.
+ */
+export type SkillMetadata = {
+  name: string
+  description: string
+  /** Absolute path to skill directory */
+  path: string
+}
+
 export type ToolCallInfo = {
   toolName: string
   args: unknown
@@ -55,6 +65,15 @@ export type RunnerArgs = {
  */
 export type MCPRunnerArgs = RunnerArgs & {
   mcpServerUrl: string
+  maxToolRounds?: number
+}
+
+/**
+ * Extended runner args for skills evaluations (supports optional MCP)
+ */
+export type SkillsRunnerArgs = RunnerArgs & {
+  skillsPath: string
+  mcpServerUrl?: string
   maxToolRounds?: number
 }
 
