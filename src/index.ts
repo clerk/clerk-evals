@@ -10,6 +10,7 @@ import type {
   RunnerDebugPayload,
   RunnerResult,
   Score,
+  SkillsRunnerArgs,
 } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 import consoleReporter from '@/src/reporters/console'
@@ -57,9 +58,12 @@ const normalizeEvalPath = (value: string) => {
 
 // Parse flags
 const mcpEnabled = parseBooleanFlag('mcp')
+const skillsEnabled = parseBooleanFlag('skills')
 const debugEnabled = parseBooleanFlag('debug', '-d')
 const modelFilter = parseStringArg('model', '-m')
 const evalFilter = parseStringArg('eval', '-e')
+const skillsPath =
+  parseStringArg('skills-path') || path.join(process.cwd(), '..', 'skills', 'skills')
 
 // Setup
 initDB()
@@ -101,17 +105,28 @@ if (filteredModels.length === 0) {
 }
 
 // Create pool with appropriate runner
-const runnerPath = mcpEnabled ? './runners/mcp.ts' : './runners/main.ts'
+const runnerPath = (() => {
+  if (skillsEnabled) return './runners/skills.ts'
+  if (mcpEnabled) return './runners/mcp.ts'
+  return './runners/main.ts'
+})()
+const hasTools = skillsEnabled || mcpEnabled
 const pool = new Tinypool({
   runtime: 'child_process',
   filename: new URL(runnerPath, import.meta.url).href,
   isolateWorkers: true,
-  idleTimeout: mcpEnabled ? 30000 : 10000,
-  maxThreads: mcpEnabled ? 8 : 10,
+  idleTimeout: hasTools ? 30000 : 10000,
+  maxThreads: hasTools ? 8 : 10,
 })
 
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
-const runId = `${mcpEnabled ? 'mcp-' : ''}${new Date().toISOString().replace(/[:.]/g, '-')}`
+const runIdPrefix = (() => {
+  if (skillsEnabled && mcpEnabled) return 'skills-mcp-'
+  if (skillsEnabled) return 'skills-'
+  if (mcpEnabled) return 'mcp-'
+  return ''
+})()
+const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
 
 type DebugArtifact = {
   provider: string
@@ -143,7 +158,7 @@ const tasks = filteredModels.flatMap((model) =>
     label: model.label,
     category: evaluation.category,
     framework: evaluation.framework,
-    evalPath: mcpEnabled
+    evalPath: hasTools
       ? path.join(process.cwd(), 'src', evaluation.path)
       : new URL(evaluation.path, import.meta.url).pathname,
     evaluationPath: evaluation.path,
@@ -151,8 +166,16 @@ const tasks = filteredModels.flatMap((model) =>
 )
 
 // Progress output
-const mode = mcpEnabled ? `MCP (${mcpUrl})` : 'baseline'
+const mode = (() => {
+  if (skillsEnabled && mcpEnabled) return `Skills + MCP (${mcpUrl})`
+  if (skillsEnabled) return `Skills (${skillsPath})`
+  if (mcpEnabled) return `MCP (${mcpUrl})`
+  return 'baseline'
+})()
 console.log(`\nMode: ${mode}`)
+if (skillsEnabled) {
+  console.log(`Skills Path: ${skillsPath}`)
+}
 console.log(
   `Running ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
 )
@@ -171,9 +194,18 @@ await Promise.all(
       debug: debugEnabled,
     }
 
-    const runnerArgs: RunnerArgs | MCPRunnerArgs = mcpEnabled
-      ? { ...baseArgs, mcpServerUrl: mcpUrl, maxToolRounds: 10 }
-      : baseArgs
+    const runnerArgs: RunnerArgs | MCPRunnerArgs | SkillsRunnerArgs = (() => {
+      if (skillsEnabled && mcpEnabled) {
+        return { ...baseArgs, skillsPath, mcpServerUrl: mcpUrl, maxToolRounds: 15 }
+      }
+      if (skillsEnabled) {
+        return { ...baseArgs, skillsPath, maxToolRounds: 15 }
+      }
+      if (mcpEnabled) {
+        return { ...baseArgs, mcpServerUrl: mcpUrl, maxToolRounds: 10 }
+      }
+      return baseArgs
+    })()
 
     try {
       const result: RunnerResult = await pool.run(runnerArgs)
@@ -182,9 +214,15 @@ await Promise.all(
         const errorMsg =
           typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error
         console.error(`[error] ${task.label}: ${errorMsg}`)
+        const labelSuffix = (() => {
+          if (skillsEnabled && mcpEnabled) return ' (Skills+MCP)'
+          if (skillsEnabled) return ' (Skills)'
+          if (mcpEnabled) return ' (MCP)'
+          return ''
+        })()
         saveError(runId, {
           model: task.model,
-          label: mcpEnabled ? `${task.label} (MCP)` : task.label,
+          label: `${task.label}${labelSuffix}`,
           framework: task.framework,
           category: task.category,
           evaluationPath: task.evaluationPath,
@@ -193,9 +231,15 @@ await Promise.all(
         return
       }
 
+      const scoreLabelSuffix = (() => {
+        if (skillsEnabled && mcpEnabled) return ' (Skills+MCP)'
+        if (skillsEnabled) return ' (Skills)'
+        if (mcpEnabled) return ' (MCP)'
+        return ''
+      })()
       const score: Score = {
         model: task.model,
-        label: mcpEnabled ? `${task.label} (MCP)` : task.label,
+        label: `${task.label}${scoreLabelSuffix}`,
         framework: task.framework,
         category: task.category,
         value: result.value.score,
@@ -218,8 +262,8 @@ await Promise.all(
         }
         debugArtifacts.push(artifact)
 
-        // Write debug files immediately for MCP mode
-        if (mcpEnabled) {
+        // Write debug files immediately for tool-using modes (MCP, Skills)
+        if (hasTools) {
           const debugPath = path.join(
             debugRunDirectory,
             `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.json`,
@@ -242,8 +286,8 @@ await Promise.all(
   }),
 )
 
-// Write baseline debug artifacts (non-MCP mode)
-if (debugEnabled && debugRunDirectory && !mcpEnabled) {
+// Write baseline debug artifacts (non-tool mode)
+if (debugEnabled && debugRunDirectory && !hasTools) {
   const sanitize = (v: string) => v.replace(/[^a-zA-Z0-9._-]/g, '_')
 
   for (const artifact of debugArtifacts) {
@@ -286,7 +330,12 @@ ${gradersRows}
 }
 
 // Report
-const outputFile = mcpEnabled ? 'scores-mcp.json' : 'scores.json'
+const outputFile = (() => {
+  if (skillsEnabled && mcpEnabled) return 'scores-skills-mcp.json'
+  if (skillsEnabled) return 'scores-skills.json'
+  if (mcpEnabled) return 'scores-mcp.json'
+  return 'scores.json'
+})()
 const dbScores = getResults(runId)
 fileReporter(dbScores, outputFile)
 

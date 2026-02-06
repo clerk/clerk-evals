@@ -9,6 +9,8 @@
   "scripts": {
     "start": "bun src/index.ts",
     "start:mcp": "bun src/index.ts --mcp",
+    "start:skills": "bun src/index.ts --skills",
+    "start:skills:mcp": "bun src/index.ts --skills --mcp",
     "start:all": "./run-evals.sh",
     "start:agent": "bun src/agent-index.ts",
     "agent:claude": "bun src/agent-index.ts --agent claude-code",
