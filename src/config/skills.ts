@@ -19,7 +19,7 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/quickstarts/react-vite': ['setup'],
 
   // Auth - NOT custom-flows! These need route protection patterns
-  'evals/auth/protect': ['nextjs-patterns', 'managing-orgs'],
+  'evals/auth/protect': ['nextjs-patterns', 'orgs'],
   'evals/auth/routes': ['nextjs-patterns'],
 
   // User Management
@@ -29,22 +29,22 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/ui-components/sign-in-customization': ['custom-ui'],
   'evals/ui-components/user-button-menu': ['custom-ui'],
   'evals/ui-components/user-profile-embed': ['custom-ui'],
-  'evals/ui-components/organization-switcher': ['managing-orgs'],
+  'evals/ui-components/organization-switcher': ['orgs'],
 
   // Organizations
-  'evals/organizations/url-sync': ['managing-orgs', 'nextjs-patterns'],
-  'evals/organizations/membership-webhook': ['syncing-users'],
+  'evals/organizations/url-sync': ['orgs', 'nextjs-patterns'],
+  'evals/organizations/membership-webhook': ['webhooks'],
 
   // Webhooks
-  'evals/webhooks/user-created': ['syncing-users'],
-  'evals/webhooks/user-sync': ['syncing-users'],
-  'evals/webhooks/notifications': ['syncing-users'],
+  'evals/webhooks/user-created': ['webhooks'],
+  'evals/webhooks/user-sync': ['webhooks'],
+  'evals/webhooks/notifications': ['webhooks'],
 
   // Billing - checkout vs webhooks
   'evals/billing/checkout-new': ['custom-ui'],
   'evals/billing/checkout-existing': ['custom-ui'],
-  'evals/billing/events-webhook': ['syncing-users'],
-  'evals/billing/subscriptions-webhook': ['syncing-users'],
+  'evals/billing/events-webhook': ['webhooks'],
+  'evals/billing/subscriptions-webhook': ['webhooks'],
 }
 
 /**
@@ -55,8 +55,8 @@ export const SKILL_MAPPING: Record<string, string[]> = {
   Auth: ['nextjs-patterns', 'custom-ui'],
   'User Management': ['nextjs-patterns'],
   'UI Components': ['custom-ui'],
-  Organizations: ['managing-orgs', 'nextjs-patterns'],
-  Webhooks: ['syncing-users'],
+  Organizations: ['orgs', 'nextjs-patterns'],
+  Webhooks: ['webhooks'],
   Billing: ['nextjs-patterns'],
 }
 
