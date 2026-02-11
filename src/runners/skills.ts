@@ -12,6 +12,7 @@ import { generateText, stepCountIs } from 'ai'
 import type { RunnerResult, SkillsRunnerArgs } from '@/src/interfaces'
 import { buildSkillsSystemPrompt, createLoadSkillTool, discoverSkills } from '@/src/skills'
 import { buildMCPDebugPayload } from '@/src/utils/debug'
+import { createMCPClient } from '@/src/utils/mcp-client'
 import { ERR, OK } from '@/src/utils/result'
 import {
   computeScore,
@@ -21,20 +22,6 @@ import {
   runGraders,
   SYSTEM_PROMPT,
 } from './shared'
-
-/**
- * Optional MCP client setup - only imported when mcpServerUrl is provided.
- */
-async function connectMCP(mcpServerUrl: string) {
-  const { experimental_createMCPClient } = await import('@ai-sdk/mcp')
-  const { StreamableHTTPClientTransport } = await import(
-    '@modelcontextprotocol/sdk/client/streamableHttp.js'
-  )
-  const transport = new StreamableHTTPClientTransport(new URL(mcpServerUrl))
-  const client = await experimental_createMCPClient({ transport })
-  const tools = await client.tools()
-  return { client, tools }
-}
 
 /**
  * Skills runner - supports skills-only and skills+MCP modes.
@@ -53,7 +40,7 @@ export default async function exec({
     return ERR(new Error(`Unsupported: ${provider}/${model}`))
   }
 
-  let mcpClient: Awaited<ReturnType<typeof connectMCP>>['client'] | null = null
+  let mcpClient: Awaited<ReturnType<typeof createMCPClient>>['client'] | null = null
 
   try {
     // 1. Discover skills
@@ -67,7 +54,7 @@ export default async function exec({
     let tools: Record<string, ReturnType<typeof createLoadSkillTool>> = { loadSkill }
 
     if (mcpServerUrl) {
-      const mcp = await connectMCP(mcpServerUrl)
+      const mcp = await createMCPClient(mcpServerUrl)
       mcpClient = mcp.client
       tools = { ...mcp.tools, loadSkill }
     }

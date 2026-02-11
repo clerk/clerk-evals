@@ -39,6 +39,7 @@
     "@modelcontextprotocol/sdk": "^1.17.3",
     "ai": "^5.0.64",
     "autoevals": "^0.0.131",
+    "gray-matter": "^4.0.3",
     "openai": "^6.2.0",
     "tinypool": "^2.0.0",
     "zod": "^4.1.13"

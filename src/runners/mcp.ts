@@ -1,15 +1,10 @@
 /**
  * MCP Runner - executes evaluations with MCP tool support.
- *
- * IMPORTANT: Uses @ai-sdk/mcp@0.0.12 due to Standard Schema compatibility.
- * Version 1.0+ requires Standard Schema which MCP servers don't provide.
- * See: https://github.com/modelcontextprotocol/typescript-sdk/issues/283
  */
-import { experimental_createMCPClient } from '@ai-sdk/mcp'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { generateText, stepCountIs } from 'ai'
 import type { MCPRunnerArgs, RunnerResult } from '@/src/interfaces'
 import { buildMCPDebugPayload } from '@/src/utils/debug'
+import { createMCPClient, type MCPClient } from '@/src/utils/mcp-client'
 import { ERR, OK } from '@/src/utils/result'
 import {
   computeScore,
@@ -36,13 +31,13 @@ export default async function exec({
     return ERR(new Error(`Unsupported: ${provider}/${model}`))
   }
 
-  let mcpClient: Awaited<ReturnType<typeof experimental_createMCPClient>> | null = null
+  let mcpClient: MCPClient | null = null
 
   try {
     // Connect to MCP server
-    const transport = new StreamableHTTPClientTransport(new URL(mcpServerUrl))
-    mcpClient = await experimental_createMCPClient({ transport })
-    const mcpTools = await mcpClient.tools()
+    const mcp = await createMCPClient(mcpServerUrl)
+    mcpClient = mcp.client
+    const mcpTools = mcp.tools
 
     // Load prompt and generate with tool support
     const prompt = await loadPrompt(evalPath)
