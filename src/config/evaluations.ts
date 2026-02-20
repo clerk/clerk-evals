@@ -53,6 +53,9 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Next.js', category: 'Webhooks', path: 'evals/webhooks/user-sync' },
   { framework: 'Next.js', category: 'Webhooks', path: 'evals/webhooks/notifications' },
 
+  // Upgrades (1 eval)
+  { framework: 'Next.js', category: 'Upgrades', path: 'evals/upgrades/core-3' },
+
   // Billing (4 evals)
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/checkout-new' },
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/checkout-existing' },

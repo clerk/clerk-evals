@@ -93,6 +93,7 @@ export type Category =
   | 'Organizations'
   | 'Webhooks'
   | 'Billing'
+  | 'Upgrades'
 export type Evaluation = {
   framework: Framework
   category: Category
