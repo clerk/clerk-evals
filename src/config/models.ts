@@ -61,3 +61,10 @@ export const MODELS: ProviderModels = {
 export function getAllModels(): ModelInfo[] {
   return Object.values(MODELS).flat()
 }
+
+/**
+ * Returns models for a specific provider.
+ */
+export function getModelsByProvider(provider: Provider): ModelInfo[] {
+  return MODELS[provider] ?? []
+}
