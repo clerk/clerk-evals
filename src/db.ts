@@ -1,7 +1,9 @@
 import { Database } from 'bun:sqlite'
 import type { Score } from '@/src/interfaces'
 
-const db = new Database('evals.db')
+const db = new Database('evals.db', { create: true })
+db.run('PRAGMA journal_mode = WAL')
+db.run('PRAGMA synchronous = NORMAL')
 
 export function initDB() {
   db.run(`
