@@ -1,0 +1,122 @@
+[
+  {
+    "model": "claude-haiku-4-5",
+    "label": "Claude Haiku 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.7368421052631579,
+    "updatedAt": "2026-02-22T20:51:42.061Z"
+  },
+  {
+    "model": "claude-opus-4-0",
+    "label": "Claude Opus 4",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8947368421052632,
+    "updatedAt": "2026-02-22T20:51:25.220Z"
+  },
+  {
+    "model": "claude-opus-4-5",
+    "label": "Claude Opus 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:51:15.387Z"
+  },
+  {
+    "model": "claude-opus-4-6",
+    "label": "Claude Opus 4.6",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:51:13.228Z"
+  },
+  {
+    "model": "claude-sonnet-4-0",
+    "label": "Claude Sonnet 4",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.7368421052631579,
+    "updatedAt": "2026-02-22T20:51:07.114Z"
+  },
+  {
+    "model": "claude-sonnet-4-5",
+    "label": "Claude Sonnet 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:51:22.515Z"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "label": "Gemini 2.5 Flash",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:51:52.545Z"
+  },
+  {
+    "model": "gemini-3-pro-preview",
+    "label": "Gemini 3 Pro Preview",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8947368421052632,
+    "updatedAt": "2026-02-22T20:52:17.545Z"
+  },
+  {
+    "model": "gpt-4o",
+    "label": "GPT-4o",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8947368421052632,
+    "updatedAt": "2026-02-22T20:51:02.744Z"
+  },
+  {
+    "model": "gpt-5",
+    "label": "GPT-5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:51:34.404Z"
+  },
+  {
+    "model": "gpt-5-chat-latest",
+    "label": "GPT-5 Chat",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8947368421052632,
+    "updatedAt": "2026-02-22T20:51:01.131Z"
+  },
+  {
+    "model": "gpt-5.2",
+    "label": "GPT-5.2",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:51:16.223Z"
+  },
+  {
+    "model": "gpt-5.2-codex",
+    "label": "GPT-5.2 Codex",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0,
+    "updatedAt": "2026-02-22T20:50:54.900Z"
+  },
+  {
+    "model": "v0-1.5-lg",
+    "label": "v0-1.5-lg",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-22T20:52:04.307Z"
+  },
+  {
+    "model": "v0-1.5-md",
+    "label": "v0-1.5-md",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.6842105263157895,
+    "updatedAt": "2026-02-22T20:51:51.709Z"
+  }
+]

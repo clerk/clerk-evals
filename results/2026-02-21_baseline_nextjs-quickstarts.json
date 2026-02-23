@@ -1,0 +1,242 @@
+[
+  {
+    "model": "gemini-3-pro-preview",
+    "label": "Gemini 3 Pro Preview",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:12:42.131Z"
+  },
+  {
+    "model": "v0-1.5-lg",
+    "label": "v0-1.5-lg",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8947368421052632,
+    "updatedAt": "2026-02-21T21:12:10.505Z"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "label": "Gemini 2.5 Flash",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:12:06.020Z"
+  },
+  {
+    "model": "gemini-3-pro-preview",
+    "label": "Gemini 3 Pro Preview",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:11:59.517Z"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "label": "Gemini 2.5 Flash",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:11:49.573Z"
+  },
+  {
+    "model": "v0-1.5-lg",
+    "label": "v0-1.5-lg",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9230769230769231,
+    "updatedAt": "2026-02-21T21:11:46.909Z"
+  },
+  {
+    "model": "v0-1.5-md",
+    "label": "v0-1.5-md",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.7368421052631579,
+    "updatedAt": "2026-02-21T21:11:42.057Z"
+  },
+  {
+    "model": "v0-1.5-md",
+    "label": "v0-1.5-md",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.5384615384615384,
+    "updatedAt": "2026-02-21T21:11:28.250Z"
+  },
+  {
+    "model": "claude-opus-4-0",
+    "label": "Claude Opus 4",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:11:27.760Z"
+  },
+  {
+    "model": "claude-opus-4-6",
+    "label": "Claude Opus 4.6",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:11:22.885Z"
+  },
+  {
+    "model": "claude-haiku-4-5",
+    "label": "Claude Haiku 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.7368421052631579,
+    "updatedAt": "2026-02-21T21:11:22.500Z"
+  },
+  {
+    "model": "gpt-5",
+    "label": "GPT-5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:11:08.199Z"
+  },
+  {
+    "model": "claude-sonnet-4-0",
+    "label": "Claude Sonnet 4",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:11:06.977Z"
+  },
+  {
+    "model": "claude-haiku-4-5",
+    "label": "Claude Haiku 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.5384615384615384,
+    "updatedAt": "2026-02-21T21:11:06.771Z"
+  },
+  {
+    "model": "claude-opus-4-6",
+    "label": "Claude Opus 4.6",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9230769230769231,
+    "updatedAt": "2026-02-21T21:11:04.211Z"
+  },
+  {
+    "model": "claude-opus-4-5",
+    "label": "Claude Opus 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8947368421052632,
+    "updatedAt": "2026-02-21T21:11:04.170Z"
+  },
+  {
+    "model": "claude-sonnet-4-5",
+    "label": "Claude Sonnet 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.7894736842105263,
+    "updatedAt": "2026-02-21T21:10:56.482Z"
+  },
+  {
+    "model": "claude-opus-4-5",
+    "label": "Claude Opus 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:52.990Z"
+  },
+  {
+    "model": "claude-sonnet-4-0",
+    "label": "Claude Sonnet 4",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:48.306Z"
+  },
+  {
+    "model": "claude-opus-4-0",
+    "label": "Claude Opus 4",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:47.279Z"
+  },
+  {
+    "model": "claude-sonnet-4-5",
+    "label": "Claude Sonnet 4.5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9230769230769231,
+    "updatedAt": "2026-02-21T21:10:41.247Z"
+  },
+  {
+    "model": "gpt-5",
+    "label": "GPT-5",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:32.776Z"
+  },
+  {
+    "model": "gpt-5.2",
+    "label": "GPT-5.2",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:10:26.119Z"
+  },
+  {
+    "model": "gpt-4o",
+    "label": "GPT-4o",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:10:23.808Z"
+  },
+  {
+    "model": "gpt-5-chat-latest",
+    "label": "GPT-5 Chat",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.9473684210526315,
+    "updatedAt": "2026-02-21T21:10:22.313Z"
+  },
+  {
+    "model": "gpt-5.2",
+    "label": "GPT-5.2",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:16.787Z"
+  },
+  {
+    "model": "gpt-5.2-codex",
+    "label": "GPT-5.2 Codex",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.3157894736842105,
+    "updatedAt": "2026-02-21T21:10:15.430Z"
+  },
+  {
+    "model": "gpt-4o",
+    "label": "GPT-4o",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:10.871Z"
+  },
+  {
+    "model": "gpt-5-chat-latest",
+    "label": "GPT-5 Chat",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0.8461538461538461,
+    "updatedAt": "2026-02-21T21:10:09.755Z"
+  },
+  {
+    "model": "gpt-5.2-codex",
+    "label": "GPT-5.2 Codex",
+    "framework": "Next.js",
+    "category": "Quickstarts",
+    "value": 0,
+    "updatedAt": "2026-02-21T21:10:06.384Z"
+  }
+]
