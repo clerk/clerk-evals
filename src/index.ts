@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import Tinypool from 'tinypool'
-import { EVALUATIONS, getAllModels } from '@/src/config'
+import { EVALUATIONS, getAllModels, getModelsByProvider } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type {
   MCPRunnerArgs,
@@ -61,13 +61,16 @@ const mcpEnabled = parseBooleanFlag('mcp')
 const skillsEnabled = parseBooleanFlag('skills')
 const debugEnabled = parseBooleanFlag('debug', '-d')
 const modelFilter = parseStringArg('model', '-m')
+const providerFilter = parseStringArg('provider', '-p')
 const evalFilter = parseStringArg('eval', '-e')
 const skillsPath =
   parseStringArg('skills-path') || path.join(process.cwd(), '..', 'skills', 'skills')
 
 // Setup
 initDB()
-const models = getAllModels()
+const models = providerFilter
+  ? getModelsByProvider(providerFilter.toLowerCase() as Provider)
+  : getAllModels()
 const evaluations = EVALUATIONS
 
 // Filter models - exact match on name only (case-insensitive, deterministic)
@@ -100,7 +103,8 @@ const filteredEvaluations = (() => {
 })()
 
 if (filteredModels.length === 0) {
-  console.error(`No models match filter: "${modelFilter}"`)
+  const filter = modelFilter ? `model="${modelFilter}"` : `provider="${providerFilter}"`
+  console.error(`No models match filter: ${filter}`)
   process.exit(1)
 }
 
