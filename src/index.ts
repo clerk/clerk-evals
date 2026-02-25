@@ -345,4 +345,16 @@ if (debugEnabled) {
   console.log(`Scores written to: ${outputFile}`)
 }
 
+// Braintrust export (opt-in via BRAINTRUST_API_KEY)
+if (process.env.BRAINTRUST_API_KEY) {
+  const modeLabel = (() => {
+    if (skillsEnabled && mcpEnabled) return 'skills-mcp' as const
+    if (skillsEnabled) return 'skills' as const
+    if (mcpEnabled) return 'mcp' as const
+    return 'baseline' as const
+  })()
+  const { default: braintrustReporter } = await import('@/src/reporters/braintrust')
+  await braintrustReporter(dbScores, runId, modeLabel)
+}
+
 await pool.destroy()
