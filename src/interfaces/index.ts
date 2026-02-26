@@ -78,6 +78,16 @@ export type SkillsRunnerArgs = RunnerArgs & {
 }
 
 /**
+ * Consolidated runner args — mode inferred from optional fields.
+ * Superset of RunnerArgs, MCPRunnerArgs, and SkillsRunnerArgs.
+ */
+export type ExecArgs = RunnerArgs & {
+  mcpServerUrl?: string
+  skillsPath?: string
+  maxToolRounds?: number
+}
+
+/**
  * Supported frameworks
  */
 export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the future
