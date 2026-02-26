@@ -103,7 +103,6 @@ if (filteredModels.length === 0) {
 
 // Mode detection — reused for runId, labels, output file, reporters
 const modeLabel = (() => {
-  if (skillsEnabled && mcpEnabled) return 'skills-mcp' as const
   if (skillsEnabled) return 'skills' as const
   if (mcpEnabled) return 'mcp' as const
   return 'baseline' as const
@@ -121,7 +120,6 @@ const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
   baseline: '',
   mcp: ' (MCP)',
   skills: ' (Skills)',
-  'skills-mcp': ' (Skills+MCP)',
 }
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
 const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
@@ -164,7 +162,6 @@ const tasks = filteredModels.flatMap((model) =>
 
 // Progress output
 const modeDisplay = (() => {
-  if (modeLabel === 'skills-mcp') return `Skills + MCP (${mcpUrl})`
   if (modeLabel === 'skills') return `Skills (${skillsPath})`
   if (modeLabel === 'mcp') return `MCP (${mcpUrl})`
   return 'baseline'
@@ -189,8 +186,8 @@ await Promise.all(
       provider: task.provider as Provider,
       model: task.model,
       debug: debugEnabled,
-      ...(mcpEnabled && { mcpServerUrl: mcpUrl }),
-      ...(skillsEnabled && { skillsPath }),
+      ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
+      ...(modeLabel === 'skills' && { skillsPath }),
     }
 
     try {

@@ -1,11 +1,10 @@
 /**
- * Consolidated eval runner — handles baseline, MCP, skills, and skills+MCP modes.
+ * Consolidated eval runner — handles baseline, MCP, and skills modes.
  *
  * Mode is inferred from optional fields:
  * - No mcpServerUrl + no skillsPath = baseline (no tools)
- * - mcpServerUrl only = MCP mode
- * - skillsPath only = skills mode
- * - Both = skills + MCP mode
+ * - mcpServerUrl = MCP mode
+ * - skillsPath = skills mode
  */
 import { generateText, stepCountIs } from 'ai'
 import type { ExecArgs, RunnerResult } from '@/src/interfaces'
