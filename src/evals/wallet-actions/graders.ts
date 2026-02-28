@@ -5,10 +5,7 @@ export const graders = defineGraders({
   uses_account_hook: contains('useAccount'),
   demonstrates_signing: containsAny(['signMessage', 'writeContract']),
   uses_wait_transaction_receipt: contains('useWaitForTransactionReceipt'),
-  demonstrates_transactions: containsAny([
-    'useWriteContract',
-    'writeContract',
-  ]),
+  demonstrates_transactions: containsAny(['useWriteContract', 'writeContract']),
   there_is_an_address: containsAny(['address']),
   handles_transaction_status: containsAny([
     'isLoading',

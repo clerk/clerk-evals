@@ -28,7 +28,7 @@ export type RunnerArgs = {
 /**
  * Supported frameworks
  */
-export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the future
+export type Framework = 'Next.js' | 'React' | 'Node.js'
 
 /**
  * Categories we test

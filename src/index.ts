@@ -73,6 +73,16 @@ const evaluations = [
     category: 'Hooks',
     path: 'evals/hooks-usage',
   },
+  {
+    framework: 'Node.js',
+    category: 'Backend Wallets',
+    path: 'evals/backend-wallets',
+  },
+  {
+    framework: 'Node.js',
+    category: 'Backend Wallet Signing',
+    path: 'evals/backend-wallet-signing',
+  },
 ] satisfies Evaluation[]
 
 type DebugArtifact = {
