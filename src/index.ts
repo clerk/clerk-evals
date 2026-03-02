@@ -73,6 +73,16 @@ const evaluations = [
     category: 'Hooks',
     path: 'evals/hooks-usage',
   },
+  {
+    framework: 'React',
+    category: 'Sponsor Transactions',
+    path: 'evals/sponsor-transactions',
+  },
+  {
+    framework: 'React',
+    category: 'ERC-20 Gas Payment',
+    path: 'evals/erc20-gas-payment',
+  },
 ] satisfies Evaluation[]
 
 type DebugArtifact = {
