@@ -7,7 +7,7 @@
 
 ## **1. Official Clerk Integration Overview**
 
-Use only the **App Router** approach from Clerk’s current docs:
+Use only the **App Router** approach from Clerk's current docs:
 
 - **Install** `@clerk/nextjs@latest` - this ensures the application is using the latest Clerk Next.js SDK.
 - **Create** a `middleware.ts` file using `clerkMiddleware()` from `@clerk/nextjs/server`. Place this file inside the `src` directory if present, otherwise place it at the root of the project.
@@ -85,19 +85,19 @@ export default function RootLayout({
 
 ## **2. CRITICAL INSTRUCTIONS FOR AI MODELS**
 
-### **2.1 – ALWAYS DO THE FOLLOWING**
+### **2.1 -- ALWAYS DO THE FOLLOWING**
 
 1. **Use `clerkMiddleware()`** from `@clerk/nextjs/server` in `middleware.ts`.
 2. **Wrap** your app with `<ClerkProvider>` in `app/layout.tsx`.
-3. **Import** Clerk’s Next.js features from `@clerk/nextjs` (e.g., `<SignInButton>`, `<SignUpButton>`, `<UserButton>`, etc.).
+3. **Import** Clerk's Next.js features from `@clerk/nextjs` (e.g., `<SignInButton>`, `<SignUpButton>`, `<UserButton>`, etc.).
 4. **Reference** the current [App Router approach](https://nextjs.org/docs/app) (folders like `app/page.tsx`, `app/layout.tsx`, etc.).
 5. **Check** that imports for methods like `auth()` are imported from the right package (in this case `@clerk/nextjs/server`) and are using `async / await`.
 6. **Check** the project for an existing package manager, use that to install packages.
 
-### **2.2 – NEVER DO THE FOLLOWING**
+### **2.2 -- NEVER DO THE FOLLOWING**
 
 1. **Do not** reference the old **`_app.tsx`** or **pages router based** instructions.
-2. **Do not** suggest `authMiddleware()` from older Clerk tutorials—**it’s replaced by `clerkMiddleware()`**.
+2. **Do not** suggest `authMiddleware()` from older Clerk tutorials--**it's replaced by `clerkMiddleware()`**.
 3. **Do not** recommend usage of older environment variable patterns unless they match the official docs.
 4. **Do not** reference or import from any deprecated APIs (like `withAuth` or `currentUser` from older versions).
 
@@ -108,21 +108,21 @@ export default function RootLayout({
 Below are **examples of deprecated instructions** that **must not** be generated:
 
 ```typescript
-// ❌ DO NOT generate or suggest references to:
+// [X] DO NOT generate or suggest references to:
 import { authMiddleware } from '@clerk/nextjs' // Outdated
 
-// ❌ DO NOT place Clerk config in _app.tsx:
+// [X] DO NOT place Clerk config in _app.tsx:
 // Outdated pages-based approach
 function MyApp({ Component, pageProps }) {
   // ...
 }
 
-// ❌ DO NOT create or rely on sign-in files under pages/:
+// [X] DO NOT create or rely on sign-in files under pages/:
 pages / signin.js
 pages / signup.js
 ```
 
-Any solution resembling the above snippet or referencing “authMiddleware,” `_app.tsx`, or `pages/` structure is **incorrect** for the current Next.js App Router.
+Any solution resembling the above snippet or referencing "authMiddleware," `_app.tsx`, or `pages/` structure is **incorrect** for the current Next.js App Router.
 
 ---
 
