@@ -1,8 +1,14 @@
 import { execSync } from 'node:child_process'
 import * as braintrust from 'braintrust'
-import type { Score } from '@/src/interfaces'
+import type { RunnerDebugPayload, Score } from '@/src/interfaces'
 
 const DEFAULT_PROJECT = 'clerk-evals'
+
+export type BraintrustEntry = Score & {
+  evaluationPath: string
+  debug?: RunnerDebugPayload
+}
+
 
 function getGitInfo() {
   try {
@@ -15,7 +21,7 @@ function getGitInfo() {
 }
 
 export default async function braintrustReporter(
-  scores: Score[],
+  entries: BraintrustEntry[],
   runId: string,
   mode: 'baseline' | 'mcp' | 'skills',
 ) {
@@ -32,18 +38,40 @@ export default async function braintrustReporter(
     },
   })
 
-  for (const score of scores) {
+  for (const entry of entries) {
+    const graderScores: Record<string, number> = {}
+    if (entry.debug?.graders) {
+      for (const [name, passed] of entry.debug.graders) {
+        graderScores[name] = passed ? 1 : 0
+      }
+    }
+
     experiment.log({
-      input: { model: score.model, framework: score.framework },
-      output: { category: score.category },
-      scores: { [score.category]: score.value },
-      metadata: {
-        model: score.model,
-        label: score.label,
-        framework: score.framework,
-        category: score.category,
-        mode,
+      input: {
+        prompt: entry.debug?.prompt,
+        model: entry.model,
+        framework: entry.framework,
+        evaluationPath: entry.evaluationPath,
       },
+      output: {
+        response: entry.debug?.response,
+        category: entry.category,
+      },
+      scores: {
+        overall: entry.value,
+        ...graderScores,
+      },
+      metadata: {
+        model: entry.model,
+        label: entry.label,
+        framework: entry.framework,
+        category: entry.category,
+        evaluationPath: entry.evaluationPath,
+        mode,
+        toolCallCount: entry.debug?.toolCalls?.length ?? 0,
+        toolsUsed: [...new Set(entry.debug?.toolCalls?.map((tc) => tc.toolName))],
+      },
+      tags: [mode, entry.category, entry.framework],
     })
   }
 

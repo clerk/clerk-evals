@@ -6,6 +6,7 @@ import { EVALUATIONS, getAllModels, getModelsByProvider } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
+import type { BraintrustEntry } from '@/src/reporters/braintrust'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 
@@ -139,6 +140,10 @@ type DebugArtifact = {
 }
 
 const debugArtifacts: DebugArtifact[] = []
+const braintrustDebugMap = new Map<string, { debug: RunnerDebugPayload; evaluationPath: string }>()
+
+// Collect debug payloads for Braintrust even without --debug flag
+const collectDebug = debugEnabled || !!process.env.BRAINTRUST_API_KEY
 
 let debugRunDirectory: string | undefined
 if (debugEnabled) {
@@ -185,7 +190,7 @@ await Promise.all(
       evalPath: task.evalPath,
       provider: task.provider as Provider,
       model: task.model,
-      debug: debugEnabled,
+      debug: collectDebug,
       ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
       ...(modeLabel === 'skills' && { skillsPath }),
     }
@@ -219,6 +224,14 @@ await Promise.all(
         updatedAt: new Date().toISOString(),
       }
       saveResult(runId, score)
+
+      // Collect debug data for Braintrust (even without --debug flag)
+      if (result.value.debug) {
+        braintrustDebugMap.set(`${task.model}::${task.category}`, {
+          debug: result.value.debug,
+          evaluationPath: task.evaluationPath,
+        })
+      }
 
       if (debugEnabled && result.value.debug && debugRunDirectory) {
         const artifact: DebugArtifact = {
@@ -315,8 +328,16 @@ if (debugEnabled) {
 
 // Braintrust export (opt-in via BRAINTRUST_API_KEY)
 if (process.env.BRAINTRUST_API_KEY) {
+  const entries: BraintrustEntry[] = dbScores.map((score) => {
+    const extra = braintrustDebugMap.get(`${score.model}::${score.category}`)
+    return {
+      ...score,
+      evaluationPath: extra?.evaluationPath ?? '',
+      debug: extra?.debug,
+    }
+  })
   const { default: braintrustReporter } = await import('@/src/reporters/braintrust')
-  await braintrustReporter(dbScores, runId, modeLabel)
+  await braintrustReporter(entries, runId, modeLabel)
 }
 
 await pool.destroy()
