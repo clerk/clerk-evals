@@ -1,0 +1,1 @@
+Add Clerk authentication to a native SwiftUI iOS app using a custom auth flow (not prebuilt UI). Build the sign-in and sign-up screens from scratch using ClerkKit. The publishable key is `pk_test_Y2xlcmsuaW5jbHVkZWQuZmF1biQxxxxxxx`.

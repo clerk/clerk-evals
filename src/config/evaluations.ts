@@ -61,4 +61,9 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/checkout-existing' },
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/events-webhook' },
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/subscriptions-webhook' },
+
+  // iOS (3 evals)
+  { framework: 'iOS', category: 'Quickstarts', path: 'evals/ios/prebuilt-setup' },
+  { framework: 'iOS', category: 'Quickstarts', path: 'evals/ios/custom-setup' },
+  { framework: 'iOS', category: 'Auth', path: 'evals/ios/routing' },
 ]

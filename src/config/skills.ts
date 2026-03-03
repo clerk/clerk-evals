@@ -45,6 +45,11 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/billing/checkout-existing': ['custom-ui'],
   'evals/billing/events-webhook': ['webhooks'],
   'evals/billing/subscriptions-webhook': ['webhooks'],
+
+  // iOS
+  'evals/ios/prebuilt-setup': ['swift'],
+  'evals/ios/custom-setup': ['swift'],
+  'evals/ios/routing': ['swift', 'setup'],
 }
 
 /**
