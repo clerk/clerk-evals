@@ -18,9 +18,9 @@ export const authUIChecks = registerJudges({
   usesUserButton:
     'Does the solution render a <UserButton> or <UserButton /> component from @clerk/nextjs?',
   usesSignedIn:
-    'Does the solution use the <SignedIn> component to conditionally render content for authenticated users?',
+    'Does the solution use the <Show when="signed-in"> component (or the legacy <SignedIn> component) to conditionally render content for authenticated users?',
   usesSignedOut:
-    'Does the solution use the <SignedOut> component to conditionally render content for unauthenticated users?',
+    'Does the solution use the <Show when="signed-out"> component (or the legacy <SignedOut> component) to conditionally render content for unauthenticated users?',
 })
 
 /**
