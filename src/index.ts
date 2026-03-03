@@ -4,14 +4,7 @@ import path from 'node:path'
 import Tinypool from 'tinypool'
 import { EVALUATIONS, getAllModels, getModelsByProvider } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
-import type {
-  MCPRunnerArgs,
-  RunnerArgs,
-  RunnerDebugPayload,
-  RunnerResult,
-  Score,
-  SkillsRunnerArgs,
-} from '@/src/interfaces'
+import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 import type { BraintrustEntry } from '@/src/reporters/braintrust'
 import consoleReporter from '@/src/reporters/console'
@@ -109,28 +102,28 @@ if (filteredModels.length === 0) {
   process.exit(1)
 }
 
-// Create pool with appropriate runner
-const runnerPath = (() => {
-  if (skillsEnabled) return './runners/skills.ts'
-  if (mcpEnabled) return './runners/mcp.ts'
-  return './runners/main.ts'
+// Mode detection — reused for runId, labels, output file, reporters
+const modeLabel = (() => {
+  if (skillsEnabled) return 'skills' as const
+  if (mcpEnabled) return 'mcp' as const
+  return 'baseline' as const
 })()
-const hasTools = skillsEnabled || mcpEnabled
+const hasTools = modeLabel !== 'baseline'
 const pool = new Tinypool({
   runtime: 'child_process',
-  filename: new URL(runnerPath, import.meta.url).href,
+  filename: new URL('./runners/exec.ts', import.meta.url).href,
   isolateWorkers: true,
   idleTimeout: hasTools ? 30000 : 10000,
   maxThreads: hasTools ? 8 : 10,
 })
 
+const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
+  baseline: '',
+  mcp: ' (MCP)',
+  skills: ' (Skills)',
+}
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
-const runIdPrefix = (() => {
-  if (skillsEnabled && mcpEnabled) return 'skills-mcp-'
-  if (skillsEnabled) return 'skills-'
-  if (mcpEnabled) return 'mcp-'
-  return ''
-})()
+const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
 
 type DebugArtifact = {
@@ -167,21 +160,18 @@ const tasks = filteredModels.flatMap((model) =>
     label: model.label,
     category: evaluation.category,
     framework: evaluation.framework,
-    evalPath: hasTools
-      ? path.join(process.cwd(), 'src', evaluation.path)
-      : new URL(evaluation.path, import.meta.url).pathname,
+    evalPath: path.join(process.cwd(), 'src', evaluation.path),
     evaluationPath: evaluation.path,
   })),
 )
 
 // Progress output
-const mode = (() => {
-  if (skillsEnabled && mcpEnabled) return `Skills + MCP (${mcpUrl})`
-  if (skillsEnabled) return `Skills (${skillsPath})`
-  if (mcpEnabled) return `MCP (${mcpUrl})`
+const modeDisplay = (() => {
+  if (modeLabel === 'skills') return `Skills (${skillsPath})`
+  if (modeLabel === 'mcp') return `MCP (${mcpUrl})`
   return 'baseline'
 })()
-console.log(`\nMode: ${mode}`)
+console.log(`\nMode: ${modeDisplay}`)
 if (skillsEnabled) {
   console.log(`Skills Path: ${skillsPath}`)
 }
@@ -196,25 +186,14 @@ await Promise.all(
   tasks.map(async (task) => {
     console.log(`[start] ${task.label} -> ${task.evaluationPath}`)
 
-    const baseArgs = {
+    const runnerArgs: ExecArgs = {
       evalPath: task.evalPath,
       provider: task.provider as Provider,
       model: task.model,
       debug: collectDebug,
+      ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
+      ...(modeLabel === 'skills' && { skillsPath }),
     }
-
-    const runnerArgs: RunnerArgs | MCPRunnerArgs | SkillsRunnerArgs = (() => {
-      if (skillsEnabled && mcpEnabled) {
-        return { ...baseArgs, skillsPath, mcpServerUrl: mcpUrl, maxToolRounds: 15 }
-      }
-      if (skillsEnabled) {
-        return { ...baseArgs, skillsPath, maxToolRounds: 15 }
-      }
-      if (mcpEnabled) {
-        return { ...baseArgs, mcpServerUrl: mcpUrl, maxToolRounds: 10 }
-      }
-      return baseArgs
-    })()
 
     try {
       const result: RunnerResult = await pool.run(runnerArgs)
@@ -223,12 +202,7 @@ await Promise.all(
         const errorMsg =
           typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error
         console.error(`[error] ${task.label}: ${errorMsg}`)
-        const labelSuffix = (() => {
-          if (skillsEnabled && mcpEnabled) return ' (Skills+MCP)'
-          if (skillsEnabled) return ' (Skills)'
-          if (mcpEnabled) return ' (MCP)'
-          return ''
-        })()
+        const labelSuffix = MODE_LABEL_SUFFIX[modeLabel]
         saveError(runId, {
           model: task.model,
           label: `${task.label}${labelSuffix}`,
@@ -240,12 +214,7 @@ await Promise.all(
         return
       }
 
-      const scoreLabelSuffix = (() => {
-        if (skillsEnabled && mcpEnabled) return ' (Skills+MCP)'
-        if (skillsEnabled) return ' (Skills)'
-        if (mcpEnabled) return ' (MCP)'
-        return ''
-      })()
+      const scoreLabelSuffix = MODE_LABEL_SUFFIX[modeLabel]
       const score: Score = {
         model: task.model,
         label: `${task.label}${scoreLabelSuffix}`,
@@ -347,12 +316,7 @@ ${gradersRows}
 }
 
 // Report
-const outputFile = (() => {
-  if (skillsEnabled && mcpEnabled) return 'scores-skills-mcp.json'
-  if (skillsEnabled) return 'scores-skills.json'
-  if (mcpEnabled) return 'scores-mcp.json'
-  return 'scores.json'
-})()
+const outputFile = modeLabel === 'baseline' ? 'scores.json' : `scores-${modeLabel}.json`
 const dbScores = getResults(runId)
 fileReporter(dbScores, outputFile)
 
@@ -364,11 +328,6 @@ if (debugEnabled) {
 
 // Braintrust export (opt-in via BRAINTRUST_API_KEY)
 if (process.env.BRAINTRUST_API_KEY) {
-  const modeLabel = (() => {
-    if (skillsEnabled) return 'skills' as const
-    if (mcpEnabled) return 'mcp' as const
-    return 'baseline' as const
-  })()
   const entries: BraintrustEntry[] = dbScores.map((score) => {
     const extra = braintrustDebugMap.get(`${score.model}::${score.category}`)
     return {
