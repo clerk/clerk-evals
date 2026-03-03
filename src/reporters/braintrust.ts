@@ -9,6 +9,7 @@ export type BraintrustEntry = Score & {
   debug?: RunnerDebugPayload
 }
 
+
 function getGitInfo() {
   try {
     const commit = execSync('git rev-parse --short HEAD').toString().trim()
