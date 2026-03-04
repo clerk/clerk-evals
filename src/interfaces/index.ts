@@ -41,6 +41,12 @@ export type RunnerDebugPayload = {
   transcript?: string
 }
 
+export type TokenUsage = {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+}
+
 /**
  * Every Runner function must return a RunnerResult
  * and should never throw under normal circumstances.
@@ -48,6 +54,8 @@ export type RunnerDebugPayload = {
 export type RunnerResult = Result<{
   score: number
   debug?: RunnerDebugPayload
+  tokens?: TokenUsage
+  durationMs?: number
 }>
 
 /**
@@ -121,4 +129,7 @@ export type Score = {
   category: Category
   value: number
   updatedAt?: string
+  tokens?: TokenUsage
+  costUsd?: number
+  durationMs?: number
 }
