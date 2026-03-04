@@ -1,4 +1,4 @@
-import { contains, defineGraders, judge } from '@/src/graders'
+import { contains, defineGraders, not } from '@/src/graders'
 
 export const graders = defineGraders({
   // Correct package
@@ -20,10 +20,6 @@ export const graders = defineGraders({
   uses_user_button: contains('<UserButton'),
 
   // Deprecated patterns should NOT appear
-  no_frontend_api: judge(
-    'Does the solution avoid using the deprecated frontendApi prop? It should use publishableKey instead.',
-  ),
-  no_react_app_env: judge(
-    'Does the solution use VITE_CLERK_PUBLISHABLE_KEY instead of deprecated environment variable names like REACT_APP_CLERK_FRONTEND_API or REACT_APP_CLERK_PUBLISHABLE_KEY?',
-  ),
+  no_frontend_api: not(contains('frontendApi')),
+  no_react_app_env: not(contains('REACT_APP_')),
 })

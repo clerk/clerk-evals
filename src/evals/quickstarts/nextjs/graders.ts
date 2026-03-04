@@ -1,4 +1,4 @@
-import { contains, defineGraders, judge } from '@/src/graders'
+import { contains, defineGraders, not } from '@/src/graders'
 import { authUIChecks, llmChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
@@ -22,10 +22,6 @@ export const graders = defineGraders({
   uses_user_button: authUIChecks.usesUserButton,
 
   // Deprecated patterns should NOT appear
-  no_auth_middleware: judge(
-    'Does the solution avoid using the deprecated authMiddleware() function? It should use clerkMiddleware() instead.',
-  ),
-  no_pages_router: judge(
-    'Does the solution use the App Router (app/ directory) instead of the deprecated Pages Router (_app.tsx, pages/ directory)?',
-  ),
+  no_auth_middleware: not(contains('authMiddleware')),
+  no_pages_router: not(contains('_app.tsx')),
 })

@@ -1,4 +1,4 @@
-import { contains, containsAny, defineGraders } from '@/src/graders'
+import { all, contains, containsAny, defineGraders } from '@/src/graders'
 import { PATTERNS, SCORERS } from '@/src/scorers/constants'
 
 export const graders = defineGraders({
@@ -7,15 +7,17 @@ export const graders = defineGraders({
     PATTERNS.CLERK_BACKEND_WEBHOOKS_VERIFY_WEBHOOK.test(actual),
   mentions_env_secret: contains('CLERK_WEBHOOK_SIGNING_SECRET'),
   handles_email_created: contains('email.created'),
-  logs_email_payload: async (actual) =>
-    (await contains('console.log')(actual)) &&
-    (await contains('email.created')(actual)) &&
-    (await contains('JSON.stringify')(actual)),
+  logs_email_payload: all(
+    contains('console.log'),
+    contains('email.created'),
+    contains('JSON.stringify'),
+  ),
   handles_sms_created: contains('sms.created'),
-  warns_sms_payload: async (actual) =>
-    (await contains('console.warn')(actual)) &&
-    (await contains('sms.created')(actual)) &&
-    (await contains('JSON.stringify')(actual)),
+  warns_sms_payload: all(
+    contains('console.warn'),
+    contains('sms.created'),
+    contains('JSON.stringify'),
+  ),
   mentions_event_id: containsAny(['evt.data.id', 'eventId']),
   verify_webhook_called_correctly: SCORERS.VERIFY_WEBHOOK_CALLED_CORRECTLY,
   http_responses: SCORERS.HTTP_RESPONSES,
