@@ -7,7 +7,7 @@
  * - skillsPath = skills mode
  */
 import { generateText, stepCountIs } from 'ai'
-import type { ExecArgs, RunnerResult } from '@/src/interfaces'
+import type { ExecArgs, RunnerResult, TokenUsage } from '@/src/interfaces'
 import { buildSkillsSystemPrompt, createLoadSkillTool, discoverSkills } from '@/src/skills'
 import { buildMCPDebugPayload } from '@/src/utils/debug'
 import { createMCPClient, type MCPClient } from '@/src/utils/mcp-client'
@@ -70,6 +70,7 @@ export default async function exec({
     const hasTools = Object.keys(tools).length > 0
     const effectiveMaxRounds = maxToolRounds ?? (skillsPath ? 15 : 10)
 
+    const startTime = performance.now()
     const response = await generateText({
       model: languageModel,
       prompt,
@@ -94,9 +95,23 @@ export default async function exec({
     const graderResults = await runGraders(graders, fullResponse)
     const score = computeScore(graderResults)
 
-    // 7. Build result with optional debug payload
+    // 7. Extract token usage and duration
+    const durationMs = Math.round(performance.now() - startTime)
+    const { inputTokens = 0, outputTokens = 0 } = response.totalUsage ?? response.usage ?? {}
+    const hasUsage = (inputTokens ?? 0) > 0 || (outputTokens ?? 0) > 0
+    const tokens: TokenUsage | undefined = hasUsage
+      ? {
+          promptTokens: inputTokens ?? 0,
+          completionTokens: outputTokens ?? 0,
+          totalTokens: (inputTokens ?? 0) + (outputTokens ?? 0),
+        }
+      : undefined
+
+    // 8. Build result with optional debug payload
     return OK({
       score,
+      tokens,
+      durationMs,
       debug: debug
         ? hasTools
           ? buildMCPDebugPayload(response, prompt, fullResponse, graderResults)

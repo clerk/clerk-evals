@@ -62,3 +62,30 @@ export function computeScore(graderResults: [string, boolean][]): number {
 export function resolveModel(provider: Provider, model: string) {
   return getModel(provider, model)
 }
+
+/**
+ * Per-model pricing (USD per 1M tokens): [input, output]
+ */
+const MODEL_PRICING: Record<string, [number, number]> = {
+  'gpt-4o': [2.5, 10],
+  'gpt-4o-mini': [0.15, 0.6],
+  'gpt-4.1': [2, 8],
+  'gpt-4.1-mini': [0.4, 1.6],
+  'gpt-4.1-nano': [0.1, 0.4],
+  'o3-mini': [1.1, 4.4],
+  'claude-sonnet-4-20250514': [3, 15],
+  'claude-opus-4-20250514': [15, 75],
+  'claude-haiku-3-5-20241022': [0.8, 4],
+  'gemini-2.5-pro-preview-05-06': [1.25, 10],
+  'gemini-2.0-flash': [0.1, 0.4],
+}
+
+export function estimateCost(
+  model: string,
+  usage: { promptTokens: number; completionTokens: number },
+): number | undefined {
+  const pricing = MODEL_PRICING[model]
+  if (!pricing) return undefined
+  const [inputRate, outputRate] = pricing
+  return (usage.promptTokens * inputRate + usage.completionTokens * outputRate) / 1_000_000
+}
