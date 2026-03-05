@@ -65,6 +65,11 @@ export function resolveModel(provider: Provider, model: string) {
 
 /**
  * Per-model pricing (USD per 1M tokens): [input, output]
+ *
+ * Sources:
+ * - OpenAI: https://platform.openai.com/docs/pricing
+ * - Anthropic: https://docs.anthropic.com/en/docs/about-claude/models
+ * - Google: https://ai.google.dev/gemini-api/docs/pricing
  */
 const MODEL_PRICING: Record<string, [number, number]> = {
   // OpenAI
