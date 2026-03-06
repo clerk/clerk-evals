@@ -1,7 +1,7 @@
 ---
 description: Register a new LLM model in the evaluation pipeline
 argument-hint: <provider/model-name, e.g. "anthropic/claude-opus-5-0">
-allowed-tools: Read, Write, Bash(bun:*), Glob, WebFetch
+allowed-tools: Read, Write, Bash(bun:*), Glob, WebFetch, AskUserQuestion
 ---
 
 # Add Model to Eval Pipeline
@@ -12,6 +12,22 @@ Register a new LLM model so it can be evaluated by the clerk-evals suite.
 
 `$ARGUMENTS` = Provider and model name in `provider/model-name` format.
 Examples: `anthropic/claude-opus-5-0`, `openai/gpt-6`, `google/gemini-3-flash`
+
+### If No Arguments Provided
+
+Use AskUserQuestion to ask:
+
+1. **Provider**: "Which provider?"
+   - OpenAI
+   - Anthropic
+   - Google
+   - Vercel
+
+2. **Model name**: "What is the exact API model identifier?" (free text)
+
+3. **Label**: "What display name should appear in the leaderboard?" (free text)
+
+Then proceed with the parsed values.
 
 ## Three Files Must Be Updated (in sync)
 

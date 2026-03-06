@@ -1,7 +1,7 @@
 ---
 description: Audit grader files to find LLM judges replaceable with deterministic code graders
 argument-hint: "[category-filter, e.g. 'billing', 'auth']"
-allowed-tools: Read, Grep, Glob
+allowed-tools: Read, Grep, Glob, AskUserQuestion
 ---
 
 # Audit Graders

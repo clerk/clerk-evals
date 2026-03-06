@@ -1,7 +1,7 @@
 ---
 description: Execute eval runs with correct flag combinations for common scenarios
 argument-hint: <scenario, e.g. "smoke claude-opus-4-6", "full leaderboard", "mcp comparison gpt-5">
-allowed-tools: Bash(bun:*), Bash(./run-evals.sh:*), Read, Glob
+allowed-tools: Bash(bun:*), Bash(./run-evals.sh:*), Read, Glob, AskUserQuestion
 ---
 
 # Run Evaluations
@@ -10,7 +10,38 @@ Execute clerk-evals runs with the right flags for common scenarios.
 
 ## Input
 
-`$ARGUMENTS` = A scenario description. Examples:
+`$ARGUMENTS` = A scenario description. If empty, use AskUserQuestion to guide the user.
+
+### If No Arguments Provided
+
+Use AskUserQuestion to ask:
+
+1. **Mode**: "Which execution mode?"
+   - Baseline (no tools)
+   - MCP (with MCP server tools)
+   - Skills (with Clerk skill files)
+   - Compare baseline vs MCP
+
+2. **Model scope**: "Which models to evaluate?"
+   - All models
+   - Single model (then ask which one)
+   - Single provider (OpenAI / Anthropic / Google)
+
+3. **Eval scope**: "Which evaluations?"
+   - All evals
+   - Single category (Auth, Billing, etc.)
+   - Single eval (then ask which one)
+
+4. **Options**: "Any additional options?"
+   - Debug mode (save detailed artifacts)
+   - Smoke test (1 task only)
+   - Dry run (preview without executing)
+
+Then construct the appropriate `bun start` command from the answers.
+
+### If Arguments Provided
+
+Parse from `$ARGUMENTS`:
 - `smoke claude-opus-4-6` — quick smoke test with one model
 - `full leaderboard` — all models, all modes, export to clerk repo
 - `mcp comparison claude-sonnet-4-5` — baseline vs MCP for one model

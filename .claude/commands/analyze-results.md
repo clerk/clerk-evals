@@ -1,7 +1,7 @@
 ---
 description: Analyze eval results — compare scores, find regressions, calculate MCP uplift
 argument-hint: <analysis-type, e.g. "mcp uplift", "regression check", "model gpt-5 vs claude-opus-4-6", "cost report">
-allowed-tools: Read, Bash(bun:*), Glob
+allowed-tools: Read, Bash(bun:*), Glob, AskUserQuestion
 ---
 
 # Analyze Eval Results
@@ -10,7 +10,27 @@ Compare evaluation results across runs, models, and modes to find regressions, c
 
 ## Input
 
-`$ARGUMENTS` = Analysis type. Examples:
+`$ARGUMENTS` = Analysis type. If empty, use AskUserQuestion to guide the user.
+
+### If No Arguments Provided
+
+Use AskUserQuestion to ask:
+
+1. **Analysis type**: "What kind of analysis?"
+   - MCP uplift (baseline vs MCP)
+   - Skills uplift (baseline vs Skills)
+   - Regression check (latest vs previous run)
+   - Model comparison (head-to-head)
+   - Category deep-dive
+   - Cost report
+   - Error audit
+
+2. If **model comparison**: "Which two models to compare?" (free text, e.g. `gpt-5 vs claude-opus-4-6`)
+3. If **category deep-dive**: "Which category?" (Auth, Billing, Webhooks, etc.)
+
+### If Arguments Provided
+
+Parse from `$ARGUMENTS`:
 - `mcp uplift` — baseline vs MCP score comparison
 - `skills uplift` — baseline vs Skills score comparison
 - `regression check` — compare latest run against previous
