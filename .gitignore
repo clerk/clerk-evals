@@ -6,6 +6,8 @@ out
 dist
 *.tgz
 evals.db
+evals.db-shm
+evals.db-wal
 
 # code coverage
 coverage
