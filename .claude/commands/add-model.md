@@ -116,6 +116,16 @@ Check that:
 - Score is computed
 - `costUsd` is populated (if pricing was added)
 
+### Step 7: Publish to Leaderboard (optional)
+
+After the smoke test passes, ask the user:
+
+> "Model registered and verified. Do you want to run the full eval suite and publish scores to the LLM leaderboard?"
+
+If yes:
+1. Run full eval suite: `bun start --model "<name>" --debug`
+2. Run `/publish-leaderboard add <label>` to export and update the docs repo
+
 ## Gotchas
 
 - The `name` field must match the exact model ID the provider's API expects

@@ -119,7 +119,6 @@ The runner script handles:
 - 5 min timeout per model
 - 2 retry attempts for failures
 - Auto-exports to `llm-scores.json`
-- Copies result to `~/Clerk/clerk/public/`
 
 ### Step 5: Report Results
 
@@ -127,6 +126,14 @@ After execution:
 1. Read the output scores file (`scores.json`, `scores-mcp.json`, or `scores-skills.json`)
 2. Summarize: per-model averages, per-category breakdown
 3. Flag any scores below 50% (likely regressions or broken evals)
+
+### Step 6: Publish to Leaderboard (optional)
+
+After reporting results, ask the user:
+
+> "Do you want to publish the updated scores to the LLM leaderboard?"
+
+If yes, run `/publish-leaderboard` to export, copy to the docs repo, and optionally create a draft PR.
 
 ## Environment Variables
 

@@ -29,6 +29,7 @@ See `docs/ADDING_EVALS.md` for a concrete, copy-pastable template and end-to-end
 | `/add-model <provider/name>` | Register new model (config + pricing + runner script) |
 | `/analyze-results <type>` | Compare scores, find regressions, calculate MCP uplift, cost reports |
 | `/audit-graders [category]` | Find LLM judges replaceable with deterministic code graders |
+| `/publish-leaderboard [desc]` | Export scores and publish to clerk/clerk docs repo (draft PR) |
 
 ## Project Structure & Module Organization
 `src/index.ts` wires providers, runners, reporters, and every folder under `src/evals`. Keep each evaluation in its own directory with `PROMPT.md`, `graders.ts`, and any fixtures it needs. Use descriptive, numeric-free slugs like `src/evals/new-eval`. Runner logic lives in `src/runners`, shared provider clients in `src/providers`, scoring helpers in `src/scorers`, and reusable utilities in `src/utils`. Diagrams intended for contributor onboarding belong in `docs/`, while transient artifacts like `scores.json` stay gitignored at the root.
