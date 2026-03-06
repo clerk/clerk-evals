@@ -19,6 +19,16 @@ export function initDB() {
     )
   `)
 
+  // Migrations: add token/cost/duration columns
+  const cols = db.query('PRAGMA table_info(results)').all() as { name: string }[]
+  const colNames = new Set(cols.map((c) => c.name))
+  if (!colNames.has('tokens_in')) {
+    db.run('ALTER TABLE results ADD COLUMN tokens_in INTEGER')
+    db.run('ALTER TABLE results ADD COLUMN tokens_out INTEGER')
+    db.run('ALTER TABLE results ADD COLUMN cost_usd REAL')
+    db.run('ALTER TABLE results ADD COLUMN duration_ms INTEGER')
+  }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS errors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,8 +47,8 @@ export function initDB() {
 
 export function saveResult(runId: string, score: Score) {
   const query = db.query(`
-    INSERT INTO results (run_id, model, label, framework, category, value, timestamp)
-    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp)
+    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms)
+    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms)
   `)
 
   query.run({
@@ -49,6 +59,10 @@ export function saveResult(runId: string, score: Score) {
     $category: score.category,
     $value: score.value,
     $timestamp: score.updatedAt ?? new Date().toISOString(),
+    $tokens_in: score.tokens?.promptTokens ?? null,
+    $tokens_out: score.tokens?.completionTokens ?? null,
+    $cost_usd: score.costUsd ?? null,
+    $duration_ms: score.durationMs ?? null,
   })
 }
 
@@ -85,7 +99,7 @@ export function saveError(
 
 export function getResults(runId?: string): Score[] {
   let queryStr =
-    'SELECT model, label, framework, category, value, timestamp as updatedAt FROM results'
+    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs FROM results'
   if (runId) {
     queryStr += ' WHERE run_id = $run_id'
   }
@@ -94,7 +108,23 @@ export function getResults(runId?: string): Score[] {
   const query = db.query(queryStr)
   const results = runId ? query.all({ $run_id: runId }) : query.all()
 
-  return results as Score[]
+  return (results as Array<Record<string, unknown>>).map((r) => ({
+    model: r.model as string,
+    label: r.label as string,
+    framework: r.framework as Score['framework'],
+    category: r.category as Score['category'],
+    value: r.value as number,
+    updatedAt: r.updatedAt as string | undefined,
+    ...(r.tokens_in != null && {
+      tokens: {
+        promptTokens: r.tokens_in as number,
+        completionTokens: r.tokens_out as number,
+        totalTokens: (r.tokens_in as number) + (r.tokens_out as number),
+      },
+    }),
+    ...(r.cost_usd != null && { costUsd: r.cost_usd as number }),
+    ...(r.durationMs != null && { durationMs: r.durationMs as number }),
+  }))
 }
 
 export function getLatestResults(): Score[] {

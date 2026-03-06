@@ -24,17 +24,6 @@ export const authUIChecks = registerJudges({
 })
 
 /**
- * Shared UI component assertions for Billing verticals
- */
-export const billingUIChecks = registerJudges({
-  usesCheckoutProvider: 'Does the solution use <CheckoutProvider> from @clerk/nextjs/experimental?',
-  usesPaymentElement:
-    'Does the solution use <PaymentElement> and <PaymentElementProvider> components?',
-  usesPricingTable:
-    'Does the solution use the <PricingTable> component for displaying pricing plans?',
-})
-
-/**
  * Shared UI component assertions for Organizations verticals
  */
 export const organizationsUIChecks = registerJudges({
