@@ -88,10 +88,10 @@ In the clerk/clerk repo:
 
 ```bash
 cd <clerk-repo-path>
-git checkout -b railly/update-leaderboard-YYYY-MM-DD
+git checkout -b $USER/update-leaderboard-YYYY-MM-DD
 git add public/llm-scores.json
 git commit -m "feat: <description from $ARGUMENTS or inferred>"
-git push -u origin railly/update-leaderboard-YYYY-MM-DD
+git push -u origin $USER/update-leaderboard-YYYY-MM-DD
 gh pr create --draft \
   --title "feat: <description>" \
   --body "Update LLM leaderboard scores.\n\nChanges:\n- <summary of diff>"
