@@ -9,7 +9,6 @@ export type BraintrustEntry = Score & {
   debug?: RunnerDebugPayload
 }
 
-
 function getGitInfo() {
   try {
     const commit = execSync('git rev-parse --short HEAD').toString().trim()
@@ -60,6 +59,15 @@ export default async function braintrustReporter(
       scores: {
         overall: entry.value,
         ...graderScores,
+      },
+      metrics: {
+        ...(entry.durationMs != null && { durationMs: entry.durationMs }),
+        ...(entry.tokens != null && {
+          promptTokens: entry.tokens.promptTokens,
+          completionTokens: entry.tokens.completionTokens,
+          totalTokens: entry.tokens.totalTokens,
+        }),
+        ...(entry.costUsd != null && { costUsd: entry.costUsd }),
       },
       metadata: {
         model: entry.model,

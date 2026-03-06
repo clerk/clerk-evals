@@ -40,7 +40,7 @@ This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, th
 For MCP evaluations, the runner connects to `https://mcp.clerk.dev/mcp` by default. Override with `MCP_SERVER_URL_OVERRIDE` for local testing.
 
 ## Build, Test, and Development Commands
-`bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun run start:eval src/evals/apiroutes`, and add `--debug` to capture prompts, responses, and grader decisions. Use `bun run runner:main` for quick smoke tests of the main runner implementation. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
+`bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun run start:eval src/evals/apiroutes`, and add `--debug` to capture prompts, responses, and grader decisions. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
 
 ### MCP Evaluations
 Run evaluations with MCP tool support using `bun start:mcp`. Connects to `https://mcp.clerk.dev/mcp` by default (zero-config):

@@ -62,3 +62,40 @@ export function computeScore(graderResults: [string, boolean][]): number {
 export function resolveModel(provider: Provider, model: string) {
   return getModel(provider, model)
 }
+
+/**
+ * Per-model pricing (USD per 1M tokens): [input, output]
+ *
+ * Sources:
+ * - OpenAI: https://platform.openai.com/docs/pricing
+ * - Anthropic: https://docs.anthropic.com/en/docs/about-claude/models
+ * - Google: https://ai.google.dev/gemini-api/docs/pricing
+ */
+const MODEL_PRICING: Record<string, [number, number]> = {
+  // OpenAI
+  'gpt-4o': [2.5, 10],
+  'gpt-5': [1.25, 10],
+  'gpt-5-chat-latest': [1.25, 10],
+  'gpt-5.2': [1.75, 14],
+  'gpt-5.2-codex': [1.75, 14],
+  // Anthropic
+  'claude-sonnet-4-0': [3, 15],
+  'claude-sonnet-4-5': [3, 15],
+  'claude-opus-4-0': [15, 75],
+  'claude-opus-4-5': [5, 25],
+  'claude-opus-4-6': [5, 25],
+  'claude-haiku-4-5': [1, 5],
+  // Google
+  'gemini-2.5-flash': [0.15, 0.6],
+  'gemini-3-pro-preview': [2, 12],
+}
+
+export function estimateCost(
+  model: string,
+  usage: { promptTokens: number; completionTokens: number },
+): number | undefined {
+  const pricing = MODEL_PRICING[model]
+  if (!pricing) return undefined
+  const [inputRate, outputRate] = pricing
+  return (usage.promptTokens * inputRate + usage.completionTokens * outputRate) / 1_000_000
+}

@@ -2,13 +2,14 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import Tinypool from 'tinypool'
-import { EVALUATIONS, getAllModels, getModelsByProvider } from '@/src/config'
+import { EVALUATIONS, getAllModels, getModelsByProvider, loadConfig } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 import type { BraintrustEntry } from '@/src/reporters/braintrust'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
+import { estimateCost } from '@/src/runners/shared'
 
 const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp' // Zero-config default
 
@@ -54,6 +55,9 @@ const normalizeEvalPath = (value: string) => {
 const mcpEnabled = parseBooleanFlag('mcp')
 const skillsEnabled = parseBooleanFlag('skills')
 const debugEnabled = parseBooleanFlag('debug', '-d')
+const dryRun = parseBooleanFlag('dry')
+const smokeTest = parseBooleanFlag('smoke')
+const failUnder = parseStringArg('fail-under')
 const modelFilter = parseStringArg('model', '-m')
 const providerFilter = parseStringArg('provider', '-p')
 const evalFilter = parseStringArg('eval', '-e')
@@ -62,6 +66,15 @@ const skillsPath =
 
 // Setup
 initDB()
+
+const config = await loadConfig(process.cwd())
+if (config) {
+  console.log(`Loaded config: ${config.name ?? 'clerk-evals'}`)
+}
+
+const effectiveFailUnder =
+  failUnder ?? (config?.ci?.failUnder ? String(config.ci.failUnder) : undefined)
+
 const models = providerFilter
   ? getModelsByProvider(providerFilter.toLowerCase() as Provider)
   : getAllModels()
@@ -171,20 +184,66 @@ const modeDisplay = (() => {
   if (modeLabel === 'mcp') return `MCP (${mcpUrl})`
   return 'baseline'
 })()
-console.log(`\nMode: ${modeDisplay}`)
-if (skillsEnabled) {
-  console.log(`Skills Path: ${skillsPath}`)
-}
 console.log(
-  `Running ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
+  `\nMode: ${modeDisplay} | ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
 )
 
+// Dry run: print summary table and exit
+if (dryRun) {
+  const modelNames = [...new Set(tasks.map((t) => t.label))]
+  const categories = [...new Set(tasks.map((t) => t.category))]
+  const evalsByCategory = new Map<string, string[]>()
+  for (const t of tasks) {
+    if (!evalsByCategory.has(t.category)) evalsByCategory.set(t.category, [])
+    const paths = evalsByCategory.get(t.category)
+    if (paths && !paths.includes(t.evaluationPath)) paths.push(t.evaluationPath)
+  }
+
+  console.log(`Models (${modelNames.length}):`)
+  for (const name of modelNames) console.log(`  - ${name}`)
+
+  console.log(`\nEvals by category:`)
+  for (const cat of categories) {
+    const evals = evalsByCategory.get(cat) ?? []
+    console.log(`  ${cat} (${evals.length})`)
+    for (const e of evals) console.log(`    - ${e.split('/').pop()}`)
+  }
+
+  console.log(`\nDry run: ${tasks.length} tasks would be executed.`)
+  process.exit(0)
+}
+
+// Smoke test: run only the first task
+const tasksToRun = smokeTest ? tasks.slice(0, 1) : tasks
+if (smokeTest) {
+  console.log(`Smoke test: running 1 of ${tasks.length} tasks\n`)
+}
+
 let completed = 0
+let errors = 0
+const isTTY = process.stdout.isTTY ?? false
+
+function logProgress(task: { label: string; evaluationPath: string }, status: string) {
+  if (isTTY) {
+    process.stdout.write(
+      `\r[${completed}/${tasksToRun.length}] ${status}: ${task.label} -> ${task.evaluationPath.split('/').pop()}    `,
+    )
+  }
+}
+
+// Lifecycle: preEval
+if (config?.hooks?.preEval) {
+  try {
+    await config.hooks.preEval()
+  } catch (e) {
+    console.error('[hook:preEval]', e)
+  }
+}
 
 // Run all in parallel
 await Promise.all(
-  tasks.map(async (task) => {
-    console.log(`[start] ${task.label} -> ${task.evaluationPath}`)
+  tasksToRun.map(async (task) => {
+    logProgress(task, 'running')
 
     const runnerArgs: ExecArgs = {
       evalPath: task.evalPath,
@@ -199,9 +258,10 @@ await Promise.all(
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        const errorMsg =
-          typeof result.error === 'object' ? JSON.stringify(result.error, null, 2) : result.error
-        console.error(`[error] ${task.label}: ${errorMsg}`)
+        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
+        console.error(
+          `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
+        )
         const labelSuffix = MODE_LABEL_SUFFIX[modeLabel]
         saveError(runId, {
           model: task.model,
@@ -211,6 +271,18 @@ await Promise.all(
           evaluationPath: task.evaluationPath,
           error: result.error,
         })
+        errors++
+        if (config?.hooks?.onError) {
+          try {
+            await config.hooks.onError({
+              model: task.model,
+              category: task.category,
+              error: result.error,
+            })
+          } catch (e) {
+            console.error('[hook:onError]', e)
+          }
+        }
         return
       }
 
@@ -222,8 +294,22 @@ await Promise.all(
         category: task.category,
         value: result.value.score,
         updatedAt: new Date().toISOString(),
+        tokens: result.value.tokens,
+        durationMs: result.value.durationMs,
+        costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
       }
       saveResult(runId, score)
+      if (config?.hooks?.onSuccess) {
+        try {
+          await config.hooks.onSuccess({
+            model: task.model,
+            category: task.category,
+            score: result.value.score,
+          })
+        } catch (e) {
+          console.error('[hook:onSuccess]', e)
+        }
+      }
 
       // Collect debug data for Braintrust (even without --debug flag)
       if (result.value.debug) {
@@ -267,10 +353,27 @@ await Promise.all(
       }
     } finally {
       completed++
-      console.log(`[done ${completed}/${tasks.length}] ${task.label} -> ${task.evaluationPath}`)
+      logProgress(task, 'done')
     }
   }),
 )
+
+if (isTTY) process.stdout.write(`\r${' '.repeat(80)}\r`)
+console.log(
+  `Completed: ${completed}/${tasksToRun.length} tasks${errors > 0 ? ` (${errors} errors)` : ''}`,
+)
+
+// Lifecycle: postEval
+if (config?.hooks?.postEval) {
+  try {
+    const allScores = getResults(runId)
+    await config.hooks.postEval({
+      scores: allScores.map((s) => ({ category: s.category, value: s.value })),
+    })
+  } catch (e) {
+    console.error('[hook:postEval]', e)
+  }
+}
 
 // Write baseline debug artifacts (non-tool mode)
 if (debugEnabled && debugRunDirectory && !hasTools) {
@@ -341,3 +444,22 @@ if (process.env.BRAINTRUST_API_KEY) {
 }
 
 await pool.destroy()
+
+// CI gate: fail if average score is below threshold
+if (effectiveFailUnder) {
+  const threshold = Number.parseFloat(effectiveFailUnder) / 100
+  if (dbScores.length === 0) {
+    console.error('No scores to evaluate against --fail-under threshold')
+    process.exit(1)
+  }
+  const avgScore = dbScores.reduce((sum, s) => sum + s.value, 0) / dbScores.length
+  if (avgScore < threshold) {
+    console.error(
+      `FAIL: Average score ${(avgScore * 100).toFixed(1)}% is below threshold ${effectiveFailUnder}%`,
+    )
+    process.exit(1)
+  }
+  console.log(
+    `PASS: Average score ${(avgScore * 100).toFixed(1)}% meets threshold ${effectiveFailUnder}%`,
+  )
+}

@@ -66,6 +66,8 @@ Proceed? (y/n)
    - Import from `@/src/graders` and `@/src/graders/catalog`
    - Use `defineGraders()` to export
    - Start from template: `src/evals/_template/graders.ts`
+   - Primitives: `contains()`, `containsAny()`, `matches()`, `judge()`
+   - Catalog: `llmChecks.*`, `authUIChecks.*`, `uiComponentChecks.*`, `organizationsUIChecks.*`, `quickstartChecks.*`
    - Reference: @src/evals/ui-components/sign-in-customization/graders.ts
 
    **Grader Best Practices** (prefer code over judges):

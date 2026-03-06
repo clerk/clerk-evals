@@ -18,20 +18,9 @@ export const authUIChecks = registerJudges({
   usesUserButton:
     'Does the solution render a <UserButton> or <UserButton /> component from @clerk/nextjs?',
   usesSignedIn:
-    'Does the solution use the <SignedIn> component to conditionally render content for authenticated users?',
+    'Does the solution use the <Show when="signed-in"> component (or the legacy <SignedIn> component) to conditionally render content for authenticated users?',
   usesSignedOut:
-    'Does the solution use the <SignedOut> component to conditionally render content for unauthenticated users?',
-})
-
-/**
- * Shared UI component assertions for Billing verticals
- */
-export const billingUIChecks = registerJudges({
-  usesCheckoutProvider: 'Does the solution use <CheckoutProvider> from @clerk/nextjs/experimental?',
-  usesPaymentElement:
-    'Does the solution use <PaymentElement> and <PaymentElementProvider> components?',
-  usesPricingTable:
-    'Does the solution use the <PricingTable> component for displaying pricing plans?',
+    'Does the solution use the <Show when="signed-out"> component (or the legacy <SignedOut> component) to conditionally render content for unauthenticated users?',
 })
 
 /**

@@ -53,26 +53,6 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
 }
 
 /**
- * @deprecated Use getSkillsForEval instead. Category-based mapping is too coarse.
- */
-export const SKILL_MAPPING: Record<string, string[]> = {
-  Quickstarts: ['setup', 'nextjs-patterns'],
-  Auth: ['nextjs-patterns', 'custom-ui'],
-  'User Management': ['nextjs-patterns'],
-  'UI Components': ['custom-ui'],
-  Organizations: ['orgs', 'nextjs-patterns'],
-  Webhooks: ['webhooks'],
-  Billing: ['nextjs-patterns'],
-}
-
-/**
- * @deprecated Use getSkillsForEval instead.
- */
-export function getSkillsForCategory(category: string): string[] {
-  return SKILL_MAPPING[category] || []
-}
-
-/**
  * Get skill names for a given eval path.
  */
 export function getSkillsForEval(evalPath: string): string[] {
