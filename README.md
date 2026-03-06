@@ -1,6 +1,6 @@
 # clerk-evals
 
-This repository hosts public evaluation suites used by Clerk to test how LLMs perform at writing Clerk code (primarily in Next.js). If an AI contributor is asked to "create a new eval suite for the Waitlist feature", it should add a new folder under `src/evals/` with a `PROMPT.md` and `graders.ts`, then register it in `src/index.ts`.
+This repository hosts public evaluation suites used by Clerk to test how LLMs perform at writing Clerk code (primarily in Next.js). If an AI contributor is asked to "create a new eval suite for the Waitlist feature", it should add a new folder under `src/evals/` with a `PROMPT.md` and `graders.ts`, then register it in `src/config/evaluations.ts`.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -25,7 +25,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
-- Append an entry to the `evaluations` array in `src/index.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
 - Run `bun run start:eval src/evals/your-eval` (optionally `--debug`).
 
 <details>
@@ -168,7 +168,7 @@ The merge script combines both score files and calculates improvement metrics:
 
 This project is broken up into a few core pieces:
 
-- [`src/index.ts`](./src/index.ts): This is the main entrypoint of the project. Evaluations, models, reporters, and the runner are registered here, and all executed.
+- [`src/index.ts`](./src/index.ts): This is the main entrypoint of the project. Models, reporters, and the runner are registered here, and all executed. Evaluations are defined in [`src/config/evaluations.ts`](./src/config/evaluations.ts).
 - [`/evals`](./src/evals): Folders that contain a prompt and grading expectations. Runners currently assume that eval folders contain two files: `graders.ts` and `PROMPT.md`.
 - [`/runners`](./src/runners): The primary logic responsible for loading evaluations, calling provider llms, and outputting scores.
 - [`/reporters`](./src/reporters): The primary logic responsible for sending scores somewhere — stdout, a file, etc.
