@@ -12,16 +12,23 @@ interface MCPToolCall {
   args?: Record<string, unknown>
 }
 
-/** MCP tool result - AI SDK types say `result` but MCP returns `output` */
+/** Tool result - MCP returns output.content[].text, skills return output as string */
 interface MCPToolResult {
   toolName: string
-  output?: { content?: Array<{ type: string; text?: string }> }
+  output?: string | { content?: Array<{ type: string; text?: string }> }
   result?: unknown
 }
 
 const getToolInput = (tc: MCPToolCall) => tc.input ?? tc.args ?? {}
 const getToolText = (tr: MCPToolResult) =>
-  tr.output?.content?.[0]?.text ?? (typeof tr.result === 'string' ? tr.result : undefined)
+  typeof tr.output === 'string'
+    ? tr.output
+    : tr.output?.content?.[0]?.text ??
+      (typeof tr.result === 'string'
+        ? tr.result
+        : tr.result != null
+          ? JSON.stringify(tr.result)
+          : undefined)
 
 /** Builds MCP debug payload with tool usage and transcript */
 export function buildMCPDebugPayload(
