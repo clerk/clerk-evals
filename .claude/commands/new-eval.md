@@ -65,24 +65,67 @@ Proceed? (y/n)
 3. **Create graders.ts**:
    - Import from `@/src/graders` and `@/src/graders/catalog`
    - Use `defineGraders()` to export
-   - Primitives: `contains()`, `containsAny()`, `matches()`, `judge()`
-   - Catalog: `llmChecks.*`, `authUIChecks.*`, `uiComponentChecks.*`, `organizationsUIChecks.*`, `billingUIChecks.*`
+   - Start from template: `src/evals/_template/graders.ts`
    - Reference: @src/evals/ui-components/sign-in-customization/graders.ts
 
-4. **Register** in `src/config/evaluations.ts`
+   **Grader Best Practices** (prefer code over judges):
+
+   Available primitives (from `@/src/graders`):
+   - `contains(needle)` — case-insensitive substring match
+   - `containsAny(needles[])` — match any substring
+   - `containsAll(needles[])` — match all substrings
+   - `matches(regex)` — regex test
+   - `not(grader)` — negate a grader
+   - `all(...graders)` — AND composition
+   - `any(...graders)` — OR composition
+   - `judge(criteria)` — LLM judge (last resort)
+
+   Catalog (from `@/src/graders/catalog`):
+   - `llmChecks.packageJsonClerkVersion` — checks @clerk/nextjs >= 6.0.0
+   - `llmChecks.environmentVariables` — checks .env.local has CLERK keys
+   - `authUIChecks.*` — SignIn, SignUp, UserButton, SignedIn, SignedOut
+   - `uiComponentChecks.*` — appearance, variables, elements, layout
+   - `organizationsUIChecks.*` — OrgSwitcher, OrgProfile, OrgList
+   - `quickstartChecks.*` — clerkMiddleware, ClerkProvider, no deprecated
+
+   **When to use `judge()` vs code graders**:
+   - Use code graders when checking string presence/absence: `contains('middleware.ts')`, `not(contains('authMiddleware'))`
+   - Use composites for multi-condition checks: `all(contains('await auth()'), contains('orgSlug'))`
+   - Only use `judge()` when criteria requires semantic understanding (logic flow, data relationships, ordering)
+   - Each `judge()` call costs ~$0.003 and introduces non-determinism — avoid when possible
+
+   **Examples**:
+   ```typescript
+   // GOOD: deterministic code graders
+   middleware_file: contains('middleware.ts'),
+   no_deprecated: not(contains('authMiddleware')),
+   auth_with_org: all(contains('await auth()'), contains('orgSlug')),
+   uses_any_pm: containsAny(['npm', 'bun', 'yarn', 'pnpm']),
+   has_id_field: matches(/\.id\b/),
+
+   // OK: judge for semantic checks only
+   correct_flow: judge('Does the solution call checkout.confirm before checkout.finalize?'),
+   ```
+
+4. **Register** in `src/config/evaluations.ts`:
+   ```typescript
+   { framework: 'Next.js', category: '<Category>', path: 'evals/<category>/<slug>' },
+   ```
 
 5. **Run lint**: `bun run check`
 
 ## Categories
 
-| Category | Slug | Focus |
-|----------|------|-------|
-| Auth | `auth` | Sign in/up, route protection, middleware |
-| User Management | `user-management` | currentUser, useUser, profiles, metadata |
-| UI Components | `ui-components` | Component customization, appearance API |
-| Organizations | `organizations` | Multi-tenancy, teams, org switching |
-| Webhooks | `webhooks` | Event handling, Svix verification |
-| Billing | `billing` | Checkout, subscriptions, payments |
+| Category | Slug | Framework | Focus |
+|----------|------|-----------|-------|
+| Quickstarts | `quickstarts` | Next.js, React, iOS | Initial setup, hello world |
+| Auth | `auth` | Next.js | Sign in/up, route protection, middleware |
+| User Management | `user-management` | Next.js | currentUser, useUser, profiles, metadata |
+| UI Components | `ui-components` | Next.js | Component customization, appearance API |
+| Organizations | `organizations` | Next.js | Multi-tenancy, teams, org switching |
+| Webhooks | `webhooks` | Next.js | Event handling, Svix verification |
+| Billing | `billing` | Next.js | Checkout, subscriptions, payments |
+| Upgrades | `upgrades` | Next.js | SDK migration (Core 2 -> Core 3) |
 
 ## Output
 
@@ -90,3 +133,4 @@ After creating the eval, show:
 1. The created PROMPT.md content
 2. The created graders.ts content
 3. The updated line in evaluations.ts
+4. Suggested verification: `bun start --eval "<slug>" --model "claude-opus-4-6" --smoke --debug`

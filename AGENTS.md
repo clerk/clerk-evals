@@ -9,17 +9,26 @@ You are operating in a repository whose sole purpose is to evaluate how well LLM
 - Create a new evaluation folder under `src/evals/` using a concise kebab-case slug, e.g. `src/evals/waitlist/`.
 - Inside that folder, add two files:
   - `PROMPT.md`: plain-English task and acceptance criteria. Be explicit about the framework (Next.js) and Clerk expectations.
-  - `graders.ts`: export a `graders` object using `defineGraders(...)` where each grader returns `boolean`. Prefer reusable judges from `@/src/graders/catalog`.
-- Register the new evaluation path in `src/index.ts` by appending an entry to the `evaluations` array with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+  - `graders.ts`: export a `graders` object using `defineGraders(...)` where each grader returns `boolean`. Prefer deterministic code graders (`contains`, `matches`, `all`, `not`) over LLM judges (`judge()`). Only use `judge()` for semantic checks that can't be expressed as pattern matching.
+- Register the new evaluation path in `src/config/evaluations.ts` by appending an entry with `framework`, `category`, and `path`.
 - Validate locally:
-  - `bun start` to run all evals, or
-  - `bun run start:eval src/evals/waitlist` to run just the new suite
-  - Add `--debug` to capture prompts, responses, and grading details
+  - `bun start --eval "<slug>" --smoke --debug` to test with one model
+  - `bun start` to run full suite
 - Style and structure:
   - Keep files TypeScript ESNext. Use the `@/*` path alias.
   - Use Biome: `bun run lint:fix` before committing.
 
 See `docs/ADDING_EVALS.md` for a concrete, copy-pastable template and end-to-end checklist.
+
+## Available Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/new-eval <url-or-desc>` | Create new eval from docs URL or feature description |
+| `/run-evals <scenario>` | Execute eval runs (smoke, single model, full suite, MCP comparison) |
+| `/add-model <provider/name>` | Register new model (config + pricing + runner script) |
+| `/analyze-results <type>` | Compare scores, find regressions, calculate MCP uplift, cost reports |
+| `/audit-graders [category]` | Find LLM judges replaceable with deterministic code graders |
 
 ## Project Structure & Module Organization
 `src/index.ts` wires providers, runners, reporters, and every folder under `src/evals`. Keep each evaluation in its own directory with `PROMPT.md`, `graders.ts`, and any fixtures it needs. Use descriptive, numeric-free slugs like `src/evals/new-eval`. Runner logic lives in `src/runners`, shared provider clients in `src/providers`, scoring helpers in `src/scorers`, and reusable utilities in `src/utils`. Diagrams intended for contributor onboarding belong in `docs/`, while transient artifacts like `scores.json` stay gitignored at the root.
