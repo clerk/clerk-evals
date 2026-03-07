@@ -35,17 +35,11 @@ export function createLoadSkillTool(skills: SkillMetadata[]) {
       const skill = skills.find((s) => s.name.toLowerCase() === name.toLowerCase())
 
       if (!skill) {
-        return {
-          error: `Skill "${name}" not found. Available skills: ${skills.map((s) => s.name).join(', ')}`,
-        }
+        return `Error: Skill "${name}" not found. Available skills: ${skills.map((s) => s.name).join(', ')}`
       }
 
       const content = await loadSkillContent(skill.path)
-      return {
-        skillName: skill.name,
-        content,
-        skillDirectory: skill.path,
-      }
+      return `# Skill: ${skill.name}\n\n${content}`
     },
   })
 }

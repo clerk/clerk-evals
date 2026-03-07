@@ -16,6 +16,7 @@ ALL_MODELS=(
   "gpt-5-chat-latest"
   "gpt-5.2"
   "gpt-5.2-codex"
+  "gpt-5.4-2026-03-05"
   "gemini-2.5-flash"
   "gemini-3-pro-preview"
   "v0-1.5-md"
