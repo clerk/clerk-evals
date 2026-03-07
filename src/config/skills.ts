@@ -50,11 +50,6 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/ios/prebuilt-setup': ['swift'],
   'evals/ios/custom-setup': ['swift'],
   'evals/ios/routing': ['swift', 'setup'],
-
-  // Android
-  'evals/android/prebuilt-setup': ['android'],
-  'evals/android/custom-setup': ['android'],
-  'evals/android/routing': ['android', 'setup'],
 }
 
 /**

@@ -66,9 +66,4 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'iOS', category: 'Quickstarts', path: 'evals/ios/prebuilt-setup' },
   { framework: 'iOS', category: 'Quickstarts', path: 'evals/ios/custom-setup' },
   { framework: 'iOS', category: 'Auth', path: 'evals/ios/routing' },
-
-  // Android (3 evals)
-  { framework: 'Android', category: 'Quickstarts', path: 'evals/android/prebuilt-setup' },
-  { framework: 'Android', category: 'Quickstarts', path: 'evals/android/custom-setup' },
-  { framework: 'Android', category: 'Auth', path: 'evals/android/routing' },
 ]
