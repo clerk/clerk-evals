@@ -98,7 +98,7 @@ export type ExecArgs = RunnerArgs & {
 /**
  * Supported frameworks
  */
-export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the future
+export type Framework = 'React' | 'Next.js'
 
 /**
  * Categories aligned with Clerk product verticals

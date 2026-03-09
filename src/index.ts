@@ -130,6 +130,7 @@ const pool = new Tinypool({
   maxThreads: hasTools ? 8 : 10,
 })
 
+<<<<<<< Updated upstream
 const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
   baseline: '',
   mcp: ' (MCP)',
@@ -138,6 +139,71 @@ const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
 const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
+=======
+/**
+ * Registered models
+ * To be manually updated
+ */
+const models: ModelInfo[] = [
+  { provider: 'openai', name: 'gpt-4o', label: 'GPT-4o' },
+  { provider: 'openai', name: 'gpt-5', label: 'GPT-5' },
+  { provider: 'openai', name: 'gpt-5-chat-latest', label: 'GPT-5 Chat' },
+  { provider: 'anthropic', name: 'claude-sonnet-4-0', label: 'Claude Sonnet 4' },
+  { provider: 'anthropic', name: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+  // { provider: 'anthropic', name: 'claude-opus-4-0', label: 'Claude Opus 4' },
+  { provider: 'vercel', name: 'v0-1.5-md', label: 'v0-1.5-md' },
+  { provider: 'google', name: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  { provider: 'google', name: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { provider: 'deepseek', name: 'deepseek-chat', label: 'DeepSeek Chat' },
+]
+
+/**
+ * Registered evaluations
+ * To be manually updated
+ */
+const evaluations = [
+  {
+    framework: 'React',
+    category: 'Setup',
+    path: 'evals/basic-setup',
+  },
+  {
+    framework: 'React',
+    category: 'Authentication',
+    path: 'evals/authentication',
+  },
+  {
+    framework: 'React',
+    category: 'Embedded Wallets',
+    path: 'evals/embedded-wallets',
+  },
+  {
+    framework: 'React',
+    category: 'Wallet Recovery',
+    path: 'evals/wallet-recovery',
+  },
+  {
+    framework: 'React',
+    category: 'Wallet Actions',
+    path: 'evals/wallet-actions',
+  },
+  {
+    framework: 'React',
+    category: 'Hooks',
+    path: 'evals/hooks-usage',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Sponsor Transactions',
+    path: 'evals/sponsor-tx',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Backend Wallets',
+    path: 'evals/backend-wallets',
+  },
+] satisfies Evaluation[]
+>>>>>>> Stashed changes
 
 type DebugArtifact = {
   provider: string
