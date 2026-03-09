@@ -1,4 +1,4 @@
-import { contains, containsAny, defineGraders, matches } from '@/src/graders'
+import { all, contains, containsAny, defineGraders, matches } from '@/src/graders'
 import { PATTERNS, SCORERS } from '@/src/scorers/constants'
 
 const verifyImportPattern = PATTERNS.CLERK_BACKEND_WEBHOOKS_IMPORT
@@ -9,9 +9,7 @@ export const graders = defineGraders({
   calls_verify_webhook: async (actual) => verifyCallPattern.test(actual),
   mentions_env_secret: contains('CLERK_WEBHOOK_SIGNING_SECRET'),
   handles_free_trial_event: contains('subscriptionItem.freeTrialEnding'),
-  warns_on_free_trial: async (actual) =>
-    (await contains('console.warn')(actual)) &&
-    (await contains('subscriptionItem.freeTrialEnding')(actual)),
+  warns_on_free_trial: all(contains('console.warn'), contains('subscriptionItem.freeTrialEnding')),
   handles_payment_attempt: contains('paymentAttempt.updated'),
   inspects_failed_status: matches(/status\s*===?\s*['"`]failed['"`]/),
   logs_payment_type: containsAny(['evt.data.type', 'attempt.type']),

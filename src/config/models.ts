@@ -36,6 +36,7 @@ export const MODELS: ProviderModels = {
     { provider: 'openai', name: 'gpt-5-chat-latest', label: 'GPT-5 Chat' },
     { provider: 'openai', name: 'gpt-5.2', label: 'GPT-5.2' },
     { provider: 'openai', name: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
+    { provider: 'openai', name: 'gpt-5.4-2026-03-05', label: 'GPT-5.4' },
   ],
   anthropic: [
     { provider: 'anthropic', name: 'claude-sonnet-4-0', label: 'Claude Sonnet 4' },

@@ -78,6 +78,7 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-5-chat-latest': [1.25, 10],
   'gpt-5.2': [1.75, 14],
   'gpt-5.2-codex': [1.75, 14],
+  'gpt-5.4-2026-03-05': [2.5, 12],
   // Anthropic
   'claude-sonnet-4-0': [3, 15],
   'claude-sonnet-4-5': [3, 15],
