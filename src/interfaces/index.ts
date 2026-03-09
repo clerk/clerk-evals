@@ -98,20 +98,20 @@ export type ExecArgs = RunnerArgs & {
 /**
  * Supported frameworks
  */
-export type Framework = 'React' | 'Next.js'
+export type Framework = 'React' | 'Next.js' | 'iOS'
 
 /**
  * Categories aligned with Clerk product verticals
  */
 export type Category =
-  | 'Quickstarts'
-  | 'Auth'
-  | 'User Management'
-  | 'UI Components'
-  | 'Organizations'
-  | 'Webhooks'
-  | 'Billing'
-  | 'Upgrades'
+  | 'Setup'
+  | 'Authentication'
+  | 'Embedded Wallets'
+  | 'Wallet Recovery'
+  | 'Wallet Actions'
+  | 'Hooks'
+  | 'Sponsor Transactions'
+  | 'Backend Wallets'
 export type Evaluation = {
   framework: Framework
   category: Category

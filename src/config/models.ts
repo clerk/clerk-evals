@@ -53,6 +53,7 @@ export const MODELS: ProviderModels = {
     { provider: 'google', name: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
     { provider: 'google', name: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
   ],
+  deepseek: [{ provider: 'deepseek', name: 'deepseek-chat', label: 'DeepSeek Chat' }],
 }
 
 /**
