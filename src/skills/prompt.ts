@@ -18,9 +18,9 @@ export function buildSkillsSystemPrompt(skills: SkillMetadata[]): string {
   return `
 ## Skills
 
-You have access to specialized Clerk documentation via the \`loadSkill\` tool.
-When the task requires framework-specific guidance, authentication patterns,
-or Clerk API knowledge, load the relevant skill first.
+You have access to specialized Openfort documentation via the \`loadSkill\` tool.
+When the task requires framework-specific guidance, wallet patterns,
+or Openfort API knowledge, load the relevant skill first.
 
 Available skills:
 ${skillsList}

@@ -1,18 +1,24 @@
 import { makeScorer } from '@/src/scorers/llm'
 
 export const PATTERNS = {
-  CLERK_BACKEND_WEBHOOKS_IMPORT: /from ['"]@clerk\/backend\/webhooks['"]/,
-  CLERK_BACKEND_WEBHOOKS_VERIFY_WEBHOOK: /await\s+verifyWebhook\s*\(/,
+  OPENFORT_NODE_IMPORT: /from ['"]@openfort\/openfort-node['"]/,
+  OPENFORT_JS_IMPORT: /from ['"]@openfort\/openfort-js['"]/,
+  OPENFORT_REACT_IMPORT: /from ['"]@openfort\/react['"]/,
+  SDK_INITIALIZATION: /new\s+Openfort\s*\(/,
+  FEE_SPONSORSHIP_CREATE: /feeSponsorship\.create\s*\(/,
+  TRANSACTION_INTENT: /transactionIntents\.create\s*\(/,
+  CREATE_WALLET: /createWallet|wallets\.create/,
+  SEND_TRANSACTION: /sendTransaction|transactions\.send/,
 }
 
-const PROMPT_NO_SVIX = 'Does the solution not use Svix anywhere?'
-const PROMPT_VERIFY_WEBHOOK_CALLED_CORRECTLY =
-  'Does the solution call verifyWebhook with a single request parameter?'
-const PROMPT_HTTP_RESPONSES =
-  'After verification, does the handler return a 200 response, and does it return a 400-level response when verification fails?'
+const PROMPT_CORRECT_SDK_IMPORT =
+  'Does the solution import from the correct Openfort SDK package (@openfort/openfort-node for backend, @openfort/openfort-js or @openfort/react for frontend)?'
+const PROMPT_SDK_INITIALIZED = 'Does the solution correctly initialize the Openfort SDK with the appropriate API key?'
+const PROMPT_POLICY_CONFIGURED =
+  'Does the solution reference a policy ID for sponsoring or controlling transaction behavior?'
 
 export const SCORERS = {
-  NO_SVIX: makeScorer(PROMPT_NO_SVIX),
-  VERIFY_WEBHOOK_CALLED_CORRECTLY: makeScorer(PROMPT_VERIFY_WEBHOOK_CALLED_CORRECTLY),
-  HTTP_RESPONSES: makeScorer(PROMPT_HTTP_RESPONSES),
+  CORRECT_SDK_IMPORT: makeScorer(PROMPT_CORRECT_SDK_IMPORT),
+  SDK_INITIALIZED: makeScorer(PROMPT_SDK_INITIALIZED),
+  POLICY_CONFIGURED: makeScorer(PROMPT_POLICY_CONFIGURED),
 }

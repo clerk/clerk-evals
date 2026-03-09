@@ -64,18 +64,18 @@ export type EvalSuiteConfig = {
 
 /**
  * Define a typed eval suite configuration.
- * If `clerk-evals.config.ts` exists at the project root, it is loaded automatically.
+ * If `openfort-evals.config.ts` exists at the project root, it is loaded automatically.
  */
 export function defineConfig(config: EvalSuiteConfig): EvalSuiteConfig {
   return config
 }
 
 /**
- * Attempt to load `clerk-evals.config.ts` from the given directory.
+ * Attempt to load `openfort-evals.config.ts` from the given directory.
  * Returns undefined if the file doesn't exist.
  */
 export async function loadConfig(dir: string): Promise<EvalSuiteConfig | undefined> {
-  const configPath = `${dir}/clerk-evals.config.ts`
+  const configPath = `${dir}/openfort-evals.config.ts`
   try {
     const mod = await import(configPath)
     return (mod.default ?? mod.config) as EvalSuiteConfig

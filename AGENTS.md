@@ -1,14 +1,14 @@
 # Repository Guidelines
 
 ## Goals
-This project is meant for Clerk to write publicly viewable evals. These evals test how LLMs perform at writing code using Clerk.
+This project evaluates how well LLMs write code using the Openfort SDK. These evals test LLM performance at implementing wallets, transactions, fee sponsorship, and other Openfort features.
 
 ## For AI Agents (default context)
-You are operating in a repository whose sole purpose is to evaluate how well LLMs write Clerk code. When a user asks for something like "create a new eval suite for the Waitlist feature", follow the steps below by default.
+You are operating in a repository whose sole purpose is to evaluate how well LLMs write Openfort code. When a user asks for something like "create a new eval suite for embedded wallets", follow the steps below by default.
 
-- Create a new evaluation folder under `src/evals/` using a concise kebab-case slug, e.g. `src/evals/waitlist/`.
+- Create a new evaluation folder under `src/evals/` using a concise kebab-case slug, e.g. `src/evals/wallets/create/`.
 - Inside that folder, add two files:
-  - `PROMPT.md`: plain-English task and acceptance criteria. Be explicit about the framework (Next.js) and Clerk expectations.
+  - `PROMPT.md`: plain-English task and acceptance criteria. Be explicit about the framework (Next.js) and Openfort expectations.
   - `graders.ts`: export a `graders` object using `defineGraders(...)` where each grader returns `boolean`. Prefer deterministic code graders (`contains`, `matches`, `all`, `not`) over LLM judges (`judge()`). Only use `judge()` for semantic checks that can't be expressed as pattern matching.
 - Register the new evaluation path in `src/config/evaluations.ts` by appending an entry with `framework`, `category`, and `path`.
 - Validate locally:
@@ -29,7 +29,7 @@ See `docs/ADDING_EVALS.md` for a concrete, copy-pastable template and end-to-end
 | `/add-model <provider/name>` | Register new model (config + pricing + runner script) |
 | `/analyze-results <type>` | Compare scores, find regressions, calculate MCP uplift, cost reports |
 | `/audit-graders [category]` | Find LLM judges replaceable with deterministic code graders |
-| `/publish-leaderboard [desc]` | Export scores and publish to clerk/clerk docs repo (draft PR) |
+| `/publish-leaderboard [desc]` | Export scores and publish to leaderboard (draft PR) |
 
 ## Project Structure & Module Organization
 `src/index.ts` wires providers, runners, reporters, and every folder under `src/evals`. Keep each evaluation in its own directory with `PROMPT.md`, `graders.ts`, and any fixtures it needs. Use descriptive, numeric-free slugs like `src/evals/new-eval`. Runner logic lives in `src/runners`, shared provider clients in `src/providers`, scoring helpers in `src/scorers`, and reusable utilities in `src/utils`. Diagrams intended for contributor onboarding belong in `docs/`, while transient artifacts like `scores.json` stay gitignored at the root.
@@ -37,13 +37,13 @@ See `docs/ADDING_EVALS.md` for a concrete, copy-pastable template and end-to-end
 ## Environment Setup & Secrets
 This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, then copy `.env.example` to `.env` and populate `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `V0_API_KEY`. Avoid checking secrets into version control; reference them through `process.env` only.
 
-For MCP evaluations, the runner connects to `https://mcp.clerk.dev/mcp` by default. Override with `MCP_SERVER_URL_OVERRIDE` for local testing.
+For MCP evaluations, set `MCP_SERVER_URL_OVERRIDE` to point to your MCP server.
 
 ## Build, Test, and Development Commands
-`bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun run start:eval src/evals/apiroutes`, and add `--debug` to capture prompts, responses, and grader decisions. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
+`bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun run start:eval src/evals/wallets/create`, and add `--debug` to capture prompts, responses, and grader decisions. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
 
 ### MCP Evaluations
-Run evaluations with MCP tool support using `bun start:mcp`. Connects to `https://mcp.clerk.dev/mcp` by default (zero-config):
+Run evaluations with MCP tool support using `bun start:mcp`. Set `MCP_SERVER_URL_OVERRIDE` to connect to your MCP server:
 
 ```bash
 # Production MCP server (default)

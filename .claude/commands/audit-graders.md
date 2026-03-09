@@ -1,6 +1,6 @@
 ---
 description: Audit grader files to find LLM judges replaceable with deterministic code graders
-argument-hint: "[category-filter, e.g. 'billing', 'auth']"
+argument-hint: "[category-filter, e.g. 'wallets', 'setup']"
 allowed-tools: Read, Grep, Glob, AskUserQuestion
 ---
 
@@ -10,22 +10,22 @@ Scan all evaluation graders to identify `judge()` calls that can be replaced wit
 
 ## Why This Matters
 
-Each `judge()` call invokes GPT-4.1 (~$0.003 per call). With 15 models x 27 evals x ~2 judges per eval = ~810 judge calls per full run. Replacing judges with `contains`/`matches`/`all` is free, deterministic, and faster.
+Each `judge()` call invokes GPT-4.1 (~$0.003 per call). With 15 models x N evals x ~2 judges per eval = many judge calls per full run. Replacing judges with `contains`/`matches`/`all` is free, deterministic, and faster.
 
 ## Input
 
-`$ARGUMENTS` = Optional category filter (e.g., `billing`, `auth`, `ui-components`).
+`$ARGUMENTS` = Optional category filter (e.g., `wallets`, `setup`, `sponsor-transactions`).
 If empty, audit all grader files.
 
 ## Available Grader Primitives
 
 | Primitive | Usage | Example |
 |-----------|-------|---------|
-| `contains(needle)` | Case-insensitive substring | `contains('middleware.ts')` |
+| `contains(needle)` | Case-insensitive substring | `contains('createWallet')` |
 | `containsAny(needles[])` | Match any | `containsAny(['npm', 'bun', 'yarn'])` |
-| `containsAll(needles[])` | Match all | `containsAll(['auth()', 'orgSlug'])` |
+| `containsAll(needles[])` | Match all | `containsAll(['openfort', 'policyId'])` |
 | `matches(regex)` | Regex test | `matches(/\.id\b/)` |
-| `not(grader)` | Negate | `not(contains('authMiddleware'))` |
+| `not(grader)` | Negate | `not(contains('deprecated'))` |
 | `all(...graders)` | AND compose | `all(contains('x'), matches(/y/))` |
 | `any(...graders)` | OR compose | `any(contains('a'), contains('b'))` |
 
@@ -37,42 +37,34 @@ Import from `@/src/graders`.
 
 The judge criteria can be expressed as pattern matching.
 
-**Before**: `judge('Does the solution avoid using the deprecated authMiddleware() function?')`
-**After**: `not(contains('authMiddleware'))`
+**Before**: `judge('Does the solution import from @openfort/openfort-node?')`
+**After**: `contains('@openfort/openfort-node')`
 
-**Before**: `judge('Does the content contain a codeblock that calls await auth() and accesses the orgSlug?')`
-**After**: `all(contains('await auth()'), contains('orgSlug'))`
+**Before**: `judge('Does the solution set up both a wallet and a transaction?')`
+**After**: `all(contains('createWallet'), contains('sendTransaction'))`
 
 ### KEEP — Judge evaluates semantic correctness
 
 The criteria requires understanding logic flow, data relationships, or multi-step reasoning.
 
-**Keep**: `judge('Does the solution submit the payment element, pass data to checkout.confirm, then call checkout.finalize?')`
+**Keep**: `judge('Does the solution create the wallet before sending a transaction with it?')`
 Reason: Checks ordering and data flow — can't be reduced to substring matching.
-
-**Keep**: `judge('Does the response verify that imports are from @clerk/nextjs or @clerk/nextjs/server?')`
-Reason: Requires understanding import context, not just presence of strings.
 
 ### SPLIT — Partially replaceable
 
 Separate the pattern-matchable parts from the semantic parts.
 
-**Before**: `judge('Does the admin route use auth.protect() with org:team_settings:manage permission and return JSON with the userId?')`
-**After (split)**:
-- Code: `all(contains('auth.protect'), contains('org:team_settings:manage'))`
-- Judge: `judge('Does the admin route return JSON with the userId after successful authorization?')`
-
 ## Catalog Judges
 
 The file `src/graders/catalog.ts` defines shared judges used across multiple evals:
 
-| Group | Count | Judges |
-|-------|-------|--------|
-| `llmChecks` | 2 | `packageJsonClerkVersion`, `environmentVariables` |
-| `authUIChecks` | 5 | `usesSignInComponent`, `usesSignUpComponent`, `usesUserButton`, `usesSignedIn`, `usesSignedOut` |
-| `organizationsUIChecks` | 4 | `usesOrganizationSwitcher`, `usesOrganizationProfile`, `usesOrganizationList`, `usesCreateOrganization` |
-| `uiComponentChecks` | 6 | `usesAppearanceProp`, `usesVariablesCustomization`, `usesElementsCustomization`, `usesLayoutCustomization`, `usesCustomMenuItem`, `usesUserProfile` |
-| `quickstartChecks` | 3 | `usesClerkMiddleware`, `usesClerkProvider`, `noDeprecatedPatterns` |
+| Group | Judges |
+|-------|--------|
+| `llmChecks` | `packageJsonOpenfortDeps`, `environmentVariables` |
+| `walletChecks` | `usesCreateWallet`, `usesSendTransaction`, `usesWriteContract` |
+| `providerChecks` | `usesOpenfortProvider`, `usesWagmiProvider`, `usesQueryClientProvider` |
+| `sponsorshipChecks` | `usesFeeSponsorship`, `usesTransactionIntent`, `usesPolicyId` |
+| `setupChecks` | `initializesOpenfort`, `usesServerSideKey` |
 
 Replacing a catalog judge impacts all evals that use it. Verify all consumers before changing.
 
@@ -90,7 +82,7 @@ If `$ARGUMENTS` specifies a category, filter to that subdirectory.
 
 For each grader file:
 - Grep for `judge(` — inline judges
-- Grep for catalog imports (`llmChecks`, `authUIChecks`, etc.) — shared judges
+- Grep for catalog imports (`llmChecks`, `walletChecks`, etc.) — shared judges
 
 ### Step 3: Classify Each Judge
 
@@ -137,4 +129,4 @@ bun start --eval "<affected-eval>" --model "claude-opus-4-6" --debug
 bun start --eval "<affected-eval>" --model "gpt-5" --debug
 ```
 
-Compare scores against the pre-replacement baseline (`scores-before-judge-replacement.json`). A well-replaced judge should produce equivalent or better scores.
+Compare scores against the pre-replacement baseline. A well-replaced judge should produce equivalent or better scores.

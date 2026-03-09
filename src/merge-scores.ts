@@ -9,7 +9,7 @@
  *   - scores-skills.json (Skills)
  *
  * Output:
- *   - llm-scores.json (enhanced format for clerk.com)
+ *   - llm-scores.json (enhanced format for leaderboard)
  */
 
 import fs from 'node:fs'

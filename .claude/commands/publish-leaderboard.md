@@ -1,12 +1,12 @@
 ---
-description: Export eval scores and publish them to the clerk/clerk docs repo for the LLM leaderboard
+description: Export eval scores and publish them for the LLM leaderboard
 argument-hint: "[description of what changed, e.g. 'add Claude Opus 5.0', 'refresh all scores']"
 allowed-tools: Read, Bash(bun:*), Bash(cp:*), Bash(git:*), Bash(gh:*), Glob, AskUserQuestion
 ---
 
 # Publish Leaderboard Scores
 
-Export eval results from the local database and publish them to the clerk/clerk docs repo as `llm-scores.json`.
+Export eval results from the local database and publish them as `llm-scores.json`.
 
 ## Input
 
@@ -19,7 +19,7 @@ If empty, the command will infer what changed from the diff.
 
 ## Your Task
 
-### Step 1: Export Scores (in clerk-evals)
+### Step 1: Export Scores (in openfort-evals)
 
 Run the export pipeline:
 
@@ -30,39 +30,30 @@ bun merge-scores          # Merge baseline + MCP + Skills → llm-scores.json
 
 Verify `llm-scores.json` was generated and is not empty.
 
-### Step 2: Find the clerk/clerk Docs Repo
+### Step 2: Find the Target Repo
 
 Search for the repo that contains `public/llm-scores.json`:
 
 ```bash
 # Check common sibling locations
-ls ../clerk/public/llm-scores.json 2>/dev/null
-ls ../../clerk/public/llm-scores.json 2>/dev/null
-```
-
-Or search more broadly:
-
-```bash
-# Find repos with the leaderboard file
-find ~ -maxdepth 4 -path "*/clerk/public/llm-scores.json" -not -path "*/node_modules/*" 2>/dev/null | head -5
+ls ../openfort-docs/public/llm-scores.json 2>/dev/null
+ls ../../openfort-docs/public/llm-scores.json 2>/dev/null
 ```
 
 If not found, ask the user for the path using AskUserQuestion.
 
-Verify it's the right repo by checking for `src/app/(website)/llm-leaderboard/page.tsx`.
-
 ### Step 3: Copy and Show Diff
 
-Copy the new scores to the docs repo:
+Copy the new scores to the target repo:
 
 ```bash
-cp llm-scores.json <clerk-repo-path>/public/llm-scores.json
+cp llm-scores.json <target-repo-path>/public/llm-scores.json
 ```
 
 Show what changed:
 
 ```bash
-cd <clerk-repo-path>
+cd <target-repo-path>
 git diff --stat public/llm-scores.json
 git diff public/llm-scores.json | head -100
 ```
@@ -84,10 +75,10 @@ Options:
 
 ### Step 5: Create Draft PR (if approved)
 
-In the clerk/clerk repo:
+In the target repo:
 
 ```bash
-cd <clerk-repo-path>
+cd <target-repo-path>
 git checkout -b $USER/update-leaderboard-YYYY-MM-DD
 git add public/llm-scores.json
 git commit -m "feat: <description from $ARGUMENTS or inferred>"
@@ -119,12 +110,12 @@ Show the user:
   model: string           // "claude-opus-4-6"
   label: string           // "Claude Opus 4.6"
   framework: string       // "Next.js"
-  category: string        // "Auth", "Billing", etc.
+  category: string        // "Setup", "Embedded Wallets", etc.
   value: number           // 0.0-1.0 baseline score
   provider: string        // "anthropic", "openai", "google", "vercel"
   mcpScore?: number       // Score with MCP tools
   improvement?: number    // mcpScore - value
-  skillsScore?: number    // Score with Clerk skills
+  skillsScore?: number    // Score with Openfort skills
   skillsImprovement?: number
   updatedAt?: string      // ISO timestamp
   tokens?: { promptTokens, completionTokens, totalTokens }
@@ -133,12 +124,10 @@ Show the user:
 }
 ```
 
-Consumed by `src/app/(website)/llm-leaderboard/page.tsx` in the clerk/clerk repo.
-
 ## Gotchas
 
-- Never hardcode the clerk/clerk repo path — always discover it dynamically
+- Never hardcode the target repo path — always discover it dynamically
 - The `export-from-db.ts` script reads from `evals.db` in the current directory
 - `merge-scores` reads `scores.json`, `scores-mcp.json`, and optionally `scores-skills.json`
-- The clerk/clerk repo may have uncommitted changes — check `git status` before creating a branch
-- If the clerk repo has a dirty working tree, stash or warn the user before proceeding
+- Check `git status` in the target repo before creating a branch
+- If the target repo has a dirty working tree, stash or warn the user before proceeding

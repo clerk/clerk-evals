@@ -107,7 +107,8 @@ else
   MODELS=("${ALL_MODELS[@]}")
 fi
 
-cd ~/Clerk/clerk-evals
+# e.g.: ~/Openfort/openfort-evals
+cd "your route"
 
 # Show what we're running
 echo "=== EVAL RUN CONFIGURATION ==="
@@ -210,9 +211,9 @@ if [ "$DO_EXPORT" = true ]; then
   echo "=== EXPORTING ==="
   bun export-from-db.ts
   bun merge-scores
-  cp llm-scores.json ~/Clerk/clerk/public/
+  cp llm-scores.json ~/your-route/public/
   echo ""
-  echo "Done! Check ~/Clerk/clerk/public/llm-scores.json"
+  echo "Done! Check ~/your-route/public/llm-scores.json"
 else
   echo ""
   echo "Skipping export (use without --no-export to export)"

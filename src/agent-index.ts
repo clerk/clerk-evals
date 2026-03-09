@@ -1,7 +1,7 @@
 /**
  * Agent Evaluation Entry Point
  *
- * Runs evaluations using CLI agents (Claude Code, Cursor, etc.)
+ * Runs evaluations using CLI agents (Claude Code, etc.)
  * instead of API-based model calls.
  *
  * Usage:
@@ -44,7 +44,8 @@ function resolveAgentPath(agentType: AgentType): string | undefined {
   }
 }
 
-const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp'
+// MCP URL — set via MCP_SERVER_URL_OVERRIDE env var (no public default for Openfort)
+const DEFAULT_MCP_URL = process.env.MCP_SERVER_URL_OVERRIDE || ''
 
 // CLI argument parsing using util.parseArgs
 const { values } = parseArgs({

@@ -1,56 +1,20 @@
 /**
  * Skills configuration for agent evaluations.
  *
- * Maps eval paths to relevant Clerk skills and injects them via CLAUDE.md.
+ * Maps eval paths to relevant Openfort skills and injects them via CLAUDE.md.
  * Claude Code auto-loads CLAUDE.md in the working directory.
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 
 /**
- * Maps eval paths to relevant Clerk skills.
+ * Maps eval paths to relevant Openfort skills.
  * More accurate than category-based mapping since each eval has specific needs.
  * Skills must exist in the skills repo at skills/<name>/SKILL.md
+ *
+ * Currently empty — no Openfort skills repo yet.
  */
-export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
-  // Quickstarts
-  'evals/quickstarts/nextjs': ['setup', 'nextjs-patterns'],
-  'evals/quickstarts/nextjs-app-router': ['setup', 'nextjs-patterns'],
-  'evals/quickstarts/react-vite': ['setup'],
-
-  // Auth - NOT custom-flows! These need route protection patterns
-  'evals/auth/protect': ['nextjs-patterns', 'orgs'],
-  'evals/auth/routes': ['nextjs-patterns'],
-
-  // User Management
-  'evals/user-management/profile-page': ['nextjs-patterns'],
-
-  // UI Components - mixed needs
-  'evals/ui-components/sign-in-customization': ['custom-ui'],
-  'evals/ui-components/user-button-menu': ['custom-ui'],
-  'evals/ui-components/user-profile-embed': ['custom-ui'],
-  'evals/ui-components/organization-switcher': ['orgs'],
-
-  // Organizations
-  'evals/organizations/url-sync': ['orgs', 'nextjs-patterns'],
-  'evals/organizations/membership-webhook': ['webhooks'],
-
-  // Webhooks
-  'evals/webhooks/user-created': ['webhooks'],
-  'evals/webhooks/user-sync': ['webhooks'],
-  'evals/webhooks/notifications': ['webhooks'],
-
-  // Billing - checkout vs webhooks
-  'evals/billing/checkout-new': ['custom-ui'],
-  'evals/billing/checkout-existing': ['custom-ui'],
-  'evals/billing/events-webhook': ['webhooks'],
-  'evals/billing/subscriptions-webhook': ['webhooks'],
-
-  // iOS
-  'evals/ios/prebuilt-setup': ['swift'],
-  'evals/ios/custom-setup': ['swift'],
-  'evals/ios/routing': ['swift', 'setup'],
-}
+export const EVAL_SKILL_MAPPING: Record<string, string[]> = {}
 
 /**
  * Get skill names for a given eval path.
@@ -98,7 +62,7 @@ async function readSkillContent(skillDir: string): Promise<string> {
  * Create CLAUDE.md with skill content for Claude Code auto-discovery.
  * Claude Code automatically loads CLAUDE.md from the working directory.
  *
- * @param evalPath - The evaluation path to get skills for (e.g., 'evals/auth/protect')
+ * @param evalPath - The evaluation path to get skills for (e.g., 'evals/wallets/create')
  * @param skillsSourcePath - Path to the skills repo (e.g., /path/to/skills/skills)
  * @param workDir - Temporary working directory for the eval
  * @returns Array of skill names that were successfully loaded
@@ -113,7 +77,7 @@ export async function createSkillsClaudeMd(
   const skillContents: string[] = []
 
   // Header for CLAUDE.md
-  skillContents.push(`# Clerk Skills Reference
+  skillContents.push(`# Openfort Skills Reference
 
 **OUTPUT FORMAT**: Respond with fenced code blocks like:
 
@@ -122,9 +86,9 @@ export async function createSkillsClaudeMd(
 \`\`\`
 
 Include ALL necessary files for a working app:
-- Source files (pages, components, middleware)
-- package.json with @clerk/nextjs dependency
-- .env.local with NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY placeholders
+- Source files (pages, components, providers)
+- package.json with @openfort/openfort-node or @openfort/openfort-js dependency
+- .env.local with NEXT_PUBLIC_OPENFORT_PUBLISHABLE_KEY and OPENFORT_SECRET_KEY placeholders
 
 Do NOT include prose explanations between code blocks.
 

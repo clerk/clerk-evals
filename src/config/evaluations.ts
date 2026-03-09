@@ -2,7 +2,7 @@ import type { Evaluation } from '@/src/interfaces'
 
 /**
  * Shared evaluations for baseline and MCP runners.
- * Categories aligned with Clerk product verticals.
+ * Categories aligned with Openfort product verticals.
  */
 export const EVALUATIONS: Evaluation[] = [
   // Openfort (8 evals)

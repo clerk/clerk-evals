@@ -1,7 +1,7 @@
 /**
  * loadSkill tool for AI SDK generateText.
  *
- * Allows models to load specialized Clerk documentation on demand,
+ * Allows models to load specialized Openfort documentation on demand,
  * following the Agent Skills progressive disclosure pattern.
  *
  * Uses jsonSchema() instead of Zod to avoid Zod v4 serialization issues
@@ -19,7 +19,7 @@ import { loadSkillContent } from './discovery'
 export function createLoadSkillTool(skills: SkillMetadata[]) {
   return tool({
     description:
-      'Load a Clerk skill to get specialized instructions for building with Clerk authentication',
+      'Load an Openfort skill to get specialized instructions for building with Openfort',
     inputSchema: jsonSchema<{ name: string }>({
       type: 'object',
       properties: {

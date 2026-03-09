@@ -82,7 +82,12 @@ export function saveError(
     VALUES ($run_id, $model, $label, $framework, $category, $evaluation_path, $error_message, $stack_trace, $timestamp)
   `)
 
-  const errorObj = details.error instanceof Error ? details.error : new Error(String(details.error))
+  const errMsg = details.error instanceof Error
+    ? details.error.message
+    : (details.error as any)?.message ?? JSON.stringify(details.error)
+  const errStack = details.error instanceof Error
+    ? details.error.stack
+    : (details.error as any)?.stack ?? null
 
   query.run({
     $run_id: runId,
@@ -91,8 +96,8 @@ export function saveError(
     $framework: details.framework ?? null,
     $category: details.category ?? null,
     $evaluation_path: details.evaluationPath,
-    $error_message: errorObj.message,
-    $stack_trace: errorObj.stack ?? null,
+    $error_message: errMsg,
+    $stack_trace: errStack,
     $timestamp: new Date().toISOString(),
   })
 }

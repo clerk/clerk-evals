@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
-import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createVercel } from '@ai-sdk/vercel'
 
 export type Provider = 'openai' | 'anthropic' | 'vercel' | 'google' | 'deepseek'
@@ -22,8 +22,10 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_API_KEY,
 })
 
-const deepseek = createDeepSeek({
+const deepseek = createOpenAICompatible({
+  name: 'deepseek',
   apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com/v1',
 })
 
 export function getModel(provider: Provider, model: string) {
@@ -36,6 +38,6 @@ export function getModel(provider: Provider, model: string) {
   } else if (provider === 'google') {
     return google(model)
   } else if (provider === 'deepseek') {
-    return deepseek(model)
+    return deepseek.chatModel(model)
   }
 }

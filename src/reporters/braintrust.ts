@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process'
 import * as braintrust from 'braintrust'
 import type { RunnerDebugPayload, Score } from '@/src/interfaces'
 
-const DEFAULT_PROJECT = 'clerk-evals'
+const DEFAULT_PROJECT = 'openfort-evals'
 
 export type BraintrustEntry = Score & {
   evaluationPath: string

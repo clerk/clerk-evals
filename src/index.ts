@@ -11,7 +11,8 @@ import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 import { estimateCost } from '@/src/runners/shared'
 
-const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp' // Zero-config default
+// MCP URL — set via MCP_SERVER_URL_OVERRIDE env var (no public default for Openfort)
+const DEFAULT_MCP_URL = process.env.MCP_SERVER_URL_OVERRIDE || ''
 
 // CLI argument parsing
 const args = process.argv.slice(2)
@@ -69,7 +70,7 @@ initDB()
 
 const config = await loadConfig(process.cwd())
 if (config) {
-  console.log(`Loaded config: ${config.name ?? 'clerk-evals'}`)
+  console.log(`Loaded config: ${config.name ?? 'openfort-evals'}`)
 }
 
 const effectiveFailUnder =
@@ -135,7 +136,7 @@ const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
   mcp: ' (MCP)',
   skills: ' (Skills)',
 }
-const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
+const mcpUrl = DEFAULT_MCP_URL
 const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
 
@@ -258,7 +259,9 @@ await Promise.all(
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
+        const errorMsg = result.error instanceof Error
+          ? result.error.message
+          : (result.error as any)?.message ?? JSON.stringify(result.error)
         console.error(
           `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
         )

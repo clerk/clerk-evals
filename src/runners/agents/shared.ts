@@ -13,12 +13,12 @@ export const DEFAULT_AGENT_TIMEOUT = 600_000
 
 /**
  * MCP config template for Claude Code.
- * Uses Streamable HTTP transport to connect to Clerk MCP server.
+ * Uses Streamable HTTP transport to connect to Openfort MCP server.
  */
 export function buildMCPConfig(serverUrl: string): object {
   return {
     mcpServers: {
-      clerk: {
+      openfort: {
         type: 'url',
         url: serverUrl,
       },

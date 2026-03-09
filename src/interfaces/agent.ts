@@ -2,14 +2,14 @@
  * Agent-specific types for CLI-based evaluation runners.
  *
  * Unlike API-based runners that use AI SDK's generateText,
- * agent runners spawn CLI tools (Claude Code, Cursor, etc.)
+ * agent runners spawn CLI tools (Claude Code, etc.)
  * and capture their stdout/stderr.
  */
 
 /**
  * Supported agent types - extensible for future agents.
  */
-export type AgentType = 'claude-code' | 'cursor'
+export type AgentType = 'claude-code'
 
 /**
  * MCP configuration for agent runners.
@@ -90,11 +90,6 @@ export const AGENTS: Record<AgentType, AgentInfo> = {
     type: 'claude-code',
     label: 'Claude Code',
     command: 'claude',
-  },
-  cursor: {
-    type: 'cursor',
-    label: 'Cursor',
-    command: 'cursor', // Placeholder - adjust based on actual CLI
   },
 }
 

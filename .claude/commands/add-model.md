@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Bash(bun:*), Glob, WebFetch, AskUserQuestion
 
 # Add Model to Eval Pipeline
 
-Register a new LLM model so it can be evaluated by the clerk-evals suite.
+Register a new LLM model so it can be evaluated by the openfort-evals suite.
 
 ## Input
 

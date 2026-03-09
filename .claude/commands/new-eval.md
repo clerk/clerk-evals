@@ -1,18 +1,18 @@
 ---
-description: Create a new Clerk eval from docs URL or feature description
-argument-hint: <clerk-docs-url-or-description>
+description: Create a new Openfort eval from docs URL or feature description
+argument-hint: <openfort-docs-url-or-description>
 allowed-tools: Read, Write, Bash(mkdir:*), Glob, WebFetch
 ---
 
-# Create New Clerk Eval
+# Create New Openfort Eval
 
-Create a new evaluation for the clerk-evals suite based on Clerk documentation or a feature description.
+Create a new evaluation for the openfort-evals suite based on Openfort documentation or a feature description.
 
 ## Input
 
 `$ARGUMENTS` = Either:
-- A Clerk docs URL (e.g., `https://clerk.com/docs/components/user-button`)
-- A feature description (e.g., "customize SignIn with dark theme and custom logo")
+- An Openfort docs URL (e.g., `https://www.openfort.xyz/docs/guides/wallets/embedded`)
+- A feature description (e.g., "create an embedded wallet and send a sponsored transaction")
 
 ## Your Task
 
@@ -25,7 +25,7 @@ If URL provided:
 
 If description provided:
 - Parse the feature request
-- Identify which Clerk component/feature it relates to
+- Identify which Openfort feature it relates to
 
 ### Step 2: Propose the Eval (STOP HERE FOR CONFIRMATION)
 
@@ -60,15 +60,13 @@ Proceed? (y/n)
    - One or two sentences describing WHAT to build, not HOW
    - Focus on the use case and desired outcome
    - Don't list implementation details (no prop names, no file paths)
-   - Reference style: @src/evals/ui-components/sign-in-customization/PROMPT.md
 
 3. **Create graders.ts**:
    - Import from `@/src/graders` and `@/src/graders/catalog`
    - Use `defineGraders()` to export
    - Start from template: `src/evals/_template/graders.ts`
    - Primitives: `contains()`, `containsAny()`, `matches()`, `judge()`
-   - Catalog: `llmChecks.*`, `authUIChecks.*`, `uiComponentChecks.*`, `organizationsUIChecks.*`, `quickstartChecks.*`
-   - Reference: @src/evals/ui-components/sign-in-customization/graders.ts
+   - Catalog: `llmChecks.*`, `walletChecks.*`, `providerChecks.*`, `sponsorshipChecks.*`, `setupChecks.*`
 
    **Grader Best Practices** (prefer code over judges):
 
@@ -83,30 +81,29 @@ Proceed? (y/n)
    - `judge(criteria)` — LLM judge (last resort)
 
    Catalog (from `@/src/graders/catalog`):
-   - `llmChecks.packageJsonClerkVersion` — checks @clerk/nextjs >= 6.0.0
-   - `llmChecks.environmentVariables` — checks .env.local has CLERK keys
-   - `authUIChecks.*` — SignIn, SignUp, UserButton, SignedIn, SignedOut
-   - `uiComponentChecks.*` — appearance, variables, elements, layout
-   - `organizationsUIChecks.*` — OrgSwitcher, OrgProfile, OrgList
-   - `quickstartChecks.*` — clerkMiddleware, ClerkProvider, no deprecated
+   - `llmChecks.packageJsonOpenfortDeps` — checks for @openfort/* packages
+   - `llmChecks.environmentVariables` — checks .env.local has OPENFORT keys
+   - `walletChecks.*` — createWallet, sendTransaction, writeContract
+   - `providerChecks.*` — OpenfortProvider, WagmiProvider, QueryClientProvider
+   - `sponsorshipChecks.*` — feeSponsorship, transactionIntents, policyId
+   - `setupChecks.*` — SDK initialization, server-side key usage
 
    **When to use `judge()` vs code graders**:
-   - Use code graders when checking string presence/absence: `contains('middleware.ts')`, `not(contains('authMiddleware'))`
-   - Use composites for multi-condition checks: `all(contains('await auth()'), contains('orgSlug'))`
+   - Use code graders when checking string presence/absence: `contains('createWallet')`, `not(contains('deprecated'))`
+   - Use composites for multi-condition checks: `all(contains('openfort'), contains('policyId'))`
    - Only use `judge()` when criteria requires semantic understanding (logic flow, data relationships, ordering)
    - Each `judge()` call costs ~$0.003 and introduces non-determinism — avoid when possible
 
    **Examples**:
    ```typescript
    // GOOD: deterministic code graders
-   middleware_file: contains('middleware.ts'),
-   no_deprecated: not(contains('authMiddleware')),
-   auth_with_org: all(contains('await auth()'), contains('orgSlug')),
-   uses_any_pm: containsAny(['npm', 'bun', 'yarn', 'pnpm']),
-   has_id_field: matches(/\.id\b/),
+   openfort_import: contains('@openfort/openfort-node'),
+   has_policy: contains('policyId'),
+   wallet_and_tx: all(contains('createWallet'), contains('sendTransaction')),
+   uses_any_sdk: containsAny(['@openfort/openfort-node', '@openfort/openfort-js', '@openfort/react']),
 
    // OK: judge for semantic checks only
-   correct_flow: judge('Does the solution call checkout.confirm before checkout.finalize?'),
+   correct_flow: judge('Does the solution create a wallet before sending a transaction?'),
    ```
 
 4. **Register** in `src/config/evaluations.ts`:
@@ -120,14 +117,12 @@ Proceed? (y/n)
 
 | Category | Slug | Framework | Focus |
 |----------|------|-----------|-------|
-| Quickstarts | `quickstarts` | Next.js, React, iOS | Initial setup, hello world |
-| Auth | `auth` | Next.js | Sign in/up, route protection, middleware |
-| User Management | `user-management` | Next.js | currentUser, useUser, profiles, metadata |
-| UI Components | `ui-components` | Next.js | Component customization, appearance API |
-| Organizations | `organizations` | Next.js | Multi-tenancy, teams, org switching |
-| Webhooks | `webhooks` | Next.js | Event handling, Svix verification |
-| Billing | `billing` | Next.js | Checkout, subscriptions, payments |
-| Upgrades | `upgrades` | Next.js | SDK migration (Core 2 -> Core 3) |
+| Setup | `setup` | Next.js, React | Initial SDK setup, provider config |
+| Embedded Wallets | `embedded-wallets` | Next.js | Wallet creation, recovery |
+| Wallet Actions | `wallet-actions` | Next.js | Transactions, contract interactions |
+| Sponsor Transactions | `sponsor-transactions` | Next.js | Fee sponsorship, policies |
+| Backend Wallets | `backend-wallets` | Next.js | Server-side wallet operations |
+| Authentication | `authentication` | Next.js | Auth flows, session management |
 
 ## Output
 

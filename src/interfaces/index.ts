@@ -69,25 +69,7 @@ export type RunnerArgs = {
 }
 
 /**
- * Extended runner args for MCP evaluations
- */
-export type MCPRunnerArgs = RunnerArgs & {
-  mcpServerUrl: string
-  maxToolRounds?: number
-}
-
-/**
- * Extended runner args for skills evaluations (supports optional MCP)
- */
-export type SkillsRunnerArgs = RunnerArgs & {
-  skillsPath: string
-  mcpServerUrl?: string
-  maxToolRounds?: number
-}
-
-/**
  * Consolidated runner args — mode inferred from optional fields.
- * Superset of RunnerArgs, MCPRunnerArgs, and SkillsRunnerArgs.
  */
 export type ExecArgs = RunnerArgs & {
   mcpServerUrl?: string
@@ -98,10 +80,10 @@ export type ExecArgs = RunnerArgs & {
 /**
  * Supported frameworks
  */
-export type Framework = 'React' | 'Next.js' | 'iOS'
+export type Framework = 'React' | 'Next.js'
 
 /**
- * Categories aligned with Clerk product verticals
+ * Categories aligned with Openfort product verticals
  */
 export type Category =
   | 'Setup'
