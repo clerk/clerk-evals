@@ -39,6 +39,7 @@ export type RunnerDebugPayload = {
   toolCalls?: ToolCallInfo[]
   toolResults?: ToolResultInfo[]
   transcript?: string
+  finishReason?: string
 }
 
 export type TokenUsage = {

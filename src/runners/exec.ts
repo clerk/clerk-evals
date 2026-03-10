@@ -82,13 +82,25 @@ export default async function exec({
       }),
     })
 
-    // 5. Extract response text (multi-step join when tools are used)
+    // 5. Extract response text and check for truncation
     const fullResponse = hasTools
       ? response.steps
           ?.map((s) => s.text)
           .filter(Boolean)
           .join('\n\n') || response.text
       : response.text
+
+    const finishReason = hasTools
+      ? response.steps?.at(-1)?.finishReason
+      : response.finishReason
+
+    if (finishReason === 'length') {
+      return ERR(
+        new Error(
+          `Response truncated (finishReason: length, ${fullResponse.length} chars). Increase maxTokens or simplify the prompt.`,
+        ),
+      )
+    }
 
     // 6. Grade
     const graders = await loadGraders(evalPath)
@@ -114,8 +126,8 @@ export default async function exec({
       durationMs,
       debug: debug
         ? hasTools
-          ? buildMCPDebugPayload(response, prompt, fullResponse, graderResults)
-          : { prompt, response: fullResponse, graders: graderResults }
+          ? { ...buildMCPDebugPayload(response, prompt, fullResponse, graderResults), finishReason }
+          : { prompt, response: fullResponse, graders: graderResults, finishReason }
         : undefined,
     })
   } catch (error) {
