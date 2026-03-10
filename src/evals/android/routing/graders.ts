@@ -5,7 +5,7 @@ export const graders = defineGraders({
     'Does the output correctly identify this as an Expo/React Native project and use Expo-appropriate tooling instead of native Kotlin/Jetpack Compose patterns?',
   ),
 
-  uses_expo_sdk: containsAny(['@clerk/expo', 'clerk/expo']),
+  uses_expo_sdk: containsAny(['@clerk/clerk-expo', '@clerk/expo', 'clerk/expo']),
 
   avoids_kotlin_patterns: judge(
     'Does the output avoid mentioning clerk-android, Jetpack Compose, Kotlin-specific patterns, or native Android implementation details?',
