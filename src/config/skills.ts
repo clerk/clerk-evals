@@ -55,11 +55,6 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/android/prebuilt-setup': ['android'],
   'evals/android/custom-setup': ['android'],
   'evals/android/routing': ['android', 'setup'],
-  'evals/android/auth-guard': ['android'],
-  'evals/android/mfa-flow': ['android'],
-  'evals/android/navigation-guard': ['android'],
-  'evals/android/org-switching': ['android'],
-  'evals/android/session-token': ['android'],
 }
 
 /**
