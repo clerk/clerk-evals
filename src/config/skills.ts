@@ -54,7 +54,7 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   // Android
   'evals/android/prebuilt-setup': ['android'],
   'evals/android/custom-setup': ['android'],
-  'evals/android/routing': ['android', 'setup'],
+  // routing intentionally excluded — tests Expo detection, Android skill discourages Expo
 }
 
 /**
