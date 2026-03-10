@@ -30,10 +30,6 @@ export const containsAny = (needles: string[], options: ContainsOptions = {}) =>
   }
 }
 
-export const matches = (pattern: RegExp) => {
-  return async (actual: string) => pattern.test(actual)
-}
-
 export const containsAll = (needles: string[], options: ContainsOptions = {}) => {
   return async (actual: string) => {
     for (const needle of needles) {
@@ -45,8 +41,30 @@ export const containsAll = (needles: string[], options: ContainsOptions = {}) =>
   }
 }
 
-export const not = (grader: (input: string) => Promise<boolean>) => {
+export const matches = (pattern: RegExp) => {
+  return async (actual: string) => pattern.test(actual)
+}
+
+export const not = (grader: Grader): Grader => {
   return async (actual: string) => !(await grader(actual))
+}
+
+export const all = (...graders: Grader[]): Grader => {
+  return async (actual: string) => {
+    for (const g of graders) {
+      if (!(await g(actual))) return false
+    }
+    return true
+  }
+}
+
+export const any = (...graders: Grader[]): Grader => {
+  return async (actual: string) => {
+    for (const g of graders) {
+      if (await g(actual)) return true
+    }
+    return false
+  }
 }
 
 export const judge = (config: LLMJudgeConfig) => makeScorer(config)
