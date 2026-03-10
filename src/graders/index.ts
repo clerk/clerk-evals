@@ -34,6 +34,21 @@ export const matches = (pattern: RegExp) => {
   return async (actual: string) => pattern.test(actual)
 }
 
+export const containsAll = (needles: string[], options: ContainsOptions = {}) => {
+  return async (actual: string) => {
+    for (const needle of needles) {
+      if (!(await contains(needle, options)(actual))) {
+        return false
+      }
+    }
+    return true
+  }
+}
+
+export const not = (grader: (input: string) => Promise<boolean>) => {
+  return async (actual: string) => !(await grader(actual))
+}
+
 export const judge = (config: LLMJudgeConfig) => makeScorer(config)
 
 type JudgeRegistry<T extends Record<string, LLMJudgeConfig>> = {
