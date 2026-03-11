@@ -150,6 +150,7 @@ type DebugArtifact = {
   response: string
   graders: RunnerDebugPayload['graders']
   transcript?: string
+  finishReason?: string
 }
 
 const debugArtifacts: DebugArtifact[] = []
@@ -331,6 +332,7 @@ await Promise.all(
           response: result.value.debug.response,
           graders: result.value.debug.graders,
           transcript: result.value.debug.transcript,
+          finishReason: result.value.debug.finishReason,
         }
         debugArtifacts.push(artifact)
 
@@ -397,6 +399,7 @@ framework: ${artifact.framework}
 category: ${artifact.category}
 evaluation: ${artifact.evaluationPath}
 score: ${artifact.score.toFixed(2)}
+finishReason: ${artifact.finishReason ?? 'unknown'}
 ---
 
 ## Prompt

@@ -39,6 +39,7 @@ export type RunnerDebugPayload = {
   toolCalls?: ToolCallInfo[]
   toolResults?: ToolResultInfo[]
   transcript?: string
+  finishReason?: string
 }
 
 export type TokenUsage = {
@@ -98,7 +99,7 @@ export type ExecArgs = RunnerArgs & {
 /**
  * Supported frameworks
  */
-export type Framework = 'Next.js' // TODO(voz): Add more frameworks in the future
+export type Framework = 'Next.js' | 'React' | 'iOS' | 'Android'
 
 /**
  * Categories aligned with Clerk product verticals

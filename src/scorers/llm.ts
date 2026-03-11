@@ -26,14 +26,19 @@ export type LLMJudgeConfig =
       input?: string
       /** Override the default judge model */
       model?: string
+      /** Few-shot examples or rubric appended to input for judge context */
+      examples?: string
     }
 
 export const makeScorer = (config: LLMJudgeConfig) => {
   const {
     criteria,
-    input = '',
+    input: rawInput = '',
     model = judgeModel,
+    examples,
   } = typeof config === 'string' ? { criteria: config } : config
+
+  const input = examples ? `${rawInput}\n\n## Examples\n${examples}`.trim() : rawInput
 
   const scorer = ClosedQA.partial({
     model,
