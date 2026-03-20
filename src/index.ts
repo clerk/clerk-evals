@@ -435,12 +435,13 @@ if (debugEnabled) {
   consoleReporter(dbScores)
 }
 
-// Always print a compact score summary (even without --debug)
+// Always print a compact score summary grouped by model
 if (dbScores.length > 0) {
   const isTTY = process.stdout.isTTY ?? false
   const green = isTTY ? '\x1b[32m' : ''
   const yellow = isTTY ? '\x1b[33m' : ''
   const red = isTTY ? '\x1b[31m' : ''
+  const dim = isTTY ? '\x1b[2m' : ''
   const reset = isTTY ? '\x1b[0m' : ''
   const colorPct = (v: number) => {
     const pct = `${(v * 100).toFixed(0)}%`
@@ -449,11 +450,28 @@ if (dbScores.length > 0) {
     return `${red}${pct}${reset}`
   }
 
+  // Group scores by model label
+  const byModel = new Map<string, typeof dbScores>()
   for (const s of dbScores) {
-    console.log(`  ${s.label} → ${s.category}: ${colorPct(s.value)}`)
+    if (!byModel.has(s.label)) byModel.set(s.label, [])
+    byModel.get(s.label)?.push(s)
   }
-  const avg = dbScores.reduce((sum, s) => sum + s.value, 0) / dbScores.length
-  console.log(`\nAverage: ${colorPct(avg)} | ${outputFile}`)
+
+  console.log()
+  for (const [label, scores] of byModel) {
+    const avg = scores.reduce((sum, s) => sum + s.value, 0) / scores.length
+    // Show eval-level breakdown inline
+    const evalDetails = scores
+      .map((s) => {
+        const evalName = s.evaluationPath?.split('/').pop() ?? s.category
+        return `${evalName} ${colorPct(s.value)}`
+      })
+      .join(`${dim} | ${reset}`)
+    console.log(`  ${label}: ${colorPct(avg)} avg ${dim}(${evalDetails})${reset}`)
+  }
+
+  const totalAvg = dbScores.reduce((sum, s) => sum + s.value, 0) / dbScores.length
+  console.log(`\n  Overall: ${colorPct(totalAvg)} across ${byModel.size} models | ${outputFile}`)
 } else {
   console.log(`Scores written to: ${outputFile}`)
 }
