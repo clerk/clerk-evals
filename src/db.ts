@@ -28,6 +28,9 @@ export function initDB() {
     db.run('ALTER TABLE results ADD COLUMN cost_usd REAL')
     db.run('ALTER TABLE results ADD COLUMN duration_ms INTEGER')
   }
+  if (!colNames.has('evaluation_path')) {
+    db.run('ALTER TABLE results ADD COLUMN evaluation_path TEXT')
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS errors (
@@ -45,10 +48,10 @@ export function initDB() {
   `)
 }
 
-export function saveResult(runId: string, score: Score) {
+export function saveResult(runId: string, score: Score, evaluationPath?: string) {
   const query = db.query(`
-    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms)
-    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms)
+    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms, evaluation_path)
+    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms, $evaluation_path)
   `)
 
   query.run({
@@ -63,6 +66,7 @@ export function saveResult(runId: string, score: Score) {
     $tokens_out: score.tokens?.completionTokens ?? null,
     $cost_usd: score.costUsd ?? null,
     $duration_ms: score.durationMs ?? null,
+    $evaluation_path: evaluationPath ?? null,
   })
 }
 
@@ -97,9 +101,11 @@ export function saveError(
   })
 }
 
-export function getResults(runId?: string): Score[] {
+export type DBScore = Score & { evaluationPath?: string }
+
+export function getResults(runId?: string): DBScore[] {
   let queryStr =
-    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs FROM results'
+    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path FROM results'
   if (runId) {
     queryStr += ' WHERE run_id = $run_id'
   }
@@ -108,7 +114,32 @@ export function getResults(runId?: string): Score[] {
   const query = db.query(queryStr)
   const results = runId ? query.all({ $run_id: runId }) : query.all()
 
-  return (results as Array<Record<string, unknown>>).map((r) => ({
+  return mapRows(results as Array<Record<string, unknown>>)
+}
+
+/**
+ * Get all results with timestamps >= since, grouped by run_id prefix (mode).
+ * Used by report-braintrust.ts to consolidate batch results.
+ */
+export function getResultsSince(since: string): DBScore[] {
+  const query = db.query(
+    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, run_id FROM results WHERE timestamp >= $since ORDER BY timestamp DESC',
+  )
+  return mapRows(query.all({ $since: since }) as Array<Record<string, unknown>>)
+}
+
+/**
+ * Get all distinct run_ids since a given timestamp, useful for batch grouping.
+ */
+export function getRunIdsSince(since: string): string[] {
+  const query = db.query(
+    'SELECT DISTINCT run_id FROM results WHERE timestamp >= $since ORDER BY run_id',
+  )
+  return (query.all({ $since: since }) as Array<{ run_id: string }>).map((r) => r.run_id)
+}
+
+function mapRows(results: Array<Record<string, unknown>>): DBScore[] {
+  return results.map((r) => ({
     model: r.model as string,
     label: r.label as string,
     framework: r.framework as Score['framework'],
@@ -124,6 +155,7 @@ export function getResults(runId?: string): Score[] {
     }),
     ...(r.cost_usd != null && { costUsd: r.cost_usd as number }),
     ...(r.durationMs != null && { durationMs: r.durationMs as number }),
+    ...(r.evaluation_path != null && { evaluationPath: r.evaluation_path as string }),
   }))
 }
 

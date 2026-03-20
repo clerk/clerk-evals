@@ -299,7 +299,7 @@ await Promise.all(
         durationMs: result.value.durationMs,
         costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
       }
-      saveResult(runId, score)
+      saveResult(runId, score, task.evaluationPath)
       if (config?.hooks?.onSuccess) {
         try {
           await config.hooks.onSuccess({
@@ -432,8 +432,9 @@ if (debugEnabled) {
   console.log(`Scores written to: ${outputFile}`)
 }
 
-// Braintrust export (opt-in via BRAINTRUST_API_KEY)
-if (process.env.BRAINTRUST_API_KEY) {
+// Braintrust export (opt-in via BRAINTRUST_API_KEY).
+// Skip when BRAINTRUST_DEFER_REPORT=1 (batch mode — report-braintrust.ts handles it).
+if (process.env.BRAINTRUST_API_KEY && !process.env.BRAINTRUST_DEFER_REPORT) {
   const entries: BraintrustEntry[] = dbScores.map((score) => {
     const extra = braintrustDebugMap.get(`${score.model}::${score.category}`)
     return {

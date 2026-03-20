@@ -110,17 +110,24 @@ fi
 
 cd ~/Clerk/clerk-evals
 
+# Record batch start time for consolidated Braintrust reporting
+BATCH_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 # Show what we're running
 echo "=== EVAL RUN CONFIGURATION ==="
 echo "Models: ${MODELS[*]}"
 echo "Baseline: $RUN_BASELINE"
 echo "MCP: $RUN_MCP"
 echo "Export: $DO_EXPORT"
+echo "Batch start: $BATCH_START"
 echo ""
 
 # Track failures
 declare -a FAILED_BASELINE=()
 declare -a FAILED_MCP=()
+
+# Defer per-model Braintrust experiment creation — report-braintrust.ts consolidates at the end
+export BRAINTRUST_DEFER_REPORT=1
 
 # macOS-compatible timeout using perl
 run_with_timeout() {
@@ -203,6 +210,13 @@ if [ ${#FAILED_MCP[@]} -gt 0 ]; then
 fi
 if [ ${#FAILED_BASELINE[@]} -eq 0 ] && [ ${#FAILED_MCP[@]} -eq 0 ]; then
   echo "All evals completed successfully!"
+fi
+
+# Consolidated Braintrust report (creates ONE experiment per mode)
+if [ -n "$BRAINTRUST_API_KEY" ]; then
+  echo ""
+  echo "=== BRAINTRUST REPORT ==="
+  bun src/report-braintrust.ts --since "$BATCH_START"
 fi
 
 # Export results

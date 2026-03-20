@@ -6,7 +6,8 @@
  * - mcpServerUrl = MCP mode
  * - skillsPath = skills mode
  */
-import { generateText, stepCountIs } from 'ai'
+import * as ai from 'ai'
+import { initLogger, wrapAISDK } from 'braintrust'
 import type { ExecArgs, RunnerResult, TokenUsage } from '@/src/interfaces'
 import { buildSkillsSystemPrompt, createLoadSkillTool, discoverSkills } from '@/src/skills'
 import { buildMCPDebugPayload } from '@/src/utils/debug'
@@ -20,6 +21,18 @@ import {
   runGraders,
   SYSTEM_PROMPT,
 } from './shared'
+
+// Initialize Braintrust tracing in worker process (opt-in via env var).
+// wrapAISDK auto-traces generateText calls including tool invocations.
+if (process.env.BRAINTRUST_API_KEY) {
+  initLogger({
+    projectName: process.env.BRAINTRUST_PROJECT || 'clerk-evals',
+    apiKey: process.env.BRAINTRUST_API_KEY,
+  })
+}
+
+const { generateText } = wrapAISDK(ai)
+const { stepCountIs } = ai
 
 export default async function exec({
   provider,
@@ -90,9 +103,7 @@ export default async function exec({
           .join('\n\n') || response.text
       : response.text
 
-    const finishReason = hasTools
-      ? response.steps?.at(-1)?.finishReason
-      : response.finishReason
+    const finishReason = hasTools ? response.steps?.at(-1)?.finishReason : response.finishReason
 
     if (finishReason === 'length') {
       return ERR(
