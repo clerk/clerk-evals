@@ -259,7 +259,12 @@ await Promise.all(
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
+        const errorMsg =
+          result.error instanceof Error
+            ? result.error.message
+            : typeof result.error === 'object'
+              ? JSON.stringify(result.error)
+              : String(result.error)
         console.error(
           `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
         )
