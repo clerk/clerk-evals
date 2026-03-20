@@ -428,6 +428,27 @@ fileReporter(dbScores, outputFile)
 
 if (debugEnabled) {
   consoleReporter(dbScores)
+}
+
+// Always print a compact score summary (even without --debug)
+if (dbScores.length > 0) {
+  const isTTY = process.stdout.isTTY ?? false
+  const green = isTTY ? '\x1b[32m' : ''
+  const yellow = isTTY ? '\x1b[33m' : ''
+  const red = isTTY ? '\x1b[31m' : ''
+  const reset = isTTY ? '\x1b[0m' : ''
+  const colorPct = (v: number) => {
+    const pct = `${(v * 100).toFixed(0)}%`
+    if (v >= 0.8) return `${green}${pct}${reset}`
+    if (v >= 0.5) return `${yellow}${pct}${reset}`
+    return `${red}${pct}${reset}`
+  }
+
+  for (const s of dbScores) {
+    console.log(`  ${s.label} → ${s.category}: ${colorPct(s.value)}`)
+  }
+  const avg = dbScores.reduce((sum, s) => sum + s.value, 0) / dbScores.length
+  console.log(`\nAverage: ${colorPct(avg)} | ${outputFile}`)
 } else {
   console.log(`Scores written to: ${outputFile}`)
 }
