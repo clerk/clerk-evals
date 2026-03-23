@@ -174,6 +174,12 @@ const tasks = filteredEvaluations.map((evaluation) => ({
   framework: evaluation.framework,
   evalPath: path.join(process.cwd(), 'src', evaluation.path),
   evaluationPath: evaluation.path,
+  fixturesPath: evaluation.variant
+    ? path.join(process.cwd(), 'src', evaluation.path, 'fixtures', evaluation.variant)
+    : undefined,
+  gradersPath: evaluation.variant
+    ? path.join(process.cwd(), 'src', evaluation.path, 'graders', `${evaluation.variant}.ts`)
+    : undefined,
 }))
 
 // Progress output
@@ -217,6 +223,8 @@ await Promise.all(
       timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
       executablePath,
       envPath: process.env.PATH,
+      fixturesPath: task.fixturesPath,
+      gradersPath: task.gradersPath,
     }
 
     try {
