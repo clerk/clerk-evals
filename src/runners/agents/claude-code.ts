@@ -206,7 +206,8 @@ export default async function exec({
     const prompt = await buildAgentPrompt(evalPath)
 
     // 2. Create temp work directory
-    workDir = await createTempWorkDir()
+    const evalName = evalPath.split('/').slice(-2).join('-')
+    workDir = await createTempWorkDir(evalName)
 
     // 3. Create MCP config if enabled
     if (mcpConfig?.enabled) {
