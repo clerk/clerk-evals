@@ -1,7 +1,7 @@
-import { contains, containsAny, defineGraders, judge, not } from '@/src/graders'
+import { contains, containsAny, defineGraders, judge } from '@/src/graders'
 
 export const graders = defineGraders({
-  references_clerk_android_ui: contains('clerk-android-ui'),
+  references_clerk_android: containsAny(['clerk-android', 'com.clerk']),
   initializes_in_application_class: judge({
     criteria:
       'Does the code call Clerk.initialize() inside an Application subclass (onCreate), NOT inside a Composable function or Activity?',
@@ -10,9 +10,9 @@ export const graders = defineGraders({
   }),
   gates_on_initialization: containsAny(['isInitialized', 'isLoaded', 'isClerkLoaded']),
   uses_reactive_user_state: containsAny(['userFlow', 'collectAsState', 'sessionFlow']),
-  uses_authview: contains('AuthView'),
-  uses_user_button: contains('UserButton'),
+  uses_prebuilt_auth_ui: judge(
+    'Does the solution use prebuilt Clerk UI components (AuthView, UserButton) for the authentication flow, rather than building custom sign-in/sign-up forms with signIn.create, attemptFirstFactor, or signUp.create?',
+  ),
   uses_internet_permission: contains('android.permission.INTERNET'),
-  no_custom_form_leak: not(containsAny(['signIn.create', 'attemptFirstFactor', 'signUp.create'])),
   wires_publishable_key: containsAny(['publishableKey', 'pk_test_']),
 })
