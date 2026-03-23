@@ -52,6 +52,10 @@ export type AgentRunnerArgs = {
   executablePath?: string
   /** PATH environment variable from main process */
   envPath?: string
+  /** Path to fixtures directory to copy into work dir before execution */
+  fixturesPath?: string
+  /** Full path to the variant grader file (e.g., .../graders/nextjs.ts) */
+  gradersPath?: string
 }
 
 /**
