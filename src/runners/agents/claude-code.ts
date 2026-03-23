@@ -4,8 +4,9 @@
  * Spawns the Claude Code CLI to execute evaluations.
  * Supports MCP integration via temporary .mcp.json config.
  *
- * Usage:
- *   claude --print --dangerously-skip-permissions "prompt"
+ * Uses --output-format stream-json --verbose to capture the full conversation
+ * (including tool calls and their results), not just the final assistant message.
+ * This is critical because graders need to see code written via tool calls.
  *
  * With MCP:
  *   Creates .mcp.json in working directory, then runs claude.
@@ -25,8 +26,74 @@ import {
   setupSkills,
 } from './shared'
 
+type StreamJsonMessage = {
+  type: string
+  subtype?: string
+  message?: {
+    role: string
+    content: Array<{
+      type: string
+      text?: string
+      name?: string
+      input?: Record<string, unknown>
+      content?: string
+    }>
+  }
+  result?: string
+}
+
 /**
- * Execute Claude Code CLI and capture output.
+ * Parse stream-json NDJSON output into the full conversation text for grading.
+ *
+ * Extracts:
+ * - Assistant text blocks
+ * - Tool use inputs (e.g., file content written via Write tool)
+ * - Tool results (e.g., file contents from Read tool)
+ */
+function parseStreamJson(raw: string): { fullOutput: string; resultText: string } {
+  const parts: string[] = []
+  let resultText = ''
+
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue
+    let msg: StreamJsonMessage
+    try {
+      msg = JSON.parse(line)
+    } catch {
+      continue
+    }
+
+    if (msg.type === 'assistant' && msg.message?.content) {
+      for (const block of msg.message.content) {
+        if (block.type === 'text' && block.text) {
+          parts.push(block.text)
+        } else if (block.type === 'tool_use' && block.input) {
+          // Capture tool inputs — this includes file content written by the agent
+          const inputStr = Object.values(block.input)
+            .filter((v) => typeof v === 'string')
+            .join('\n')
+          if (inputStr) {
+            parts.push(inputStr)
+          }
+        }
+      }
+    } else if (msg.type === 'user' && msg.message?.content) {
+      // Tool results come back as user messages
+      for (const block of msg.message.content) {
+        if (block.type === 'tool_result' && typeof block.content === 'string') {
+          parts.push(block.content)
+        }
+      }
+    } else if (msg.type === 'result' && msg.result) {
+      resultText = msg.result
+    }
+  }
+
+  return { fullOutput: parts.join('\n\n'), resultText }
+}
+
+/**
+ * Execute Claude Code CLI and capture the full conversation via stream-json.
  */
 async function execClaude(
   prompt: string,
@@ -38,34 +105,39 @@ async function execClaude(
   const startTime = Date.now()
 
   return new Promise((resolve) => {
-    const args = ['--print', '--dangerously-skip-permissions', prompt]
+    const args = [
+      '--print',
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--dangerously-skip-permissions',
+      prompt,
+    ]
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
       env: {
         ...process.env,
-        // Use PATH from main process to ensure node/bun are available
         PATH: envPath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
     let stdout = ''
-    let stderr = ''
 
     proc.stdout.on('data', (data: Buffer) => {
       stdout += data.toString()
     })
 
-    proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString()
-    })
+    // stderr is ignored for grading — only used for CLI diagnostics
+    proc.stderr.on('data', () => {})
 
     const timeoutId = setTimeout(() => {
       proc.kill('SIGTERM')
+      const { fullOutput } = parseStreamJson(stdout)
       resolve({
         success: false,
-        output: stdout + stderr,
+        output: fullOutput,
         duration: Date.now() - startTime,
         error: `Timeout after ${timeout}ms`,
         exitCode: -1,
@@ -75,10 +147,11 @@ async function execClaude(
     proc.on('close', (code) => {
       clearTimeout(timeoutId)
       const duration = Date.now() - startTime
+      const { fullOutput } = parseStreamJson(stdout)
 
       resolve({
         success: code === 0,
-        output: stdout + stderr,
+        output: fullOutput,
         duration,
         exitCode: code ?? -1,
         error: code !== 0 ? `Exit code: ${code}` : undefined,
@@ -87,9 +160,10 @@ async function execClaude(
 
     proc.on('error', (err) => {
       clearTimeout(timeoutId)
+      const { fullOutput } = parseStreamJson(stdout)
       resolve({
         success: false,
-        output: stdout + stderr,
+        output: fullOutput,
         duration: Date.now() - startTime,
         error: err.message,
         exitCode: -1,
