@@ -28,7 +28,6 @@ import {
 
 type StreamJsonMessage = {
   type: string
-  subtype?: string
   message?: {
     role: string
     content: Array<{
@@ -39,7 +38,6 @@ type StreamJsonMessage = {
       content?: string
     }>
   }
-  result?: string
 }
 
 /**
@@ -50,9 +48,8 @@ type StreamJsonMessage = {
  * - Tool use inputs (e.g., file content written via Write tool)
  * - Tool results (e.g., file contents from Read tool)
  */
-function parseStreamJson(raw: string): { fullOutput: string; resultText: string } {
+function parseStreamJson(raw: string): string {
   const parts: string[] = []
-  let resultText = ''
 
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue
@@ -68,7 +65,7 @@ function parseStreamJson(raw: string): { fullOutput: string; resultText: string 
         if (block.type === 'text' && block.text) {
           parts.push(block.text)
         } else if (block.type === 'tool_use' && block.input) {
-          // Capture tool inputs — this includes file content written by the agent
+          // Capture string values from tool inputs (file content from Write/Edit tools)
           const inputStr = Object.values(block.input)
             .filter((v) => typeof v === 'string')
             .join('\n')
@@ -84,12 +81,10 @@ function parseStreamJson(raw: string): { fullOutput: string; resultText: string 
           parts.push(block.content)
         }
       }
-    } else if (msg.type === 'result' && msg.result) {
-      resultText = msg.result
     }
   }
 
-  return { fullOutput: parts.join('\n\n'), resultText }
+  return parts.join('\n\n')
 }
 
 /**
@@ -134,7 +129,7 @@ async function execClaude(
 
     const timeoutId = setTimeout(() => {
       proc.kill('SIGTERM')
-      const { fullOutput } = parseStreamJson(stdout)
+      const fullOutput = parseStreamJson(stdout)
       resolve({
         success: false,
         output: fullOutput,
@@ -147,7 +142,7 @@ async function execClaude(
     proc.on('close', (code) => {
       clearTimeout(timeoutId)
       const duration = Date.now() - startTime
-      const { fullOutput } = parseStreamJson(stdout)
+      const fullOutput = parseStreamJson(stdout)
 
       resolve({
         success: code === 0,
@@ -160,7 +155,7 @@ async function execClaude(
 
     proc.on('error', (err) => {
       clearTimeout(timeoutId)
-      const { fullOutput } = parseStreamJson(stdout)
+      const fullOutput = parseStreamJson(stdout)
       resolve({
         success: false,
         output: fullOutput,
