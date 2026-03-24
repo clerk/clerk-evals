@@ -52,20 +52,6 @@ export async function cleanupTempMCPConfig(configPath: string): Promise<void> {
 }
 
 /**
- * System instruction for agent prompts.
- * Similar to the API runner but adapted for CLI output.
- */
-export const AGENT_SYSTEM_INSTRUCTION = `
-YOU MUST output all files as fenced code blocks, like so
-
-\`\`\`lang file="path/to/file.ts"
-// file content
-\`\`\`
-
-Do not ask clarifying questions. Complete the task with the information provided.
-`
-
-/**
  * Loads the PROMPT.md from an evaluation directory.
  */
 export async function loadPrompt(evalPath: string): Promise<string> {
@@ -73,32 +59,11 @@ export async function loadPrompt(evalPath: string): Promise<string> {
 }
 
 /**
- * Builds the full prompt for an agent, combining system instruction and eval prompt.
+ * Builds the full prompt for an agent from the eval prompt.
  */
 export async function buildAgentPrompt(evalPath: string): Promise<string> {
   const evalPrompt = await loadPrompt(evalPath)
-  return `${AGENT_SYSTEM_INSTRUCTION.trim()}\n\n---\n\n${evalPrompt}`
-}
-
-/**
- * Parses agent output to extract file blocks.
- * Useful for debugging and validation.
- */
-export function extractFileBlocks(output: string): Map<string, string> {
-  const files = new Map<string, string>()
-  // Match code blocks with file="path" attribute
-  const regex = /```[\w-]*\s+file="([^"]+)"\n([\s\S]*?)```/g
-  let match: RegExpExecArray | null = regex.exec(output)
-
-  while (match !== null) {
-    const [, filePath, content] = match
-    if (filePath && content) {
-      files.set(filePath, content.trim())
-    }
-    match = regex.exec(output)
-  }
-
-  return files
+  return `Do not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n${evalPrompt}`
 }
 
 /**
