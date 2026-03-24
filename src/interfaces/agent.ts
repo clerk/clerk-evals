@@ -9,7 +9,7 @@
 /**
  * Supported agent types - extensible for future agents.
  */
-export type AgentType = 'claude-code' | 'cursor'
+export type AgentType = 'claude-code' | 'codex' | 'cursor'
 
 /**
  * MCP configuration for agent runners.
@@ -94,6 +94,11 @@ export const AGENTS: Record<AgentType, AgentInfo> = {
     type: 'claude-code',
     label: 'Claude Code',
     command: 'claude',
+  },
+  codex: {
+    type: 'codex',
+    label: 'Codex',
+    command: 'codex',
   },
   cursor: {
     type: 'cursor',
