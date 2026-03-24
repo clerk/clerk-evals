@@ -32,7 +32,9 @@ Read the quickstart URL from the table above and follow every step:
 
 ## Step 3: API Keys
 
-Follow the quickstart's key setup exactly — wire publishableKey into the provider/config even if using Keyless mode. Keyless auto-populates the environment variable at dev time, but the code must still reference it.
+Use Keyless mode (default). No manual key setup needed. Clerk auto-generates development keys on first run and shows a "Claim your application" banner.
+
+To use your own keys, get them from https://dashboard.clerk.com and set them as environment variables.
 
 ## Step 4: If using shadcn/ui
 
