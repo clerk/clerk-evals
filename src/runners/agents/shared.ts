@@ -3,7 +3,7 @@
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { symlinkSkills } from '@/src/config/skills'
+import { createSkillsClaudeMd } from '@/src/config/skills'
 import type { AgentMCPConfig } from '@/src/interfaces/agent'
 
 /**
@@ -111,5 +111,35 @@ export async function setupSkills(
   skillsSourcePath: string,
   evalPath: string,
 ): Promise<string[]> {
-  return symlinkSkills(evalPath, skillsSourcePath, workDir)
+  return createSkillsClaudeMd(evalPath, skillsSourcePath, workDir)
+}
+
+/**
+ * Agent-specific context file names.
+ * Each agent loads its own context file at startup.
+ */
+export const AGENT_CONTEXT_FILES: Record<string, string> = {
+  'claude-code': 'CLAUDE.md',
+  codex: 'AGENTS.md',
+  gemini: 'GEMINI.md',
+  cursor: '.cursorrules',
+}
+
+/**
+ * Write agent-specific context files into the work directory.
+ * If skills were loaded into CLAUDE.md, also copies the content
+ * to the appropriate context file for the target agent.
+ */
+export async function setupAgentContext(workDir: string, agentType: string): Promise<void> {
+  const contextFile = AGENT_CONTEXT_FILES[agentType]
+  if (!contextFile || contextFile === 'CLAUDE.md') return
+
+  // If CLAUDE.md exists (from setupSkills), copy content to agent-specific file
+  const claudeMdPath = path.join(workDir, 'CLAUDE.md')
+  try {
+    const content = await fs.readFile(claudeMdPath, 'utf8')
+    await fs.writeFile(path.join(workDir, contextFile), content)
+  } catch {
+    // No CLAUDE.md exists, nothing to copy
+  }
 }
