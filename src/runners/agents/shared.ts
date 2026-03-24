@@ -89,6 +89,14 @@ export async function cleanupTempWorkDir(workDir: string): Promise<void> {
 }
 
 /**
+ * Copies fixture files into the agent's working directory.
+ * Must be called before createTempMCPConfig/setupSkills so overlays work correctly.
+ */
+export async function copyFixtures(workDir: string, fixturesPath: string): Promise<void> {
+  await fs.cp(fixturesPath, workDir, { recursive: true, force: true })
+}
+
+/**
  * Setup skills for Claude Code auto-discovery.
  * Creates CLAUDE.md with skill content in the working directory.
  * Claude Code automatically loads CLAUDE.md at startup.

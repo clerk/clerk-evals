@@ -174,6 +174,13 @@ const tasks = filteredEvaluations.map((evaluation) => ({
   framework: evaluation.framework,
   evalPath: path.join(process.cwd(), 'src', evaluation.path),
   evaluationPath: evaluation.path,
+  variant: evaluation.variant,
+  fixturesPath: evaluation.variant
+    ? path.join(process.cwd(), 'src', evaluation.path, 'fixtures', evaluation.variant)
+    : undefined,
+  gradersPath: evaluation.variant
+    ? path.join(process.cwd(), 'src', evaluation.path, 'graders', `${evaluation.variant}.ts`)
+    : undefined,
 }))
 
 // Progress output
@@ -217,6 +224,8 @@ await Promise.all(
       timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
       executablePath,
       envPath: process.env.PATH,
+      fixturesPath: task.fixturesPath,
+      gradersPath: task.gradersPath,
     }
 
     try {
@@ -272,17 +281,14 @@ await Promise.all(
         debugArtifacts.push(artifact)
 
         // Write debug files
-        const debugPath = path.join(
-          debugRunDirectory,
-          `${task.evaluationPath.replace(/\//g, '__')}__${task.agent}.json`,
-        )
+        const evalSlug = task.variant
+          ? `${task.evaluationPath.replace(/\//g, '__')}__${task.variant}`
+          : task.evaluationPath.replace(/\//g, '__')
+        const debugPath = path.join(debugRunDirectory, `${evalSlug}__${task.agent}.json`)
         await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
 
         if (result.value.debug.transcript) {
-          const transcriptPath = path.join(
-            debugRunDirectory,
-            `${task.evaluationPath.replace(/\//g, '__')}__${task.agent}.md`,
-          )
+          const transcriptPath = path.join(debugRunDirectory, `${evalSlug}__${task.agent}.md`)
           await writeFile(transcriptPath, result.value.debug.transcript)
         }
       }

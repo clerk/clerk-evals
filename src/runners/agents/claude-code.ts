@@ -12,14 +12,17 @@
  *   Creates .mcp.json in working directory, then runs claude.
  */
 import { spawn } from 'node:child_process'
+import path from 'node:path'
+import type { Graders } from '@/src/graders'
 import type { RunnerResult } from '@/src/interfaces'
 import type { AgentExecResult, AgentRunnerArgs } from '@/src/interfaces/agent'
-import { computeScore, loadGraders, runGraders } from '@/src/runners/shared'
+import { computeScore, runGraders } from '@/src/runners/shared'
 import { OK } from '@/src/utils/result'
 import {
   buildAgentPrompt,
   cleanupTempMCPConfig,
   cleanupTempWorkDir,
+  copyFixtures,
   createTempMCPConfig,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
@@ -185,6 +188,8 @@ export default async function exec({
   timeout = DEFAULT_AGENT_TIMEOUT,
   executablePath,
   envPath,
+  fixturesPath,
+  gradersPath,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -203,6 +208,11 @@ export default async function exec({
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
     workDir = await createTempWorkDir(evalName)
+
+    // 2b. Copy fixtures into work dir (before MCP/skills setup)
+    if (fixturesPath) {
+      await copyFixtures(workDir, fixturesPath)
+    }
 
     // 3. Create MCP config if enabled
     if (mcpConfig?.enabled) {
@@ -245,9 +255,11 @@ export default async function exec({
       return { ok: false as const, error: result.error || 'Claude Code execution failed' }
     }
 
-    // 5. Run graders against output
-    const graders = await loadGraders(evalPath)
-    const graderResults = await runGraders(graders, result.output)
+    // 5. Run graders against output (variant-aware)
+    const graderModule = gradersPath
+      ? ((await import(gradersPath)) as { graders: Graders })
+      : ((await import(path.join(evalPath, 'graders.ts'))) as { graders: Graders })
+    const graderResults = await runGraders(graderModule.graders, result.output)
     const score = computeScore(graderResults)
 
     // 6. Return result

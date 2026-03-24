@@ -113,11 +113,14 @@ export type Category =
   | 'Webhooks'
   | 'Billing'
   | 'Upgrades'
+  | 'Add Auth'
 export type Evaluation = {
   framework: Framework
   category: Category
   /** e.g. "evals/basic-nextjs" */
   path: string
+  /** Variant subdirectory for fixture-based evals (e.g., 'nextjs', 'android') */
+  variant?: string
 }
 
 /**
