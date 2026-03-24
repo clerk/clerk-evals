@@ -69,8 +69,10 @@ export async function buildAgentPrompt(evalPath: string): Promise<string> {
 /**
  * Creates a temporary working directory for agent execution.
  */
-export async function createTempWorkDir(): Promise<string> {
-  const tempDir = path.join(process.cwd(), '.agent-temp', `run-${Date.now()}`)
+export async function createTempWorkDir(suffix?: string): Promise<string> {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const name = suffix ? `run-${id}-${suffix}` : `run-${id}`
+  const tempDir = path.join(process.cwd(), '.agent-temp', name)
   await fs.mkdir(tempDir, { recursive: true })
   return tempDir
 }
