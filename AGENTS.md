@@ -20,16 +20,27 @@ You are operating in a repository whose sole purpose is to evaluate how well LLM
 
 See `docs/ADDING_EVALS.md` for a concrete, copy-pastable template and end-to-end checklist.
 
-## Available Commands
+## Common Workflows
 
-| Command | Purpose |
-|---------|---------|
-| `/new-eval <url-or-desc>` | Create new eval from docs URL or feature description |
-| `/run-evals <scenario>` | Execute eval runs (smoke, single model, full suite, MCP comparison) |
-| `/add-model <provider/name>` | Register new model (config + pricing + runner script) |
-| `/analyze-results <type>` | Compare scores, find regressions, calculate MCP uplift, cost reports |
-| `/audit-graders [category]` | Find LLM judges replaceable with deterministic code graders |
-| `/publish-leaderboard [desc]` | Export scores and publish to clerk/clerk docs repo (draft PR) |
+```bash
+# Run all evals (baseline)
+bun start
+
+# Run single eval with debug
+bun start --eval "auth/protect" --smoke --debug
+
+# Run with MCP tools
+bun start --mcp --model "claude-sonnet-4-5"
+
+# Run with skills
+bun start --skills --model "claude-sonnet-4-5"
+
+# Full batch (all 16 models, baseline + MCP, with retry)
+./run-evals.sh
+
+# Export to Braintrust
+BRAINTRUST_API_KEY=sk-... bun report:braintrust
+```
 
 ## Project Structure & Module Organization
 `src/index.ts` wires providers, runners, reporters, and every folder under `src/evals`. Keep each evaluation in its own directory with `PROMPT.md`, `graders.ts`, and any fixtures it needs. Use descriptive, numeric-free slugs like `src/evals/new-eval`. Runner logic lives in `src/runners`, shared provider clients in `src/providers`, scoring helpers in `src/scorers`, and reusable utilities in `src/utils`. Diagrams intended for contributor onboarding belong in `docs/`, while transient artifacts like `scores.json` stay gitignored at the root.
@@ -40,7 +51,7 @@ This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, th
 For MCP evaluations, the runner connects to `https://mcp.clerk.dev/mcp` by default. Override with `MCP_SERVER_URL_OVERRIDE` for local testing.
 
 ## Build, Test, and Development Commands
-`bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun run start:eval src/evals/apiroutes`, and add `--debug` to capture prompts, responses, and grader decisions. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
+`bun start` runs the full evaluation suite and writes reporter output to the console and `scores.json`. Target a single evaluation with `bun start --eval "auth/routes"`, and add `--debug` to capture prompts, responses, and grader decisions. Use `--smoke` to run just one task for quick iteration. Lint and format with `bun run lint`, `bun run lint:fix`, and `bun run format`; `bun run check` applies Biome's autofixes and unsafe rules when you need a full cleanup.
 
 ### MCP Evaluations
 Run evaluations with MCP tool support using `bun start:mcp`. Connects to `https://mcp.clerk.dev/mcp` by default (zero-config):

@@ -259,7 +259,12 @@ await Promise.all(
       const result: RunnerResult = await pool.run(runnerArgs)
 
       if (!result.ok) {
-        const errorMsg = result.error instanceof Error ? result.error.message : String(result.error)
+        const errorMsg =
+          result.error instanceof Error
+            ? result.error.message
+            : typeof result.error === 'object'
+              ? JSON.stringify(result.error)
+              : String(result.error)
         console.error(
           `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
         )
@@ -299,7 +304,7 @@ await Promise.all(
         durationMs: result.value.durationMs,
         costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
       }
-      saveResult(runId, score)
+      saveResult(runId, score, task.evaluationPath)
       if (config?.hooks?.onSuccess) {
         try {
           await config.hooks.onSuccess({
@@ -428,12 +433,52 @@ fileReporter(dbScores, outputFile)
 
 if (debugEnabled) {
   consoleReporter(dbScores)
+}
+
+// Always print a compact score summary grouped by model
+if (dbScores.length > 0) {
+  const isTTY = process.stdout.isTTY ?? false
+  const green = isTTY ? '\x1b[32m' : ''
+  const yellow = isTTY ? '\x1b[33m' : ''
+  const red = isTTY ? '\x1b[31m' : ''
+  const dim = isTTY ? '\x1b[2m' : ''
+  const reset = isTTY ? '\x1b[0m' : ''
+  const colorPct = (v: number) => {
+    const pct = `${(v * 100).toFixed(0)}%`
+    if (v >= 0.8) return `${green}${pct}${reset}`
+    if (v >= 0.5) return `${yellow}${pct}${reset}`
+    return `${red}${pct}${reset}`
+  }
+
+  // Group scores by model label
+  const byModel = new Map<string, typeof dbScores>()
+  for (const s of dbScores) {
+    if (!byModel.has(s.label)) byModel.set(s.label, [])
+    byModel.get(s.label)?.push(s)
+  }
+
+  console.log()
+  for (const [label, scores] of byModel) {
+    const avg = scores.reduce((sum, s) => sum + s.value, 0) / scores.length
+    // Show eval-level breakdown inline
+    const evalDetails = scores
+      .map((s) => {
+        const evalName = s.evaluationPath?.split('/').pop() ?? s.category
+        return `${evalName} ${colorPct(s.value)}`
+      })
+      .join(`${dim} | ${reset}`)
+    console.log(`  ${label}: ${colorPct(avg)} avg ${dim}(${evalDetails})${reset}`)
+  }
+
+  const totalAvg = dbScores.reduce((sum, s) => sum + s.value, 0) / dbScores.length
+  console.log(`\n  Overall: ${colorPct(totalAvg)} across ${byModel.size} models | ${outputFile}`)
 } else {
   console.log(`Scores written to: ${outputFile}`)
 }
 
-// Braintrust export (opt-in via BRAINTRUST_API_KEY)
-if (process.env.BRAINTRUST_API_KEY) {
+// Braintrust export (opt-in via BRAINTRUST_API_KEY).
+// Skip when BRAINTRUST_DEFER_REPORT=1 (batch mode — report-braintrust.ts handles it).
+if (process.env.BRAINTRUST_API_KEY && !process.env.BRAINTRUST_DEFER_REPORT) {
   const entries: BraintrustEntry[] = dbScores.map((score) => {
     const extra = braintrustDebugMap.get(`${score.model}::${score.category}`)
     return {

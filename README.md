@@ -1,6 +1,6 @@
 # clerk-evals
 
-This repository hosts public evaluation suites used by Clerk to test how LLMs perform at writing Clerk code (primarily in Next.js). If an AI contributor is asked to "create a new eval suite for the Waitlist feature", it should add a new folder under `src/evals/` with a `PROMPT.md` and `graders.ts`, then register it in `src/config/evaluations.ts`.
+Evaluation suites for testing how LLMs perform at writing Clerk code. 27 evals across 8 categories (Quickstarts, Auth, User Management, UI Components, Organizations, Webhooks, Upgrades, Billing) covering Next.js, React, iOS, and Android. 16 models from OpenAI, Anthropic, Google, and Vercel.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -10,11 +10,6 @@ Install [Bun](https://bun.sh) `>=1.3.0`, then gather the required API keys. See 
 
 ```bash
 cp .env.example .env
-```
-
-Run the eval suite (might take about 50s)
-
-```bash
 bun i
 bun start
 ```
@@ -26,7 +21,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
 - Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
-- Run `bun run start:eval src/evals/your-eval` (optionally `--debug`).
+- Run `bun start --eval "your-eval" --smoke --debug` to test with one model.
 
 <details>
 <summary>Example scores</summary>
@@ -62,14 +57,11 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 **Debugging**
 
 ```bash
-# Run a single evaluation
-bun run start:eval evals/auth/routes
+# Run a single evaluation with debug output
+bun start --eval "auth/routes" --debug
 
-# Run in debug mode
-bun run start --debug
-
-# Run a single evaluation in debug mode
-bun run start:eval evals/auth/routes --debug
+# Smoke test (one model, one eval)
+bun start --eval "auth/routes" --smoke --debug
 ```
 
 ## CLI Usage
@@ -81,9 +73,14 @@ bun start [options]
 | Flag | Description |
 |------|-------------|
 | `--mcp` | Enable MCP tools (uses mcp.clerk.dev by default) |
+| `--skills` | Enable skills tools (loads from `../skills/skills/`) |
 | `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive) |
+| `--provider "anthropic"` | Filter by provider (openai, anthropic, google, vercel) |
 | `--eval "protect"` | Filter evals by category or path |
 | `--debug` | Save outputs to debug-runs/ |
+| `--dry` | Print task summary without running |
+| `--smoke` | Run only the first task (quick validation) |
+| `--fail-under 70` | CI gate: fail if average score < threshold % |
 
 ```bash
 # Baseline (no tools)
@@ -92,9 +89,44 @@ bun start --model "claude-sonnet-4-0" --eval "protect"
 # With MCP tools
 bun start --mcp --model "claude-sonnet-4-0" --eval "protect"
 
+# With skills
+bun start --skills --model "claude-sonnet-4-5"
+
 # Local MCP server
 MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
+
+# Dry run (see what would execute)
+bun start --dry
 ```
+
+### Batch Runner
+
+Run all 16 models sequentially with timeout and retry:
+
+```bash
+./run-evals.sh                              # All models, baseline + MCP
+./run-evals.sh --models "gpt-5,claude-sonnet-4-5"  # Specific models
+./run-evals.sh --baseline-only              # Skip MCP
+./run-evals.sh --mcp-only                   # Skip baseline
+./run-evals.sh --list                       # List available models
+```
+
+### Braintrust Integration
+
+Set `BRAINTRUST_API_KEY` to enable experiment logging and tracing:
+
+```bash
+# Single run: creates experiment automatically
+BRAINTRUST_API_KEY=sk-... bun start --mcp
+
+# Batch run: defers reporting, consolidates into one experiment per mode
+BRAINTRUST_API_KEY=sk-... ./run-evals.sh
+
+# Manual consolidated report from recent results
+BRAINTRUST_API_KEY=sk-... bun report:braintrust --since "2026-03-19T17:00:00Z"
+```
+
+The eval runner uses `wrapAISDK` to auto-trace all `generateText` calls (inputs, outputs, tool invocations, token usage). Traces flow to Braintrust even during batch runs.
 
 ## Agent Evals
 
@@ -137,9 +169,11 @@ bun start:agent --agent claude-code --mcp
 | Runner | Output | Description |
 |--------|--------|-------------|
 | `bun start` | `scores.json` | Baseline scores (no tools) |
-| `bun start:mcp` | `scores-mcp.json` | MCP scores (with tools) |
+| `bun start --mcp` | `scores-mcp.json` | MCP scores (with tools) |
+| `bun start --skills` | `scores-skills.json` | Skills scores |
 | `bun start:agent` | `agent-scores.json` | Agent evaluation scores |
 | `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
+| `bun report:braintrust` | Braintrust UI | Consolidated experiment per mode |
 
 ### Workflow for llm-leaderboard
 
@@ -224,10 +258,13 @@ For a given model, and evaluation, we'll retrieve a score from `0..1`, which is 
 
 ### Reporting
 
-At the moment, we employ two minimal **reporters**
+Three reporters:
 
-- [console](./src/reporters/console.ts): writes scores via `console.log()`
-- [file](./src/reporters/file.ts): saves scores to a gitignored `scores.json` file.
+- [console](./src/reporters/console.ts): color-coded ASCII table (category x model matrix)
+- [file](./src/reporters/file.ts): saves scores to `scores.json` / `scores-mcp.json` / `scores-skills.json`
+- [braintrust](./src/reporters/braintrust.ts): logs experiments to Braintrust (opt-in via `BRAINTRUST_API_KEY`)
+
+For batch runs, [`src/report-braintrust.ts`](./src/report-braintrust.ts) consolidates all per-model results from SQLite into a single experiment per mode.
 
 ### Interfaces
 

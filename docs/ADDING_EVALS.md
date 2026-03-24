@@ -49,7 +49,7 @@ export const graders = defineGraders({
 
 ## 4) Register the evaluation
 
-Append an entry in `src/index.ts` under `evaluations`:
+Append an entry in `src/config/evaluations.ts`:
 
 ```ts
 {
@@ -61,8 +61,8 @@ Append an entry in `src/index.ts` under `evaluations`:
 
 ## 5) Run and iterate
 
+- Smoke test: `bun start --eval "waitlist" --smoke --debug`
 - Run all: `bun start`
-- Run one: `bun run start:eval src/evals/waitlist`
 - Debug artifacts: add `--debug` to write prompts, responses, and grader decisions under `debug-runs/`.
 
 ## 6) Style and checks
