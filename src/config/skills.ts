@@ -6,6 +6,7 @@
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import matter from 'gray-matter'
 
 /**
  * Maps eval paths to relevant Clerk skills.
@@ -73,19 +74,11 @@ export function getSkillsForEval(evalPath: string): string[] {
  * Parse SKILL.md frontmatter to extract name and description.
  */
 function parseFrontmatter(content: string): { name: string; description: string } | null {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/)
-  if (!match?.[1]) return null
-
-  // Simple YAML parsing for name and description
-  const yaml = match[1]
-  const nameMatch = yaml.match(/^name:\s*(.+)$/m)
-  const descMatch = yaml.match(/^description:\s*(.+)$/m)
-
-  if (!nameMatch?.[1] || !descMatch?.[1]) return null
-
+  const { data } = matter(content)
+  if (!data.name || !data.description) return null
   return {
-    name: nameMatch[1].trim(),
-    description: descMatch[1].trim(),
+    name: data.name,
+    description: data.description,
   }
 }
 
