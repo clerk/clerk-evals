@@ -5,12 +5,14 @@
  * actual files created/modified by the agent in its working directory.
  *
  * Usage in graders.ts:
- *   import { fileExists, fileContains, packageHasDep } from '@/src/graders/filesystem'
+ *   import { fileExists, fileContains, packageHasDep, packageHasDevDep, jsonPathExists } from '@/src/graders/filesystem'
  *
  *   export const graders = defineGraders({
  *     has_middleware: fileExists('middleware.ts'),
  *     uses_clerk_provider: fileContains('app/layout.tsx', '<ClerkProvider'),
  *     has_clerk_dep: packageHasDep('@clerk/nextjs'),
+ *     has_vitest: packageHasDevDep('vitest'),
+ *     has_build_script: jsonPathExists('package.json', 'scripts.build'),
  *   })
  *
  * Filesystem graders conform to the same Grader signature: (input: string) => Promise<boolean>
@@ -56,19 +58,38 @@ export function fileContains(relPath: string, needle: string | RegExp) {
 }
 
 /**
- * Creates a grader that checks if package.json has a dependency.
+ * Creates a grader that checks if a JSON file contains a key at a given path.
+ * Uses dot-notation (e.g. "dependencies.@clerk/nextjs", "scripts.build").
  */
-export function packageHasDep(dep: string) {
+export function jsonPathExists(relPath: string, keyPath: string) {
   return (workDir: string) =>
     async (_input: string): Promise<boolean> => {
       try {
-        const raw = await readFile(path.join(workDir, 'package.json'), 'utf8')
-        const pkg = JSON.parse(raw)
-        return dep in (pkg.dependencies ?? {}) || dep in (pkg.devDependencies ?? {})
+        const raw = await readFile(path.join(workDir, relPath), 'utf8')
+        let obj = JSON.parse(raw)
+        for (const key of keyPath.split('.')) {
+          if (obj == null || typeof obj !== 'object') return false
+          obj = obj[key]
+        }
+        return obj !== undefined
       } catch {
         return false
       }
     }
+}
+
+/**
+ * Creates a grader that checks if package.json has a production dependency.
+ */
+export function packageHasDep(dep: string) {
+  return jsonPathExists('package.json', `dependencies.${dep}`)
+}
+
+/**
+ * Creates a grader that checks if package.json has a dev dependency.
+ */
+export function packageHasDevDep(dep: string) {
+  return jsonPathExists('package.json', `devDependencies.${dep}`)
 }
 
 /**
