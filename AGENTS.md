@@ -44,6 +44,13 @@ BRAINTRUST_API_KEY=sk-... bun report:braintrust
 
 ### Agent Evaluations (Multi-Agent)
 
+Agent evals spawn CLI tools as child processes. Install them before running:
+
+- [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
+- [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
+
+Both API keys must be set in `.env`.
+
 ```bash
 # Run agent evals with Claude Code
 bun agent:claude

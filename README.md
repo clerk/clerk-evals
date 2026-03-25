@@ -130,7 +130,18 @@ The eval runner uses `wrapAISDK` to auto-trace all `generateText` calls (inputs,
 
 ## Agent Evals
 
-Run evaluations using AI coding agents (Claude Code, Cursor) instead of direct LLM calls:
+Run evaluations using AI coding agents (Claude Code, Codex) instead of direct LLM calls.
+
+### Prerequisites
+
+Agent evals spawn CLI tools as child processes. Install them globally before running:
+
+- [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
+- [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
+
+Both API keys must be set in your `.env`.
+
+### Usage
 
 ```bash
 bun start:agent --agent claude-code [options]
