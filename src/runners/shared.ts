@@ -38,6 +38,7 @@ export async function loadGraders(evalPath: string): Promise<Graders> {
 
 /**
  * Runs all graders against a response and returns results as [name, passed] tuples.
+ * Optionally accepts a workDir for filesystem graders bound via bindFilesystemGraders.
  */
 export async function runGraders(graders: Graders, response: string): Promise<[string, boolean][]> {
   const results: [string, boolean][] = []

@@ -6,6 +6,7 @@
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import matter from 'gray-matter'
 
 /**
  * Maps eval paths to relevant Clerk skills.
@@ -55,6 +56,9 @@ export const EVAL_SKILL_MAPPING: Record<string, string[]> = {
   'evals/android/prebuilt-setup': ['android'],
   'evals/android/custom-setup': ['android'],
   // routing intentionally excluded — tests Expo detection, Android skill discourages Expo
+
+  // Add Auth (framework-agnostic, skills based on variant)
+  'evals/add-auth': ['setup', 'nextjs-patterns'],
 }
 
 /**
@@ -67,41 +71,26 @@ export function getSkillsForEval(evalPath: string): string[] {
 }
 
 /**
- * Recursively read all markdown files from a skill directory.
+ * Parse SKILL.md frontmatter to extract name and description.
  */
-async function readSkillContent(skillDir: string): Promise<string> {
-  const parts: string[] = []
-
-  // Read main SKILL.md
-  const skillMdPath = path.join(skillDir, 'SKILL.md')
-  try {
-    const content = await fs.readFile(skillMdPath, 'utf8')
-    parts.push(content)
-  } catch {
-    return ''
+function parseFrontmatter(content: string): { name: string; description: string } | null {
+  const { data } = matter(content)
+  if (!data.name || !data.description) return null
+  return {
+    name: data.name,
+    description: data.description,
   }
-
-  // Read reference files if they exist
-  const referencesDir = path.join(skillDir, 'references')
-  try {
-    const files = await fs.readdir(referencesDir)
-    for (const file of files) {
-      if (file.endsWith('.md')) {
-        const refPath = path.join(referencesDir, file)
-        const refContent = await fs.readFile(refPath, 'utf8')
-        parts.push(`\n## Reference: ${file.replace('.md', '')}\n\n${refContent}`)
-      }
-    }
-  } catch {
-    // No references directory, that's fine
-  }
-
-  return parts.join('\n')
 }
 
 /**
- * Create CLAUDE.md with skill content for Claude Code auto-discovery.
- * Claude Code automatically loads CLAUDE.md from the working directory.
+ * Copy skill directories into the agent's working directory for progressive discovery.
+ *
+ * Following the agentskills.io specification:
+ * - Tier 1 (Catalog): CLAUDE.md lists skill names + descriptions + paths (~50-100 tokens/skill)
+ * - Tier 2 (Activation): Agent reads full SKILL.md on-demand via native file-read tools
+ * - Tier 3 (Resources): Agent reads scripts/, references/ as needed
+ *
+ * This replaces the old approach of dumping 21KB of full skill content into CLAUDE.md upfront.
  *
  * @param evalPath - The evaluation path to get skills for (e.g., 'evals/auth/protect')
  * @param skillsSourcePath - Path to the skills repo (e.g., /path/to/skills/skills)
@@ -115,57 +104,53 @@ export async function createSkillsClaudeMd(
 ): Promise<string[]> {
   const skillNames = getSkillsForEval(evalPath)
   const loadedSkills: string[] = []
-  const skillContents: string[] = []
+  const catalogEntries: string[] = []
 
-  // Header for CLAUDE.md
-  skillContents.push(`# Clerk Skills Reference
-
-**OUTPUT FORMAT**: Respond with fenced code blocks like:
-
-\`\`\`typescript file="path/to/file.ts"
-// code here
-\`\`\`
-
-Include ALL necessary files for a working app:
-- Source files (pages, components, middleware)
-- package.json with @clerk/nextjs dependency
-- .env.local with NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY placeholders
-
-Do NOT include prose explanations between code blocks.
-
----
-`)
+  // Create .skills/ directory in workDir to hold skill copies
+  const skillsDir = path.join(workDir, '.skills')
+  await fs.mkdir(skillsDir, { recursive: true })
 
   for (const name of skillNames) {
     const skillDir = path.join(skillsSourcePath, name)
+    const skillMdPath = path.join(skillDir, 'SKILL.md')
 
     try {
-      const content = await readSkillContent(skillDir)
-      if (content) {
-        skillContents.push(`\n# Skill: ${name}\n\n${content}\n\n---\n`)
-        loadedSkills.push(name)
+      const content = await fs.readFile(skillMdPath, 'utf8')
+      const meta = parseFrontmatter(content)
+      if (!meta) continue
+
+      // Copy only essential skill files (SKILL.md + scripts/ + references/ + assets/)
+      const destDir = path.join(skillsDir, name)
+      await fs.mkdir(destDir, { recursive: true })
+      await fs.copyFile(skillMdPath, path.join(destDir, 'SKILL.md'))
+      for (const subdir of ['scripts', 'references', 'assets']) {
+        const src = path.join(skillDir, subdir)
+        const dest = path.join(destDir, subdir)
+        try {
+          await fs.cp(src, dest, { recursive: true })
+        } catch {
+          // Subdir doesn't exist, skip
+        }
       }
-    } catch (err) {
-      console.warn(`[skills] Failed to read skill "${name}": ${err}`)
+
+      catalogEntries.push(`- ${meta.name}: ${meta.description} (path: .skills/${name}/SKILL.md)`)
+      loadedSkills.push(name)
+    } catch {
+      // Skill doesn't exist or can't be read
     }
   }
 
-  // Write CLAUDE.md
   if (loadedSkills.length > 0) {
+    const catalog = `# Skills
+
+The following Clerk skills are available. When the task matches a skill's description,
+read the SKILL.md file at the listed path to get specialized instructions.
+
+${catalogEntries.join('\n')}
+`
     const claudeMdPath = path.join(workDir, 'CLAUDE.md')
-    await fs.writeFile(claudeMdPath, skillContents.join('\n'))
+    await fs.writeFile(claudeMdPath, catalog)
   }
 
   return loadedSkills
-}
-
-/**
- * @deprecated Use createSkillsClaudeMd instead. Symlinks don't work in --print mode.
- */
-export async function symlinkSkills(
-  evalPath: string,
-  skillsSourcePath: string,
-  workDir: string,
-): Promise<string[]> {
-  return createSkillsClaudeMd(evalPath, skillsSourcePath, workDir)
 }

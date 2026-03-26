@@ -46,6 +46,14 @@ export function initDB() {
       timestamp TEXT NOT NULL
     )
   `)
+
+  // Migrations: add trial and failure_type columns to errors
+  const errorCols = db.query('PRAGMA table_info(errors)').all() as { name: string }[]
+  const errorColNames = new Set(errorCols.map((c) => c.name))
+  if (!errorColNames.has('trial')) {
+    db.run('ALTER TABLE errors ADD COLUMN trial INTEGER')
+    db.run("ALTER TABLE errors ADD COLUMN failure_type TEXT DEFAULT 'model'")
+  }
 }
 
 export function saveResult(runId: string, score: Score, evaluationPath?: string) {
@@ -79,11 +87,13 @@ export function saveError(
     category?: string
     evaluationPath: string
     error: unknown
+    trial?: number
+    failureType?: string
   },
 ) {
   const query = db.query(`
-    INSERT INTO errors (run_id, model, label, framework, category, evaluation_path, error_message, stack_trace, timestamp)
-    VALUES ($run_id, $model, $label, $framework, $category, $evaluation_path, $error_message, $stack_trace, $timestamp)
+    INSERT INTO errors (run_id, model, label, framework, category, evaluation_path, error_message, stack_trace, timestamp, trial, failure_type)
+    VALUES ($run_id, $model, $label, $framework, $category, $evaluation_path, $error_message, $stack_trace, $timestamp, $trial, $failure_type)
   `)
 
   const errorObj = details.error instanceof Error ? details.error : new Error(String(details.error))
@@ -98,6 +108,8 @@ export function saveError(
     $error_message: errorObj.message,
     $stack_trace: errorObj.stack ?? null,
     $timestamp: new Date().toISOString(),
+    $trial: details.trial ?? null,
+    $failure_type: details.failureType ?? 'model',
   })
 }
 

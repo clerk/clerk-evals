@@ -42,6 +42,37 @@ bun start --skills --model "claude-sonnet-4-5"
 BRAINTRUST_API_KEY=sk-... bun report:braintrust
 ```
 
+### Agent Evaluations (Multi-Agent)
+
+Agent evals spawn CLI tools as child processes. Install them before running:
+
+- [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
+- [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
+
+Both API keys must be set in `.env`.
+
+```bash
+# Run agent evals with Claude Code
+bun agent:claude
+bun agent:claude --eval add-auth --debug
+
+# Run agent evals with Codex
+bun agent:codex
+bun agent:codex --eval add-auth --debug
+
+# Multi-trial (3 runs per eval, pass@k metrics)
+bun agent:claude --runs 3
+bun agent:codex --runs 3
+
+# With skills or MCP
+bun agent:claude --skills
+bun agent:claude --skills --mcp
+
+# Cross-agent leaderboard export
+bun export:leaderboard
+bun export:leaderboard --since 2026-03-20
+```
+
 ## Project Structure & Module Organization
 `src/index.ts` wires providers, runners, reporters, and every folder under `src/evals`. Keep each evaluation in its own directory with `PROMPT.md`, `graders.ts`, and any fixtures it needs. Use descriptive, numeric-free slugs like `src/evals/new-eval`. Runner logic lives in `src/runners`, shared provider clients in `src/providers`, scoring helpers in `src/scorers`, and reusable utilities in `src/utils`. Diagrams intended for contributor onboarding belong in `docs/`, while transient artifacts like `scores.json` stay gitignored at the root.
 

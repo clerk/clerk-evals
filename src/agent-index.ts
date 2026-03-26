@@ -13,8 +13,9 @@
 import { execSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import Tinypool from 'tinypool'
-import { parseArgs } from 'util'
+import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult } from '@/src/db'
 import type {
@@ -25,6 +26,7 @@ import type {
   Score,
 } from '@/src/interfaces'
 import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
+import { summarizeTrials, type TrialResult } from '@/src/metrics/pass-at-k'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 
@@ -57,6 +59,7 @@ const { values } = parseArgs({
     debug: { type: 'boolean', short: 'd', default: false },
     eval: { type: 'string', short: 'e' },
     timeout: { type: 'string', short: 't' },
+    runs: { type: 'string', short: 'r' },
   },
   strict: true,
   allowPositionals: true,
@@ -69,6 +72,7 @@ const skillsPath = values['skills-path'] || path.join(process.cwd(), '..', 'skil
 const debugEnabled = values.debug
 const evalFilter = values.eval
 const timeoutArg = values.timeout
+const runsCount = values.runs ? Number.parseInt(values.runs, 10) : 1
 
 const normalizeEvalPath = (value: string) => {
   if (value.startsWith('./')) return normalizeEvalPath(value.slice(2))
@@ -195,106 +199,169 @@ if (skillsEnabled) {
 if (mcpEnabled) {
   console.log(`MCP Server: ${mcpUrl}`)
 }
-console.log(`Running ${tasks.length} evaluations\n`)
+if (runsCount > 1) {
+  console.log(`Runs per eval: ${runsCount}`)
+}
+console.log(
+  `Running ${tasks.length} evaluations${runsCount > 1 ? ` (${tasks.length * runsCount} total runs)` : ''}\n`,
+)
 
 let completed = 0
+const totalRuns = tasks.length * runsCount
 
 // Run all in parallel (with limited concurrency)
 await Promise.all(
   tasks.map(async (task) => {
-    console.log(`[start] ${task.agent} -> ${task.evaluationPath}`)
+    const trialResults: TrialResult[] = []
 
-    const runnerArgs: AgentRunnerArgs = {
-      agent: task.agent,
-      evalPath: task.evalPath,
-      debug: debugEnabled,
-      mcpConfig: mcpEnabled
-        ? {
-            enabled: true,
-            serverUrl: mcpUrl,
+    for (let trial = 1; trial <= runsCount; trial++) {
+      const trialLabel = runsCount > 1 ? ` [trial ${trial}/${runsCount}]` : ''
+      console.log(`[start] ${task.agent} -> ${task.evaluationPath}${trialLabel}`)
+
+      const runnerArgs: AgentRunnerArgs = {
+        agent: task.agent,
+        evalPath: task.evalPath,
+        debug: debugEnabled,
+        mcpConfig: mcpEnabled
+          ? {
+              enabled: true,
+              serverUrl: mcpUrl,
+            }
+          : undefined,
+        skillsConfig: skillsEnabled
+          ? {
+              enabled: true,
+              sourcePath: skillsPath,
+              evalPath: task.evaluationPath,
+            }
+          : undefined,
+        timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
+        executablePath,
+        envPath: process.env.PATH,
+        fixturesPath: task.fixturesPath,
+        gradersPath: task.gradersPath,
+      }
+
+      const startTime = Date.now()
+
+      try {
+        const result: RunnerResult = await pool.run(runnerArgs)
+
+        if (!result.ok) {
+          const errorMsg =
+            result.error instanceof Error
+              ? result.error.message
+              : typeof result.error === 'object'
+                ? JSON.stringify(result.error)
+                : String(result.error)
+          console.error(`[error] ${task.agent}${trialLabel}: ${errorMsg}`)
+
+          // Classify the failure
+          const failureType = classifyFailure(
+            {
+              success: false,
+              output: '',
+              duration: Date.now() - startTime,
+              exitCode: -1,
+              error: errorMsg,
+            },
+            timeoutArg ? Number.parseInt(timeoutArg, 10) : 600_000,
+          )
+
+          const errorLabelParts: string[] = [agentInfo.label]
+          if (skillsEnabled) errorLabelParts.push('Skills')
+          if (mcpEnabled) errorLabelParts.push('MCP')
+          saveError(runId, {
+            model: task.agent,
+            label: errorLabelParts.join(' + '),
+            framework: task.framework,
+            category: task.category,
+            evaluationPath: task.evaluationPath,
+            error: result.error,
+            trial,
+            failureType,
+          })
+
+          trialResults.push({
+            trial,
+            score: 0,
+            durationMs: Date.now() - startTime,
+            success: false,
+          })
+          continue
+        }
+
+        const labelParts: string[] = [agentInfo.label]
+        if (skillsEnabled) labelParts.push('Skills')
+        if (mcpEnabled) labelParts.push('MCP')
+        const score: Score = {
+          model: task.agent,
+          label: labelParts.join(' + '),
+          framework: task.framework,
+          category: task.category,
+          value: result.value.score,
+          updatedAt: new Date().toISOString(),
+          durationMs: result.value.durationMs,
+        }
+        saveResult(runId, score, task.evaluationPath)
+
+        trialResults.push({
+          trial,
+          score: result.value.score,
+          durationMs: result.value.durationMs ?? Date.now() - startTime,
+          success: result.value.score >= 0.5,
+        })
+
+        if (debugEnabled && result.value.debug && debugRunDirectory) {
+          const artifact: DebugArtifact = {
+            agent: task.agent,
+            framework: task.framework,
+            category: task.category,
+            evaluationPath: task.evaluationPath,
+            score: result.value.score,
+            prompt: result.value.debug.prompt,
+            response: result.value.debug.response,
+            graders: result.value.debug.graders,
+            transcript: result.value.debug.transcript,
           }
-        : undefined,
-      skillsConfig: skillsEnabled
-        ? {
-            enabled: true,
-            sourcePath: skillsPath,
-            evalPath: task.evaluationPath,
+          debugArtifacts.push(artifact)
+
+          // Write debug files
+          const evalSlug = task.variant
+            ? `${task.evaluationPath.replace(/\//g, '__')}__${task.variant}`
+            : task.evaluationPath.replace(/\//g, '__')
+          const trialSuffix = runsCount > 1 ? `__trial${trial}` : ''
+          const debugPath = path.join(
+            debugRunDirectory,
+            `${evalSlug}__${task.agent}${trialSuffix}.json`,
+          )
+          await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
+
+          if (result.value.debug.transcript) {
+            const transcriptPath = path.join(
+              debugRunDirectory,
+              `${evalSlug}__${task.agent}${trialSuffix}.md`,
+            )
+            await writeFile(transcriptPath, result.value.debug.transcript)
           }
-        : undefined,
-      timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
-      executablePath,
-      envPath: process.env.PATH,
-      fixturesPath: task.fixturesPath,
-      gradersPath: task.gradersPath,
+        }
+      } finally {
+        completed++
+        console.log(
+          `[done ${completed}/${totalRuns}] ${task.agent} -> ${task.evaluationPath}${trialLabel}`,
+        )
+      }
     }
 
-    try {
-      const result: RunnerResult = await pool.run(runnerArgs)
-
-      if (!result.ok) {
-        const errorMsg =
-          result.error instanceof Error
-            ? result.error.message
-            : typeof result.error === 'object'
-              ? JSON.stringify(result.error)
-              : String(result.error)
-        console.error(`[error] ${task.agent}: ${errorMsg}`)
-        const errorLabelParts: string[] = [agentInfo.label]
-        if (skillsEnabled) errorLabelParts.push('Skills')
-        if (mcpEnabled) errorLabelParts.push('MCP')
-        saveError(runId, {
-          model: task.agent,
-          label: errorLabelParts.join(' + '),
-          framework: task.framework,
-          category: task.category,
-          evaluationPath: task.evaluationPath,
-          error: result.error,
-        })
-        return
-      }
-
-      const labelParts: string[] = [agentInfo.label]
-      if (skillsEnabled) labelParts.push('Skills')
-      if (mcpEnabled) labelParts.push('MCP')
-      const score: Score = {
-        model: task.agent,
-        label: labelParts.join(' + '),
-        framework: task.framework,
-        category: task.category,
-        value: result.value.score,
-        updatedAt: new Date().toISOString(),
-      }
-      saveResult(runId, score)
-
-      if (debugEnabled && result.value.debug && debugRunDirectory) {
-        const artifact: DebugArtifact = {
-          agent: task.agent,
-          framework: task.framework,
-          category: task.category,
-          evaluationPath: task.evaluationPath,
-          score: result.value.score,
-          prompt: result.value.debug.prompt,
-          response: result.value.debug.response,
-          graders: result.value.debug.graders,
-          transcript: result.value.debug.transcript,
-        }
-        debugArtifacts.push(artifact)
-
-        // Write debug files
-        const evalSlug = task.variant
-          ? `${task.evaluationPath.replace(/\//g, '__')}__${task.variant}`
-          : task.evaluationPath.replace(/\//g, '__')
-        const debugPath = path.join(debugRunDirectory, `${evalSlug}__${task.agent}.json`)
-        await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
-
-        if (result.value.debug.transcript) {
-          const transcriptPath = path.join(debugRunDirectory, `${evalSlug}__${task.agent}.md`)
-          await writeFile(transcriptPath, result.value.debug.transcript)
-        }
-      }
-    } finally {
-      completed++
-      console.log(`[done ${completed}/${tasks.length}] ${task.agent} -> ${task.evaluationPath}`)
+    // Log multi-trial summary
+    if (runsCount > 1 && trialResults.length > 0) {
+      const summary = summarizeTrials(trialResults)
+      console.log(
+        `[summary] ${task.evaluationPath}: ${summary.passed}/${summary.totalTrials} passed, ` +
+          `pass@1=${(summary.passAt1 * 100).toFixed(0)}%, ` +
+          `pass@${runsCount}=${(summary.passAtK * 100).toFixed(0)}%, ` +
+          `mean=${(summary.meanScore * 100).toFixed(0)}%`,
+      )
     }
   }),
 )

@@ -23,12 +23,12 @@ const getToolInput = (tc: MCPToolCall) => tc.input ?? tc.args ?? {}
 const getToolText = (tr: MCPToolResult) =>
   typeof tr.output === 'string'
     ? tr.output
-    : tr.output?.content?.[0]?.text ??
+    : (tr.output?.content?.[0]?.text ??
       (typeof tr.result === 'string'
         ? tr.result
         : tr.result != null
           ? JSON.stringify(tr.result)
-          : undefined)
+          : undefined))
 
 /** Builds MCP debug payload with tool usage and transcript */
 export function buildMCPDebugPayload(

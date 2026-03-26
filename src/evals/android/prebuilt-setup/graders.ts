@@ -1,4 +1,4 @@
-import { contains, containsAny, defineGraders, judge, matches, not } from '@/src/graders'
+import { contains, containsAny, defineGraders, judge, not } from '@/src/graders'
 
 export const graders = defineGraders({
   // Basic: right package
@@ -26,9 +26,7 @@ export const graders = defineGraders({
   uses_internet_permission: contains('android.permission.INTERNET'),
 
   // Correctness: does NOT introduce custom sign-in form logic alongside prebuilt
-  no_custom_form_leak: not(
-    containsAny(['signIn.create', 'attemptFirstFactor', 'signUp.create']),
-  ),
+  no_custom_form_leak: not(containsAny(['signIn.create', 'attemptFirstFactor', 'signUp.create'])),
 
   // Correctness: wires the publishable key
   wires_publishable_key: containsAny(['publishableKey', 'pk_test_']),
