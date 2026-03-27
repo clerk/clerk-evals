@@ -49,15 +49,40 @@ export const graders = defineGraders({
 
 ## 4) Register the evaluation
 
-Append an entry in `src/config/evaluations.ts`:
+Append an entry in `src/config/evaluations.ts` with metadata:
 
 ```ts
 {
   framework: 'Next.js',
   category: 'Waitlist',
   path: 'evals/waitlist',
+  description: 'Implements a protected waitlist API route with Clerk auth, env setup, and entry storage',
+  primaryCapability: 'api_knowledge',
+  capabilities: ['webhook_integration'],  // optional secondary tags
+  source: 'coverage',
 }
 ```
+
+### Metadata fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `description` | Yes | One-line summary of what behavior this eval measures. Start with a verb. |
+| `primaryCapability` | Yes | The single capability this eval primarily tests. Ask: "what is the hardest thing this eval asks the model to do?" |
+| `capabilities` | No | Additional secondary tags for filtering. Keep sparse — most evals need 0-1 secondary tags. |
+| `source` | No | Why this eval was created: `coverage` (fill a gap), `regression` (caught a bug), `dogfooding` (real user scenario), `manual` (manually authored). |
+
+### Choosing the primary capability
+
+Pick ONE — the behavior that makes this eval hard:
+
+- `api_knowledge` — tests knowledge of current Clerk API surface (imports, hooks, helpers)
+- `framework_detection` — requires correctly identifying the project framework before acting
+- `migration_reasoning` — involves understanding breaking changes and upgrade paths
+- `negative_constraint` — primarily checks the model avoids wrong or deprecated patterns
+- `tool_composition` — needs multiple MCP tool calls in sequence
+- `ui_composition` — assembles Clerk UI components with correct props and composition
+- `webhook_integration` — sets up event-driven webhook flows with signature verification
 
 ## 5) Run and iterate
 
