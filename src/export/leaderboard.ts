@@ -13,8 +13,9 @@
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import { EVALUATIONS } from '@/src/config'
 import { getResults, getRunIdsSince, initDB } from '@/src/db'
-import type { Score } from '@/src/interfaces'
+import type { Capability, Score } from '@/src/interfaces'
 import { computeSkillsImpact, type SkillsImpact } from './skills-impact'
 
 type AgentExperiment = {
@@ -33,6 +34,9 @@ type EvalResult = {
   category: string
   score: number
   evaluationPath?: string
+  description?: string
+  primaryCapability?: Capability
+  capabilities?: Capability[]
 }
 
 type LeaderboardData = {
@@ -120,13 +124,21 @@ for (const [mode, modeRunIds] of runsByMode) {
 
   leaderboard.metadata.experiments.push(experiment)
 
-  leaderboard.results[mode] = scores.map((s) => ({
-    evalKey: `${s.framework}/${s.category}`,
-    framework: s.framework,
-    category: s.category,
-    score: s.value,
-    evaluationPath: (s as Score & { evaluationPath?: string }).evaluationPath,
-  }))
+  const evalsByPath = new Map(EVALUATIONS.map((e) => [e.path, e]))
+  leaderboard.results[mode] = scores.map((s) => {
+    const evalPath = (s as Score & { evaluationPath?: string }).evaluationPath
+    const evalDef = evalPath ? evalsByPath.get(evalPath) : undefined
+    return {
+      evalKey: `${s.framework}/${s.category}`,
+      framework: s.framework,
+      category: s.category,
+      score: s.value,
+      evaluationPath: evalPath,
+      description: evalDef?.description,
+      primaryCapability: evalDef?.primaryCapability,
+      capabilities: evalDef?.capabilities,
+    }
+  })
 }
 
 // Sort experiments by passRate descending
