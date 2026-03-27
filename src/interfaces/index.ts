@@ -114,6 +114,28 @@ export type Category =
   | 'Billing'
   | 'Upgrades'
   | 'Add Auth'
+
+/**
+ * Behavioral capability tags for slicing evals by what model behavior they test,
+ * independent of Clerk product vertical.
+ *
+ * Each eval has exactly one `primaryCapability` (what it primarily tests)
+ * and optional secondary `capabilities` for filtering.
+ */
+export type Capability =
+  | 'api_knowledge'
+  | 'framework_detection'
+  | 'migration_reasoning'
+  | 'negative_constraint'
+  | 'tool_composition'
+  | 'ui_composition'
+  | 'webhook_integration'
+
+/**
+ * Origin of an eval — why it was created.
+ */
+export type EvalSource = 'dogfooding' | 'regression' | 'coverage' | 'manual'
+
 export type Evaluation = {
   framework: Framework
   category: Category
@@ -121,6 +143,14 @@ export type Evaluation = {
   path: string
   /** Variant subdirectory for fixture-based evals (e.g., 'nextjs', 'android') */
   variant?: string
+  /** What behavior this eval measures */
+  description: string
+  /** The single capability this eval primarily tests — used for leaderboard slicing */
+  primaryCapability: Capability
+  /** Additional capability tags for filtering (optional) */
+  capabilities?: Capability[]
+  /** Why this eval was created */
+  source?: EvalSource
 }
 
 /**

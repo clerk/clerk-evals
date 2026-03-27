@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
 import * as braintrust from 'braintrust'
+import { EVALUATIONS } from '@/src/config'
 import type { RunnerDebugPayload, Score } from '@/src/interfaces'
 
 const DEFAULT_PROJECT = 'clerk-evals'
@@ -37,6 +38,8 @@ export default async function braintrustReporter(
     },
   })
 
+  const evalsByPath = new Map(EVALUATIONS.map((e) => [e.path, e]))
+
   for (const entry of entries) {
     const graderScores: Record<string, number> = {}
     if (entry.debug?.graders) {
@@ -44,6 +47,8 @@ export default async function braintrustReporter(
         graderScores[name] = passed ? 1 : 0
       }
     }
+
+    const evalDef = evalsByPath.get(entry.evaluationPath)
 
     experiment.log({
       input: {
@@ -78,8 +83,19 @@ export default async function braintrustReporter(
         mode,
         toolCallCount: entry.debug?.toolCalls?.length ?? 0,
         toolsUsed: [...new Set(entry.debug?.toolCalls?.map((tc) => tc.toolName))],
+        ...(evalDef && {
+          description: evalDef.description,
+          primaryCapability: evalDef.primaryCapability,
+          capabilities: evalDef.capabilities,
+          source: evalDef.source,
+        }),
       },
-      tags: [mode, entry.category, entry.framework],
+      tags: [
+        mode,
+        entry.category,
+        entry.framework,
+        ...(evalDef ? [evalDef.primaryCapability, ...(evalDef.capabilities ?? [])] : []),
+      ],
     })
   }
 

@@ -20,7 +20,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
-- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, `path`, `description`, and `primaryCapability`.
 - Run `bun start --eval "your-eval" --smoke --debug` to test with one model.
 
 <details>
@@ -184,6 +184,7 @@ bun start:agent --agent claude-code --mcp
 | `bun start --skills` | `scores-skills.json` | Skills scores |
 | `bun start:agent` | `agent-scores.json` | Agent evaluation scores |
 | `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
+| `bun export:capabilities` | Terminal / JSON | Per-model capability breakdown |
 | `bun report:braintrust` | Braintrust UI | Consolidated experiment per mode |
 
 ### Workflow for llm-leaderboard
