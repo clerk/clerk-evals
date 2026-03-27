@@ -19,6 +19,7 @@
     "agent:skills:mcp": "bun src/agent-index.ts --agent claude-code --skills --mcp",
     "report:braintrust": "bun src/report-braintrust.ts",
     "export:leaderboard": "bun src/export/leaderboard.ts",
+    "export:capabilities": "bun src/export/capability-ranking.ts",
     "export": "bun export-from-db.ts",
     "merge-scores": "bun src/merge-scores.ts",
     "lint": "biome check .",
