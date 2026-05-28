@@ -29,8 +29,11 @@ export async function loadPrompt(evalPath: string): Promise<string> {
 /**
  * Dynamically imports and returns the graders from an evaluation directory.
  */
-export async function loadGraders(evalPath: string): Promise<Graders> {
-  const graderModule = (await import(path.join(evalPath, 'graders.ts'))) as {
+export async function loadGraders(evalPath: string, variant?: string): Promise<Graders> {
+  const gradersPath = variant
+    ? path.join(evalPath, 'graders', `${variant}.ts`)
+    : path.join(evalPath, 'graders.ts')
+  const graderModule = (await import(gradersPath)) as {
     graders: Graders
   }
   return graderModule.graders

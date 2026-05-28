@@ -174,6 +174,7 @@ const tasks = filteredModels.flatMap((model) =>
     label: model.label,
     category: evaluation.category,
     framework: evaluation.framework,
+    variant: evaluation.variant,
     evalPath: path.join(process.cwd(), 'src', evaluation.path),
     evaluationPath: evaluation.path,
   })),
@@ -252,6 +253,7 @@ async function runTask(task: (typeof tasksToRun)[number]) {
 
   const runnerArgs: ExecArgs = {
     evalPath: task.evalPath,
+    variant: task.variant,
     provider: task.provider as Provider,
     model: task.model,
     debug: collectDebug,
@@ -349,14 +351,14 @@ async function runTask(task: (typeof tasksToRun)[number]) {
       if (hasTools) {
         const debugPath = path.join(
           debugRunDirectory,
-          `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.json`,
+          `${task.evaluationPath.replace(/\//g, '__')}${task.variant ? `__${task.variant}` : ''}__${task.model}.json`,
         )
         await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
 
         if (result.value.debug.transcript) {
           const transcriptPath = path.join(
             debugRunDirectory,
-            `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.md`,
+            `${task.evaluationPath.replace(/\//g, '__')}${task.variant ? `__${task.variant}` : ''}__${task.model}.md`,
           )
           await writeFile(transcriptPath, result.value.debug.transcript)
         }
