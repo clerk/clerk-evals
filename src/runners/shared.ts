@@ -29,8 +29,11 @@ export async function loadPrompt(evalPath: string): Promise<string> {
 /**
  * Dynamically imports and returns the graders from an evaluation directory.
  */
-export async function loadGraders(evalPath: string): Promise<Graders> {
-  const graderModule = (await import(path.join(evalPath, 'graders.ts'))) as {
+export async function loadGraders(evalPath: string, variant?: string): Promise<Graders> {
+  const gradersPath = variant
+    ? path.join(evalPath, 'graders', `${variant}.ts`)
+    : path.join(evalPath, 'graders.ts')
+  const graderModule = (await import(gradersPath)) as {
     graders: Graders
   }
   return graderModule.graders
@@ -77,8 +80,14 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-4o': [2.5, 10],
   'gpt-5': [1.25, 10],
   'gpt-5-chat-latest': [1.25, 10],
+  'gpt-5.1': [1.25, 10],
+  'gpt-5.1-chat-latest': [1.25, 10],
+  'gpt-5.1-codex': [1.25, 10],
+  'gpt-5.1-codex-max': [1.25, 10],
   'gpt-5.2': [1.75, 14],
+  'gpt-5.2-chat-latest': [1.75, 14],
   'gpt-5.2-codex': [1.75, 14],
+  'gpt-5.2-pro': [21, 168],
   'gpt-5.4-2026-03-05': [2.5, 12],
   // Anthropic
   'claude-sonnet-4-0': [3, 15],

@@ -38,6 +38,7 @@ export default async function exec({
   provider,
   model,
   evalPath,
+  variant,
   debug = false,
   mcpServerUrl,
   skillsPath,
@@ -114,7 +115,7 @@ export default async function exec({
     }
 
     // 6. Grade
-    const graders = await loadGraders(evalPath)
+    const graders = await loadGraders(evalPath, variant)
     const graderResults = await runGraders(graders, fullResponse)
     const score = computeScore(graderResults)
 

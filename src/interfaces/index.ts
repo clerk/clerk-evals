@@ -66,6 +66,7 @@ export type RunnerArgs = {
   provider: Provider
   model: string
   evalPath: string
+  variant?: string
   debug?: boolean
 }
 
