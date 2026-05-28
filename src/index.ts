@@ -223,6 +223,8 @@ if (smokeTest) {
 let completed = 0
 let errors = 0
 const isTTY = process.stdout.isTTY ?? false
+const evalConcurrency = Number(process.env.EVAL_CONCURRENCY ?? tasksToRun.length)
+const evalDelayMs = Number(process.env.EVAL_DELAY_MS ?? 0)
 
 function logProgress(task: { label: string; evaluationPath: string }, status: string) {
   if (isTTY) {
@@ -241,129 +243,153 @@ if (config?.hooks?.preEval) {
   }
 }
 
-// Run all in parallel
-await Promise.all(
-  tasksToRun.map(async (task) => {
-    logProgress(task, 'running')
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
-    const runnerArgs: ExecArgs = {
-      evalPath: task.evalPath,
-      provider: task.provider as Provider,
-      model: task.model,
-      debug: collectDebug,
-      ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
-      ...(modeLabel === 'skills' && { skillsPath }),
-    }
+async function runTask(task: (typeof tasksToRun)[number]) {
+  logProgress(task, 'running')
 
-    try {
-      const result: RunnerResult = await pool.run(runnerArgs)
+  const runnerArgs: ExecArgs = {
+    evalPath: task.evalPath,
+    provider: task.provider as Provider,
+    model: task.model,
+    debug: collectDebug,
+    ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
+    ...(modeLabel === 'skills' && { skillsPath }),
+  }
 
-      if (!result.ok) {
-        const errorMsg =
-          result.error instanceof Error
-            ? result.error.message
-            : typeof result.error === 'object'
-              ? JSON.stringify(result.error)
-              : String(result.error)
-        console.error(
-          `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
-        )
-        const labelSuffix = MODE_LABEL_SUFFIX[modeLabel]
-        saveError(runId, {
-          model: task.model,
-          label: `${task.label}${labelSuffix}`,
-          framework: task.framework,
-          category: task.category,
-          evaluationPath: task.evaluationPath,
-          error: result.error,
-        })
-        errors++
-        if (config?.hooks?.onError) {
-          try {
-            await config.hooks.onError({
-              model: task.model,
-              category: task.category,
-              error: result.error,
-            })
-          } catch (e) {
-            console.error('[hook:onError]', e)
-          }
-        }
-        return
-      }
+  try {
+    const result: RunnerResult = await pool.run(runnerArgs)
 
-      const scoreLabelSuffix = MODE_LABEL_SUFFIX[modeLabel]
-      const score: Score = {
+    if (!result.ok) {
+      const errorMsg =
+        result.error instanceof Error
+          ? result.error.message
+          : typeof result.error === 'object'
+            ? JSON.stringify(result.error)
+            : String(result.error)
+      console.error(
+        `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
+      )
+      const labelSuffix = MODE_LABEL_SUFFIX[modeLabel]
+      saveError(runId, {
         model: task.model,
-        label: `${task.label}${scoreLabelSuffix}`,
+        label: `${task.label}${labelSuffix}`,
         framework: task.framework,
         category: task.category,
-        value: result.value.score,
-        updatedAt: new Date().toISOString(),
-        tokens: result.value.tokens,
-        durationMs: result.value.durationMs,
-        costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
-      }
-      saveResult(runId, score, task.evaluationPath)
-      if (config?.hooks?.onSuccess) {
+        evaluationPath: task.evaluationPath,
+        error: result.error,
+      })
+      errors++
+      if (config?.hooks?.onError) {
         try {
-          await config.hooks.onSuccess({
+          await config.hooks.onError({
             model: task.model,
             category: task.category,
-            score: result.value.score,
+            error: result.error,
           })
         } catch (e) {
-          console.error('[hook:onSuccess]', e)
+          console.error('[hook:onError]', e)
         }
       }
-
-      // Collect debug data for Braintrust (even without --debug flag)
-      if (result.value.debug) {
-        braintrustDebugMap.set(`${task.model}::${task.category}`, {
-          debug: result.value.debug,
-          evaluationPath: task.evaluationPath,
-        })
-      }
-
-      if (debugEnabled && result.value.debug && debugRunDirectory) {
-        const artifact: DebugArtifact = {
-          provider: task.provider,
-          model: task.model,
-          framework: task.framework,
-          category: task.category,
-          evaluationPath: task.evaluationPath,
-          score: result.value.score,
-          prompt: result.value.debug.prompt,
-          response: result.value.debug.response,
-          graders: result.value.debug.graders,
-          transcript: result.value.debug.transcript,
-          finishReason: result.value.debug.finishReason,
-        }
-        debugArtifacts.push(artifact)
-
-        // Write debug files immediately for tool-using modes (MCP, Skills)
-        if (hasTools) {
-          const debugPath = path.join(
-            debugRunDirectory,
-            `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.json`,
-          )
-          await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
-
-          if (result.value.debug.transcript) {
-            const transcriptPath = path.join(
-              debugRunDirectory,
-              `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.md`,
-            )
-            await writeFile(transcriptPath, result.value.debug.transcript)
-          }
-        }
-      }
-    } finally {
-      completed++
-      logProgress(task, 'done')
+      return
     }
-  }),
-)
+
+    const scoreLabelSuffix = MODE_LABEL_SUFFIX[modeLabel]
+    const score: Score = {
+      model: task.model,
+      label: `${task.label}${scoreLabelSuffix}`,
+      framework: task.framework,
+      category: task.category,
+      value: result.value.score,
+      updatedAt: new Date().toISOString(),
+      tokens: result.value.tokens,
+      durationMs: result.value.durationMs,
+      costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
+    }
+    saveResult(runId, score, task.evaluationPath)
+    if (config?.hooks?.onSuccess) {
+      try {
+        await config.hooks.onSuccess({
+          model: task.model,
+          category: task.category,
+          score: result.value.score,
+        })
+      } catch (e) {
+        console.error('[hook:onSuccess]', e)
+      }
+    }
+
+    // Collect debug data for Braintrust (even without --debug flag)
+    if (result.value.debug) {
+      braintrustDebugMap.set(`${task.model}::${task.category}`, {
+        debug: result.value.debug,
+        evaluationPath: task.evaluationPath,
+      })
+    }
+
+    if (debugEnabled && result.value.debug && debugRunDirectory) {
+      const artifact: DebugArtifact = {
+        provider: task.provider,
+        model: task.model,
+        framework: task.framework,
+        category: task.category,
+        evaluationPath: task.evaluationPath,
+        score: result.value.score,
+        prompt: result.value.debug.prompt,
+        response: result.value.debug.response,
+        graders: result.value.debug.graders,
+        transcript: result.value.debug.transcript,
+        finishReason: result.value.debug.finishReason,
+      }
+      debugArtifacts.push(artifact)
+
+      // Write debug files immediately for tool-using modes (MCP, Skills)
+      if (hasTools) {
+        const debugPath = path.join(
+          debugRunDirectory,
+          `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.json`,
+        )
+        await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
+
+        if (result.value.debug.transcript) {
+          const transcriptPath = path.join(
+            debugRunDirectory,
+            `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.md`,
+          )
+          await writeFile(transcriptPath, result.value.debug.transcript)
+        }
+      }
+    }
+  } finally {
+    completed++
+    logProgress(task, 'done')
+  }
+}
+
+async function runWithConcurrencyLimit() {
+  const concurrency = Number.isFinite(evalConcurrency)
+    ? Math.max(1, Math.min(tasksToRun.length, evalConcurrency))
+    : tasksToRun.length
+  let nextTaskIndex = 0
+
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      while (nextTaskIndex < tasksToRun.length) {
+        const task = tasksToRun[nextTaskIndex]
+        nextTaskIndex++
+        if (!task) return
+        await runTask(task)
+        if (evalDelayMs > 0 && nextTaskIndex < tasksToRun.length) {
+          await sleep(evalDelayMs)
+        }
+      }
+    }),
+  )
+}
+
+await runWithConcurrencyLimit()
 
 if (isTTY) process.stdout.write(`\r${' '.repeat(80)}\r`)
 console.log(
