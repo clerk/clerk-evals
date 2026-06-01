@@ -137,4 +137,6 @@ export type Score = {
   tokens?: TokenUsage
   costUsd?: number
   durationMs?: number
+  /** Canonical eval identity, e.g. evals/add-auth::nextjs */
+  evalKey?: string
 }

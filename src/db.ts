@@ -1,6 +1,18 @@
 import { Database } from 'bun:sqlite'
 import type { Score } from '@/src/interfaces'
 
+export type RunMetadata = {
+  runId: string
+  mode: 'baseline' | 'mcp' | 'skills' | string
+  models: string[]
+  evalKeys: string[]
+  suiteHash: string
+  harnessCommit?: string
+  skillsCommit?: string
+  mcpServerUrl?: string
+  createdAt?: string
+}
+
 const db = new Database('evals.db', { create: true })
 db.run('PRAGMA journal_mode = WAL')
 db.run('PRAGMA synchronous = NORMAL')
@@ -31,6 +43,23 @@ export function initDB() {
   if (!colNames.has('evaluation_path')) {
     db.run('ALTER TABLE results ADD COLUMN evaluation_path TEXT')
   }
+  if (!colNames.has('eval_key')) {
+    db.run('ALTER TABLE results ADD COLUMN eval_key TEXT')
+  }
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS runs (
+      run_id TEXT PRIMARY KEY,
+      mode TEXT NOT NULL,
+      models_json TEXT NOT NULL,
+      eval_keys_json TEXT NOT NULL,
+      suite_hash TEXT NOT NULL,
+      harness_commit TEXT,
+      skills_commit TEXT,
+      mcp_server_url TEXT,
+      created_at TEXT NOT NULL
+    )
+  `)
 
   db.run(`
     CREATE TABLE IF NOT EXISTS errors (
@@ -56,10 +85,49 @@ export function initDB() {
   }
 }
 
-export function saveResult(runId: string, score: Score, evaluationPath?: string) {
+export function saveRun(metadata: RunMetadata) {
   const query = db.query(`
-    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms, evaluation_path)
-    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms, $evaluation_path)
+    INSERT OR REPLACE INTO runs (
+      run_id,
+      mode,
+      models_json,
+      eval_keys_json,
+      suite_hash,
+      harness_commit,
+      skills_commit,
+      mcp_server_url,
+      created_at
+    )
+    VALUES (
+      $run_id,
+      $mode,
+      $models_json,
+      $eval_keys_json,
+      $suite_hash,
+      $harness_commit,
+      $skills_commit,
+      $mcp_server_url,
+      $created_at
+    )
+  `)
+
+  query.run({
+    $run_id: metadata.runId,
+    $mode: metadata.mode,
+    $models_json: JSON.stringify(metadata.models),
+    $eval_keys_json: JSON.stringify(metadata.evalKeys),
+    $suite_hash: metadata.suiteHash,
+    $harness_commit: metadata.harnessCommit ?? null,
+    $skills_commit: metadata.skillsCommit ?? null,
+    $mcp_server_url: metadata.mcpServerUrl ?? null,
+    $created_at: metadata.createdAt ?? new Date().toISOString(),
+  })
+}
+
+export function saveResult(runId: string, score: Score, evaluationPath?: string, evalKey?: string) {
+  const query = db.query(`
+    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms, evaluation_path, eval_key)
+    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms, $evaluation_path, $eval_key)
   `)
 
   query.run({
@@ -75,6 +143,7 @@ export function saveResult(runId: string, score: Score, evaluationPath?: string)
     $cost_usd: score.costUsd ?? null,
     $duration_ms: score.durationMs ?? null,
     $evaluation_path: evaluationPath ?? null,
+    $eval_key: evalKey ?? score.evalKey ?? null,
   })
 }
 
@@ -113,11 +182,11 @@ export function saveError(
   })
 }
 
-export type DBScore = Score & { evaluationPath?: string }
+export type DBScore = Score & { evaluationPath?: string; runId?: string }
 
 export function getResults(runId?: string): DBScore[] {
   let queryStr =
-    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path FROM results'
+    'SELECT run_id, model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key FROM results'
   if (runId) {
     queryStr += ' WHERE run_id = $run_id'
   }
@@ -135,7 +204,7 @@ export function getResults(runId?: string): DBScore[] {
  */
 export function getResultsSince(since: string): DBScore[] {
   const query = db.query(
-    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, run_id FROM results WHERE timestamp >= $since ORDER BY timestamp DESC',
+    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key, run_id FROM results WHERE timestamp >= $since ORDER BY timestamp DESC',
   )
   return mapRows(query.all({ $since: since }) as Array<Record<string, unknown>>)
 }
@@ -168,6 +237,8 @@ function mapRows(results: Array<Record<string, unknown>>): DBScore[] {
     ...(r.cost_usd != null && { costUsd: r.cost_usd as number }),
     ...(r.durationMs != null && { durationMs: r.durationMs as number }),
     ...(r.evaluation_path != null && { evaluationPath: r.evaluation_path as string }),
+    ...(r.eval_key != null && { evalKey: r.eval_key as string }),
+    ...(r.run_id != null && { runId: r.run_id as string }),
   }))
 }
 
