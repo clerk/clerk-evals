@@ -3,7 +3,8 @@ import path from 'node:path'
 
 import Tinypool from 'tinypool'
 import { EVALUATIONS, getAllModels, getModelsByProvider, loadConfig } from '@/src/config'
-import { getResults, initDB, saveError, saveResult } from '@/src/db'
+import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
+import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 import type { BraintrustEntry } from '@/src/reporters/braintrust'
@@ -36,11 +37,12 @@ const parseBooleanFlag = (name: string, alias?: string) => {
 
 const parseStringArg = (name: string, alias?: string): string | undefined => {
   const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) return equalsArg.split('=', 2)[1]
+  if (equalsArg) return equalsArg.split('=', 2)[1] ?? ''
 
   const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  if (index !== -1 && args[index + 1] && !args[index + 1].startsWith('-')) {
-    return args[index + 1]
+  const value = args[index + 1]
+  if (index !== -1 && value && !value.startsWith('-')) {
+    return value
   }
   return undefined
 }
@@ -138,6 +140,9 @@ const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
 const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
+const suiteHash = await getSuiteHash(filteredEvaluations)
+const harnessCommit = getGitCommit()
+const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
 
 type DebugArtifact = {
   provider: string
@@ -175,6 +180,7 @@ const tasks = filteredModels.flatMap((model) =>
     category: evaluation.category,
     framework: evaluation.framework,
     variant: evaluation.variant,
+    evalKey: getEvalKey(evaluation),
     evalPath: path.join(process.cwd(), 'src', evaluation.path),
     evaluationPath: evaluation.path,
   })),
@@ -220,6 +226,17 @@ const tasksToRun = smokeTest ? tasks.slice(0, 1) : tasks
 if (smokeTest) {
   console.log(`Smoke test: running 1 of ${tasks.length} tasks\n`)
 }
+
+saveRun({
+  runId,
+  mode: modeLabel,
+  models: [...new Set(tasksToRun.map((task) => task.model))],
+  evalKeys: [...new Set(tasksToRun.map((task) => task.evalKey))],
+  suiteHash,
+  harnessCommit,
+  skillsCommit,
+  mcpServerUrl: modeLabel === 'mcp' ? mcpUrl : undefined,
+})
 
 let completed = 0
 let errors = 0
@@ -309,8 +326,9 @@ async function runTask(task: (typeof tasksToRun)[number]) {
       tokens: result.value.tokens,
       durationMs: result.value.durationMs,
       costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
+      evalKey: task.evalKey,
     }
-    saveResult(runId, score, task.evaluationPath)
+    saveResult(runId, score, task.evaluationPath, task.evalKey)
     if (config?.hooks?.onSuccess) {
       try {
         await config.hooks.onSuccess({
@@ -325,7 +343,7 @@ async function runTask(task: (typeof tasksToRun)[number]) {
 
     // Collect debug data for Braintrust (even without --debug flag)
     if (result.value.debug) {
-      braintrustDebugMap.set(`${task.model}::${task.category}`, {
+      braintrustDebugMap.set(`${task.model}::${task.evalKey}`, {
         debug: result.value.debug,
         evaluationPath: task.evaluationPath,
       })
@@ -491,7 +509,7 @@ if (dbScores.length > 0) {
     // Show eval-level breakdown inline
     const evalDetails = scores
       .map((s) => {
-        const evalName = s.evaluationPath?.split('/').pop() ?? s.category
+        const evalName = s.evalKey ?? s.evaluationPath?.split('/').pop() ?? s.category
         return `${evalName} ${colorPct(s.value)}`
       })
       .join(`${dim} | ${reset}`)
@@ -508,7 +526,7 @@ if (dbScores.length > 0) {
 // Skip when BRAINTRUST_DEFER_REPORT=1 (batch mode — report-braintrust.ts handles it).
 if (process.env.BRAINTRUST_API_KEY && !process.env.BRAINTRUST_DEFER_REPORT) {
   const entries: BraintrustEntry[] = dbScores.map((score) => {
-    const extra = braintrustDebugMap.get(`${score.model}::${score.category}`)
+    const extra = braintrustDebugMap.get(`${score.model}::${score.evalKey ?? score.category}`)
     return {
       ...score,
       evaluationPath: extra?.evaluationPath ?? '',

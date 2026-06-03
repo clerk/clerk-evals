@@ -17,7 +17,8 @@ import { parseArgs } from 'node:util'
 import Tinypool from 'tinypool'
 import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
-import { getResults, initDB, saveError, saveResult } from '@/src/db'
+import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
+import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
 import type {
   AgentRunnerArgs,
   AgentType,
@@ -149,6 +150,9 @@ const runIdSuffix = [skillsEnabled ? 'skills' : '', mcpEnabled ? 'mcp' : '']
   .filter(Boolean)
   .join('-')
 const runId = `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`
+const suiteHash = await getSuiteHash(filteredEvaluations)
+const harnessCommit = getGitCommit()
+const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
 
 type DebugArtifact = {
   agent: string
@@ -178,6 +182,7 @@ const tasks = filteredEvaluations.map((evaluation) => ({
   framework: evaluation.framework,
   evalPath: path.join(process.cwd(), 'src', evaluation.path),
   evaluationPath: evaluation.path,
+  evalKey: getEvalKey(evaluation),
   variant: evaluation.variant,
   fixturesPath: evaluation.variant
     ? path.join(process.cwd(), 'src', evaluation.path, 'fixtures', evaluation.variant)
@@ -205,6 +210,17 @@ if (runsCount > 1) {
 console.log(
   `Running ${tasks.length} evaluations${runsCount > 1 ? ` (${tasks.length * runsCount} total runs)` : ''}\n`,
 )
+
+saveRun({
+  runId,
+  mode: `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}`,
+  models: [agentType],
+  evalKeys: tasks.map((task) => task.evalKey),
+  suiteHash,
+  harnessCommit,
+  skillsCommit,
+  mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
+})
 
 let completed = 0
 const totalRuns = tasks.length * runsCount
@@ -302,8 +318,9 @@ await Promise.all(
           value: result.value.score,
           updatedAt: new Date().toISOString(),
           durationMs: result.value.durationMs,
+          evalKey: task.evalKey,
         }
-        saveResult(runId, score, task.evaluationPath)
+        saveResult(runId, score, task.evaluationPath, task.evalKey)
 
         trialResults.push({
           trial,

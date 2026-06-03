@@ -78,7 +78,7 @@ export default async function exec({
       : SYSTEM_PROMPT
 
     // 3. Load eval prompt
-    const prompt = await loadPrompt(evalPath)
+    const prompt = await loadPrompt(evalPath, variant)
 
     // 4. Generate text
     const hasTools = Object.keys(tools).length > 0
