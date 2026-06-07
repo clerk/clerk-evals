@@ -53,7 +53,6 @@ export default async function exec({
 
   try {
     // 1. Collect tools from all providers
-    // biome-ignore lint: MCP client.tools() returns a compatible but structurally different type
     let tools: Record<string, any> = {}
     let systemPromptExtension = ''
 

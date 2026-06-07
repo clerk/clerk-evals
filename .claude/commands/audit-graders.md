@@ -19,15 +19,15 @@ If empty, audit all grader files.
 
 ## Available Grader Primitives
 
-| Primitive | Usage | Example |
-|-----------|-------|---------|
-| `contains(needle)` | Case-insensitive substring | `contains('middleware.ts')` |
-| `containsAny(needles[])` | Match any | `containsAny(['npm', 'bun', 'yarn'])` |
-| `containsAll(needles[])` | Match all | `containsAll(['auth()', 'orgSlug'])` |
-| `matches(regex)` | Regex test | `matches(/\.id\b/)` |
-| `not(grader)` | Negate | `not(contains('authMiddleware'))` |
-| `all(...graders)` | AND compose | `all(contains('x'), matches(/y/))` |
-| `any(...graders)` | OR compose | `any(contains('a'), contains('b'))` |
+| Primitive                | Usage                      | Example                               |
+| ------------------------ | -------------------------- | ------------------------------------- |
+| `contains(needle)`       | Case-insensitive substring | `contains('middleware.ts')`           |
+| `containsAny(needles[])` | Match any                  | `containsAny(['npm', 'bun', 'yarn'])` |
+| `containsAll(needles[])` | Match all                  | `containsAll(['auth()', 'orgSlug'])`  |
+| `matches(regex)`         | Regex test                 | `matches(/\.id\b/)`                   |
+| `not(grader)`            | Negate                     | `not(contains('authMiddleware'))`     |
+| `all(...graders)`        | AND compose                | `all(contains('x'), matches(/y/))`    |
+| `any(...graders)`        | OR compose                 | `any(contains('a'), contains('b'))`   |
 
 Import from `@/src/graders`.
 
@@ -59,6 +59,7 @@ Separate the pattern-matchable parts from the semantic parts.
 
 **Before**: `judge('Does the admin route use auth.protect() with org:team_settings:manage permission and return JSON with the userId?')`
 **After (split)**:
+
 - Code: `all(contains('auth.protect'), contains('org:team_settings:manage'))`
 - Judge: `judge('Does the admin route return JSON with the userId after successful authorization?')`
 
@@ -66,13 +67,13 @@ Separate the pattern-matchable parts from the semantic parts.
 
 The file `src/graders/catalog.ts` defines shared judges used across multiple evals:
 
-| Group | Count | Judges |
-|-------|-------|--------|
-| `llmChecks` | 2 | `packageJsonClerkVersion`, `environmentVariables` |
-| `authUIChecks` | 5 | `usesSignInComponent`, `usesSignUpComponent`, `usesUserButton`, `usesSignedIn`, `usesSignedOut` |
-| `organizationsUIChecks` | 4 | `usesOrganizationSwitcher`, `usesOrganizationProfile`, `usesOrganizationList`, `usesCreateOrganization` |
-| `uiComponentChecks` | 6 | `usesAppearanceProp`, `usesVariablesCustomization`, `usesElementsCustomization`, `usesLayoutCustomization`, `usesCustomMenuItem`, `usesUserProfile` |
-| `quickstartChecks` | 3 | `usesClerkMiddleware`, `usesClerkProvider`, `noDeprecatedPatterns` |
+| Group                   | Count | Judges                                                                                                                                              |
+| ----------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `llmChecks`             | 2     | `packageJsonClerkVersion`, `environmentVariables`                                                                                                   |
+| `authUIChecks`          | 5     | `usesSignInComponent`, `usesSignUpComponent`, `usesUserButton`, `usesSignedIn`, `usesSignedOut`                                                     |
+| `organizationsUIChecks` | 4     | `usesOrganizationSwitcher`, `usesOrganizationProfile`, `usesOrganizationList`, `usesCreateOrganization`                                             |
+| `uiComponentChecks`     | 6     | `usesAppearanceProp`, `usesVariablesCustomization`, `usesElementsCustomization`, `usesLayoutCustomization`, `usesCustomMenuItem`, `usesUserProfile` |
+| `quickstartChecks`      | 3     | `usesClerkMiddleware`, `usesClerkProvider`, `noDeprecatedPatterns`                                                                                  |
 
 Replacing a catalog judge impacts all evals that use it. Verify all consumers before changing.
 
@@ -89,6 +90,7 @@ If `$ARGUMENTS` specifies a category, filter to that subdirectory.
 ### Step 2: Find All Judge Calls
 
 For each grader file:
+
 - Grep for `judge(` — inline judges
 - Grep for catalog imports (`llmChecks`, `authUIChecks`, etc.) — shared judges
 

@@ -70,17 +70,17 @@ bun start --eval "auth/routes" --smoke --debug
 bun start [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--mcp` | Enable MCP tools (uses mcp.clerk.dev by default) |
-| `--skills` | Enable skills tools (loads from `../skills/skills/`) |
-| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive) |
-| `--provider "anthropic"` | Filter by provider (openai, anthropic, google, vercel) |
-| `--eval "protect"` | Filter evals by category or path |
-| `--debug` | Save outputs to debug-runs/ |
-| `--dry` | Print task summary without running |
-| `--smoke` | Run only the first task (quick validation) |
-| `--fail-under 70` | CI gate: fail if average score < threshold % |
+| Flag                          | Description                                            |
+| ----------------------------- | ------------------------------------------------------ |
+| `--mcp`                       | Enable MCP tools (uses mcp.clerk.dev by default)       |
+| `--skills`                    | Enable skills tools (loads from `../skills/skills/`)   |
+| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive)          |
+| `--provider "anthropic"`      | Filter by provider (openai, anthropic, google, vercel) |
+| `--eval "protect"`            | Filter evals by category or path                       |
+| `--debug`                     | Save outputs to debug-runs/                            |
+| `--dry`                       | Print task summary without running                     |
+| `--smoke`                     | Run only the first task (quick validation)             |
+| `--fail-under 70`             | CI gate: fail if average score < threshold %           |
 
 ```bash
 # Baseline (no tools)
@@ -147,13 +147,13 @@ Both API keys must be set in your `.env`.
 bun start:agent --agent claude-code [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--agent, -a` | Agent type (required): `claude-code`, `cursor` |
-| `--mcp` | Enable MCP tools |
-| `--eval, -e` | Filter evals by path |
-| `--debug, -d` | Save outputs to debug-runs/ |
-| `--timeout, -t` | Timeout per eval (ms) |
+| Flag            | Description                                    |
+| --------------- | ---------------------------------------------- |
+| `--agent, -a`   | Agent type (required): `claude-code`, `cursor` |
+| `--mcp`         | Enable MCP tools                               |
+| `--eval, -e`    | Filter evals by path                           |
+| `--debug, -d`   | Save outputs to debug-runs/                    |
+| `--timeout, -t` | Timeout per eval (ms)                          |
 
 **Shortcuts:**
 
@@ -177,15 +177,15 @@ bun start:agent --agent claude-code --mcp
 
 ### Output Files
 
-| Runner | Output | Description |
-|--------|--------|-------------|
-| `bun start` | `scores.json` | Baseline scores (no tools) |
-| `bun start --mcp` | `scores-mcp.json` | MCP scores (with tools) |
-| `bun start --skills` | `scores-skills.json` | Skills scores |
-| `bun start:agent` | `agent-scores.json` | Agent evaluation scores |
-| `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
-| `bun export:capabilities` | Terminal / JSON | Per-model capability breakdown |
-| `bun report:braintrust` | Braintrust UI | Consolidated experiment per mode |
+| Runner                    | Output               | Description                      |
+| ------------------------- | -------------------- | -------------------------------- |
+| `bun start`               | `scores.json`        | Baseline scores (no tools)       |
+| `bun start --mcp`         | `scores-mcp.json`    | MCP scores (with tools)          |
+| `bun start --skills`      | `scores-skills.json` | Skills scores                    |
+| `bun start:agent`         | `agent-scores.json`  | Agent evaluation scores          |
+| `bun merge-scores`        | `llm-scores.json`    | Combined for llm-leaderboard     |
+| `bun export:capabilities` | Terminal / JSON      | Per-model capability breakdown   |
+| `bun report:braintrust`   | Braintrust UI        | Consolidated experiment per mode |
 
 ### Workflow for llm-leaderboard
 
@@ -227,7 +227,7 @@ A **runner** takes a simple object as an argument:
 {
   "provider": "openai",
   "model": "gpt-5",
-  "evalPath": "/absolute/path/to/clerk-evals/src/evals/auth/protect"
+  "evalPath": "/absolute/path/to/clerk-evals/src/evals/auth/protect",
 }
 ```
 

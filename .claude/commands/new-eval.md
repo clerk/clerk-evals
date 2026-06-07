@@ -11,6 +11,7 @@ Create a new evaluation for the clerk-evals suite based on Clerk documentation o
 ## Input
 
 `$ARGUMENTS` = Either:
+
 - A Clerk docs URL (e.g., `https://clerk.com/docs/components/user-button`)
 - A feature description (e.g., "customize SignIn with dark theme and custom logo")
 
@@ -19,11 +20,13 @@ Create a new evaluation for the clerk-evals suite based on Clerk documentation o
 ### Step 1: Analyze the Input
 
 If URL provided:
+
 - Fetch the docs page using WebFetch
 - Extract the core feature/component being documented
 - Identify the key use cases and configuration options
 
 If description provided:
+
 - Parse the feature request
 - Identify which Clerk component/feature it relates to
 
@@ -97,6 +100,7 @@ Proceed? (y/n)
    - Each `judge()` call costs ~$0.003 and introduces non-determinism — avoid when possible
 
    **Examples**:
+
    ```typescript
    // GOOD: deterministic code graders
    middleware_file: contains('middleware.ts'),
@@ -110,6 +114,7 @@ Proceed? (y/n)
    ```
 
 4. **Register** in `src/config/evaluations.ts`:
+
    ```typescript
    { framework: 'Next.js', category: '<Category>', path: 'evals/<category>/<slug>' },
    ```
@@ -118,20 +123,21 @@ Proceed? (y/n)
 
 ## Categories
 
-| Category | Slug | Framework | Focus |
-|----------|------|-----------|-------|
-| Quickstarts | `quickstarts` | Next.js, React, iOS | Initial setup, hello world |
-| Auth | `auth` | Next.js | Sign in/up, route protection, middleware |
-| User Management | `user-management` | Next.js | currentUser, useUser, profiles, metadata |
-| UI Components | `ui-components` | Next.js | Component customization, appearance API |
-| Organizations | `organizations` | Next.js | Multi-tenancy, teams, org switching |
-| Webhooks | `webhooks` | Next.js | Event handling, Svix verification |
-| Billing | `billing` | Next.js | Checkout, subscriptions, payments |
-| Upgrades | `upgrades` | Next.js | SDK migration (Core 2 -> Core 3) |
+| Category        | Slug              | Framework           | Focus                                    |
+| --------------- | ----------------- | ------------------- | ---------------------------------------- |
+| Quickstarts     | `quickstarts`     | Next.js, React, iOS | Initial setup, hello world               |
+| Auth            | `auth`            | Next.js             | Sign in/up, route protection, middleware |
+| User Management | `user-management` | Next.js             | currentUser, useUser, profiles, metadata |
+| UI Components   | `ui-components`   | Next.js             | Component customization, appearance API  |
+| Organizations   | `organizations`   | Next.js             | Multi-tenancy, teams, org switching      |
+| Webhooks        | `webhooks`        | Next.js             | Event handling, Svix verification        |
+| Billing         | `billing`         | Next.js             | Checkout, subscriptions, payments        |
+| Upgrades        | `upgrades`        | Next.js             | SDK migration (Core 2 -> Core 3)         |
 
 ## Output
 
 After creating the eval, show:
+
 1. The created PROMPT.md content
 2. The created graders.ts content
 3. The updated line in evaluations.ts

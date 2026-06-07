@@ -21,6 +21,7 @@ Example skeleton:
 Build a Waitlist feature in a Next.js app using Clerk.
 
 ## Acceptance criteria
+
 - Includes `@clerk/nextjs` installation and env setup
 - Implements a protected API route to submit waitlist entries
 - Stores entries and returns appropriate responses
