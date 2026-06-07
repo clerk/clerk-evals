@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 
 import Tinypool from 'tinypool'
 import { EVALUATIONS, getAllModels, getModelsByProvider, loadConfig } from '@/src/config'
@@ -15,37 +16,23 @@ import { estimateCost } from '@/src/runners/shared'
 const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp' // Zero-config default
 
 // CLI argument parsing
-const args = process.argv.slice(2)
-
-const parseBooleanFlag = (name: string, alias?: string) => {
-  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) {
-    const [, rawValue] = equalsArg.split('=', 2)
-    const value = rawValue?.toLowerCase()
-    return !['false', '0', 'no'].includes(value ?? '')
-  }
-
-  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  if (index === -1) return false
-
-  const value = args[index + 1]
-  if (value && !value.startsWith('-')) {
-    return !['false', '0', 'no'].includes(value.toLowerCase())
-  }
-  return true
-}
-
-const parseStringArg = (name: string, alias?: string): string | undefined => {
-  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) return equalsArg.split('=', 2)[1] ?? ''
-
-  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  const value = args[index + 1]
-  if (index !== -1 && value && !value.startsWith('-')) {
-    return value
-  }
-  return undefined
-}
+const { values } = parseArgs({
+  args: Bun.argv,
+  options: {
+    mcp: { type: 'boolean', default: false },
+    skills: { type: 'boolean', default: false },
+    debug: { type: 'boolean', short: 'd', default: false },
+    dry: { type: 'boolean', default: false },
+    smoke: { type: 'boolean', default: false },
+    'fail-under': { type: 'string' },
+    model: { type: 'string', short: 'm' },
+    provider: { type: 'string', short: 'p' },
+    eval: { type: 'string', short: 'e' },
+    'skills-path': { type: 'string' },
+  },
+  strict: true,
+  allowPositionals: true,
+})
 
 const normalizeEvalPath = (value: string) => {
   if (value.startsWith('./')) return normalizeEvalPath(value.slice(2))
@@ -54,17 +41,16 @@ const normalizeEvalPath = (value: string) => {
 }
 
 // Parse flags
-const mcpEnabled = parseBooleanFlag('mcp')
-const skillsEnabled = parseBooleanFlag('skills')
-const debugEnabled = parseBooleanFlag('debug', '-d')
-const dryRun = parseBooleanFlag('dry')
-const smokeTest = parseBooleanFlag('smoke')
-const failUnder = parseStringArg('fail-under')
-const modelFilter = parseStringArg('model', '-m')
-const providerFilter = parseStringArg('provider', '-p')
-const evalFilter = parseStringArg('eval', '-e')
-const skillsPath =
-  parseStringArg('skills-path') || path.join(process.cwd(), '..', 'skills', 'skills')
+const mcpEnabled = values.mcp
+const skillsEnabled = values.skills
+const debugEnabled = values.debug
+const dryRun = values.dry
+const smokeTest = values.smoke
+const failUnder = values['fail-under']
+const modelFilter = values.model
+const providerFilter = values.provider
+const evalFilter = values.eval
+const skillsPath = values['skills-path'] || path.join(process.cwd(), '..', 'skills', 'skills')
 
 // Setup
 initDB()
