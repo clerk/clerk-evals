@@ -1,4 +1,14 @@
-import type { Provider } from '@/src/providers'
+import type {
+  Provider,
+  ProviderAnthropic,
+  ProviderGoogle,
+  ProviderOpenAI,
+  ProviderVercel,
+  ModelIdsOpenAI,
+  ModelIdsAnthropic,
+  ModelIdsVercel,
+  ModelIdsGoogle,
+} from '@/src/providers'
 
 /**
  * Information about a specific model offered by a provider.
@@ -7,11 +17,27 @@ import type { Provider } from '@/src/providers'
  * @property name The model name (machine readable, e.g. "gpt-4o")
  * @property label A friendly human-readable name (e.g. "GPT-4o (May 2024)")
  */
-export type ModelInfo = {
-  provider: Provider
-  name: string
-  label: string
-}
+export type ModelInfo =
+  | {
+      provider: ProviderOpenAI
+      name: ModelIdsOpenAI
+      label: string
+    }
+  | {
+      provider: ProviderAnthropic
+      name: ModelIdsAnthropic
+      label: string
+    }
+  | {
+      provider: ProviderVercel
+      name: ModelIdsVercel
+      label: string
+    }
+  | {
+      provider: ProviderGoogle
+      name: ModelIdsGoogle
+      label: string
+    }
 
 /**
  * Mapping of each provider to its available models.
