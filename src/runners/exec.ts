@@ -91,7 +91,7 @@ export default async function exec({
       ...(hasTools && {
         tools,
         stopWhen: stepCountIs(effectiveMaxRounds),
-        maxTokens: 16384,
+        maxOutputTokens: 16384,
       }),
     })
 
@@ -108,7 +108,7 @@ export default async function exec({
     if (finishReason === 'length') {
       return ERR(
         new Error(
-          `Response truncated (finishReason: length, ${fullResponse.length} chars). Increase maxTokens or simplify the prompt.`,
+          `Response truncated (finishReason: length, ${fullResponse.length} chars). Increase maxOutputTokens or simplify the prompt.`,
         ),
       )
     }
