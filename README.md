@@ -77,7 +77,7 @@ bun start [options]
 | `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive)          |
 | `--provider "anthropic"`      | Filter by provider (openai, anthropic, google, vercel) |
 | `--eval "protect"`            | Filter evals by category or path                       |
-| `--debug`                     | Save outputs to debug-runs/                            |
+| `--debug`                     | Collect debug details and print the score report       |
 | `--dry`                       | Print task summary without running                     |
 | `--smoke`                     | Run only the first task (quick validation)             |
 | `--fail-under 70`             | CI gate: fail if average score < threshold %           |
@@ -147,13 +147,13 @@ Both API keys must be set in your `.env`.
 bun start:agent --agent claude-code [options]
 ```
 
-| Flag            | Description                                    |
-| --------------- | ---------------------------------------------- |
-| `--agent, -a`   | Agent type (required): `claude-code`, `cursor` |
-| `--mcp`         | Enable MCP tools                               |
-| `--eval, -e`    | Filter evals by path                           |
-| `--debug, -d`   | Save outputs to debug-runs/                    |
-| `--timeout, -t` | Timeout per eval (ms)                          |
+| Flag            | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `--agent, -a`   | Agent type (required): `claude-code`, `cursor`   |
+| `--mcp`         | Enable MCP tools                                 |
+| `--eval, -e`    | Filter evals by path                             |
+| `--debug, -d`   | Collect debug details and print the score report |
+| `--timeout, -t` | Timeout per eval (ms)                            |
 
 **Shortcuts:**
 

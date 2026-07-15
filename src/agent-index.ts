@@ -11,7 +11,6 @@
  */
 
 import { execSync } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import Tinypool from 'tinypool'
@@ -19,13 +18,7 @@ import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
-import type {
-  AgentRunnerArgs,
-  AgentType,
-  RunnerDebugPayload,
-  RunnerResult,
-  Score,
-} from '@/src/interfaces'
+import type { AgentRunnerArgs, AgentType, RunnerResult, Score } from '@/src/interfaces'
 import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
 import { summarizeTrials, type TrialResult } from '@/src/metrics/pass-at-k'
 import consoleReporter from '@/src/reporters/console'
@@ -153,27 +146,6 @@ const runId = `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}-${new D
 const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
 const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
-
-type DebugArtifact = {
-  agent: string
-  framework: string
-  category: string
-  evaluationPath: string
-  score: number
-  prompt: string
-  response: string
-  graders: RunnerDebugPayload['graders']
-  transcript?: string
-}
-
-const debugArtifacts: DebugArtifact[] = []
-
-let debugRunDirectory: string | undefined
-if (debugEnabled) {
-  debugRunDirectory = path.join(process.cwd(), 'debug-runs', runId)
-  await mkdir(debugRunDirectory, { recursive: true })
-  console.log(`Debug mode enabled. Saving outputs to ${debugRunDirectory}`)
-}
 
 // Build tasks
 const tasks = filteredEvaluations.map((evaluation) => ({
@@ -328,40 +300,6 @@ await Promise.all(
           durationMs: result.value.durationMs ?? Date.now() - startTime,
           success: result.value.score >= 0.5,
         })
-
-        if (debugEnabled && result.value.debug && debugRunDirectory) {
-          const artifact: DebugArtifact = {
-            agent: task.agent,
-            framework: task.framework,
-            category: task.category,
-            evaluationPath: task.evaluationPath,
-            score: result.value.score,
-            prompt: result.value.debug.prompt,
-            response: result.value.debug.response,
-            graders: result.value.debug.graders,
-            transcript: result.value.debug.transcript,
-          }
-          debugArtifacts.push(artifact)
-
-          // Write debug files
-          const evalSlug = task.variant
-            ? `${task.evaluationPath.replace(/\//g, '__')}__${task.variant}`
-            : task.evaluationPath.replace(/\//g, '__')
-          const trialSuffix = runsCount > 1 ? `__trial${trial}` : ''
-          const debugPath = path.join(
-            debugRunDirectory,
-            `${evalSlug}__${task.agent}${trialSuffix}.json`,
-          )
-          await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
-
-          if (result.value.debug.transcript) {
-            const transcriptPath = path.join(
-              debugRunDirectory,
-              `${evalSlug}__${task.agent}${trialSuffix}.md`,
-            )
-            await writeFile(transcriptPath, result.value.debug.transcript)
-          }
-        }
       } finally {
         completed++
         console.log(
