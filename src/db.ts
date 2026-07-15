@@ -241,17 +241,3 @@ function mapRows(results: Array<Record<string, unknown>>): DBScore[] {
     ...(r.run_id != null && { runId: r.run_id as string }),
   }))
 }
-
-export function getLatestResults(): Score[] {
-  // Get the distinct list of evaluations (model + framework + category)
-  // and return the most recent one for each.
-  // This is a bit complex, for now let's just return the last run's data
-  // or we can select the most recent run_id.
-
-  const lastRun = db.query('SELECT run_id FROM results ORDER BY id DESC LIMIT 1').get() as {
-    run_id: string
-  } | null
-  if (!lastRun) return []
-
-  return getResults(lastRun.run_id)
-}

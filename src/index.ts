@@ -1,4 +1,3 @@
-import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 
@@ -130,32 +129,10 @@ const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
 const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
 
-type DebugArtifact = {
-  provider: string
-  model: string
-  framework: string
-  category: string
-  evaluationPath: string
-  score: number
-  prompt: string
-  response: string
-  graders: RunnerDebugPayload['graders']
-  transcript?: string
-  finishReason?: string
-}
-
-const debugArtifacts: DebugArtifact[] = []
 const braintrustDebugMap = new Map<string, { debug: RunnerDebugPayload; evaluationPath: string }>()
 
 // Collect debug payloads for Braintrust even without --debug flag
 const collectDebug = debugEnabled || !!process.env.BRAINTRUST_API_KEY
-
-let debugRunDirectory: string | undefined
-if (debugEnabled) {
-  debugRunDirectory = path.join(process.cwd(), 'debug-runs', runId)
-  await mkdir(debugRunDirectory, { recursive: true })
-  console.log(`Debug mode enabled. Saving outputs to ${debugRunDirectory}`)
-}
 
 // Build tasks
 const tasks = filteredModels.flatMap((model) =>
@@ -334,40 +311,6 @@ async function runTask(task: (typeof tasksToRun)[number]) {
         evaluationPath: task.evaluationPath,
       })
     }
-
-    if (debugEnabled && result.value.debug && debugRunDirectory) {
-      const artifact: DebugArtifact = {
-        provider: task.provider,
-        model: task.model,
-        framework: task.framework,
-        category: task.category,
-        evaluationPath: task.evaluationPath,
-        score: result.value.score,
-        prompt: result.value.debug.prompt,
-        response: result.value.debug.response,
-        graders: result.value.debug.graders,
-        transcript: result.value.debug.transcript,
-        finishReason: result.value.debug.finishReason,
-      }
-      debugArtifacts.push(artifact)
-
-      // Write debug files immediately for tool-using modes (MCP, Skills)
-      if (hasTools) {
-        const debugPath = path.join(
-          debugRunDirectory,
-          `${task.evaluationPath.replace(/\//g, '__')}${task.variant ? `__${task.variant}` : ''}__${task.model}.json`,
-        )
-        await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
-
-        if (result.value.debug.transcript) {
-          const transcriptPath = path.join(
-            debugRunDirectory,
-            `${task.evaluationPath.replace(/\//g, '__')}${task.variant ? `__${task.variant}` : ''}__${task.model}.md`,
-          )
-          await writeFile(transcriptPath, result.value.debug.transcript)
-        }
-      }
-    }
   } finally {
     completed++
     logProgress(task, 'done')
@@ -411,50 +354,6 @@ if (config?.hooks?.postEval) {
     })
   } catch (e) {
     console.error('[hook:postEval]', e)
-  }
-}
-
-// Write baseline debug artifacts (non-tool mode)
-if (debugEnabled && debugRunDirectory && !hasTools) {
-  const sanitize = (v: string) => v.replace(/[^a-zA-Z0-9._-]/g, '_')
-
-  for (const artifact of debugArtifacts) {
-    const evalSlug = artifact.evaluationPath.split('/').filter(Boolean).join('__')
-    const evalDir = path.join(debugRunDirectory, evalSlug)
-    await mkdir(evalDir, { recursive: true })
-
-    const fileName = sanitize(`${artifact.provider}__${artifact.model}`)
-    const gradersRows =
-      artifact.graders.length > 0
-        ? artifact.graders.map(([name, passed]) => `| ${name} | ${passed} |`).join('\n')
-        : '| (none) | - |'
-
-    const content = `---
-provider: ${artifact.provider}
-model: ${artifact.model}
-framework: ${artifact.framework}
-category: ${artifact.category}
-evaluation: ${artifact.evaluationPath}
-score: ${artifact.score.toFixed(2)}
-finishReason: ${artifact.finishReason ?? 'unknown'}
----
-
-## Prompt
-~~~
-${artifact.prompt.trimEnd()}
-~~~
-
-## Response
-~~~
-${artifact.response.trimEnd()}
-~~~
-
-## Graders
-| name | passed |
-| --- | --- |
-${gradersRows}
-`
-    await writeFile(path.join(evalDir, `${fileName}.md`), content, 'utf8')
   }
 }
 
