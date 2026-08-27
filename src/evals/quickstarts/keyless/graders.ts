@@ -6,25 +6,25 @@ export const graders = defineGraders({
   import_clerk_nextjs: contains('@clerk/nextjs'),
   middleware_setup: contains('clerkMiddleware'),
   clerk_provider: contains('ClerkProvider'),
-  middleware_file_name: contains('middleware.ts'),
+  middleware_file_name: containsAny(['proxy.ts', 'middleware.ts']),
   app_router_layout: contains('app/layout.tsx'),
 
-  // Keyless-specific knowledge
+  // Accountless setup knowledge (grader keys remain stable for score continuity)
   explains_automatic_keys: judge(
-    'Does the response explain that Clerk automatically creates/provisions keys when none are configured?',
+    'Does the response explain that clerk init provisions a claimable accountless application and writes development keys when the user is signed out?',
   ),
-  mentions_clerk_directory: containsAny(['.clerk', 'keyless']),
+  mentions_clerk_directory: contains('clerk init'),
   explains_claim_flow: containsAny(['claim', 'dashboard']),
 
   // Correct guidance
   no_manual_env_required: judge(
-    'Does the response correctly indicate that no manual .env configuration is needed for the initial setup?',
+    'Does the response correctly explain that the user should run clerk init instead of manually configuring environment variables first?',
   ),
   recommends_latest_version: contains('@clerk/nextjs@latest'),
 
   // Safety warnings
   warns_not_for_production: judge(
-    'Does the response mention that keyless mode should not be used in production, or guide users to claim/configure keys before production?',
+    'Does the response guide the user to claim the accountless application before transitioning to production?',
   ),
 
   // Standard checks
