@@ -30,11 +30,15 @@ Read the quickstart URL from the table above and follow every step:
 3. Create sign-in/sign-up routes if needed
 4. Test the integration
 
-## Step 3: API Keys
+## Step 3: Accountless setup
 
-Use Keyless mode (default). No manual key setup needed. Clerk auto-generates development keys on first run and shows a "Claim your application" banner.
+For supported web projects, start with the Clerk CLI:
 
-To use your own keys, get them from https://dashboard.clerk.com and set them as environment variables.
+```bash
+npx -y clerk@latest init
+```
+
+When the user is signed out, `clerk init` provisions a claimable accountless application, writes its development keys to the project's environment file, and configures the integration. Do not ask the user to create an account, obtain keys, or add environment variables first. The user can sign in later to claim the application. For other platforms, follow the current quickstart's key setup.
 
 ## Step 4: If using shadcn/ui
 
