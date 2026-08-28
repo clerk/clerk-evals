@@ -6,7 +6,7 @@ export const graders = defineGraders({
   import_clerk_nextjs: contains('@clerk/nextjs'),
   middleware_setup: contains('clerkMiddleware'),
   clerk_provider: contains('ClerkProvider'),
-  middleware_file_name: containsAny(['proxy.ts', 'middleware.ts']),
+  middleware_file_name: contains('proxy.ts'),
   app_router_layout: contains('app/layout.tsx'),
 
   // Accountless setup knowledge (grader keys remain stable for score continuity)
