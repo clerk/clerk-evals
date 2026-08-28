@@ -9,11 +9,13 @@ export const graders = defineGraders({
   middleware_file_name: contains('proxy.ts'),
   app_router_layout: contains('app/layout.tsx'),
 
-  // Accountless setup knowledge (grader keys remain stable for score continuity)
+  // Accountless setup knowledge. Grader keys remain stable for score continuity,
+  // but semantics changed with the 2026-08 accountless rename: middleware_file_name
+  // now expects proxy.ts and mentions_clerk_directory checks the CLI command.
   explains_automatic_keys: judge(
-    'Does the response explain that clerk init provisions a claimable accountless application and writes development keys when the user is signed out?',
+    'Does the response explain that the accountless clerk init flow provisions a claimable application and writes development keys without requiring a Clerk account?',
   ),
-  mentions_clerk_directory: contains('clerk init'),
+  mentions_clerk_directory: containsAny(['clerk init', 'clerk@latest init']),
   explains_claim_flow: containsAny(['claim', 'dashboard']),
 
   // Correct guidance

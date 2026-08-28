@@ -22,15 +22,7 @@ Read `package.json` (if it exists) and match against this table. If there is no 
 
 Other: Chrome Extension, Android, iOS, Vanilla JS at https://clerk.com/docs/llms.txt
 
-## Step 2: Fetch and follow the quickstart
-
-Read the quickstart URL from the table above and follow every step:
-1. Install the SDK package
-2. Add the provider/middleware
-3. Create sign-in/sign-up routes if needed
-4. Test the integration
-
-## Step 3: Accountless setup
+## Step 2: Set up with the Clerk CLI
 
 For supported web projects, start with the Clerk CLI:
 
@@ -38,7 +30,15 @@ For supported web projects, start with the Clerk CLI:
 npx -y clerk@latest init
 ```
 
-When the user is signed out, `clerk init` provisions a claimable accountless application, writes its development keys to the project's environment file, and configures the integration. Do not ask the user to create an account, obtain keys, or add environment variables first. The user can sign in later to claim the application. For other platforms, follow the current quickstart's key setup.
+When the user is signed out, `clerk init` provisions a claimable accountless application, writes its development keys to the project's environment file, and configures the integration. Do not ask the user to create an account, obtain keys, or add environment variables first. The user can sign in later to claim the application. For other platforms, follow the quickstart's key setup (Step 3).
+
+## Step 3: Fall back to the quickstart when init is incomplete
+
+If `init` reports the framework unsupported or leaves setup incomplete, read the quickstart URL from the table above and follow every step it lists that `init` did not already complete:
+1. Install the SDK package
+2. Add the provider/middleware
+3. Create sign-in/sign-up routes if needed
+4. Test the integration
 
 ## Step 4: If using shadcn/ui
 
