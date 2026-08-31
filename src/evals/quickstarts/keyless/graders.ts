@@ -1,4 +1,4 @@
-import { contains, containsAny, defineGraders, judge } from '@/src/graders'
+import { all, contains, containsAny, defineGraders, judge } from '@/src/graders'
 import { llmChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
@@ -15,8 +15,8 @@ export const graders = defineGraders({
   explains_automatic_keys: judge(
     'Does the response explain that the accountless clerk init flow provisions a claimable application and writes development keys without requiring a Clerk account?',
   ),
-  mentions_clerk_directory: containsAny(['clerk init', 'clerk@latest init']),
-  explains_claim_flow: containsAny(['claim', 'dashboard']),
+  mentions_clerk_directory: all(containsAny(['clerk init', 'clerk@latest init']), contains('--accountless')),
+  explains_claim_flow: contains('auth login'),
 
   // Correct guidance
   no_manual_env_required: judge(
