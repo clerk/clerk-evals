@@ -38,6 +38,7 @@ export default async function exec({
   provider,
   model,
   evalPath,
+  variant,
   debug = false,
   mcpServerUrl,
   skillsPath,
@@ -52,7 +53,6 @@ export default async function exec({
 
   try {
     // 1. Collect tools from all providers
-    // biome-ignore lint: MCP client.tools() returns a compatible but structurally different type
     let tools: Record<string, any> = {}
     let systemPromptExtension = ''
 
@@ -77,7 +77,7 @@ export default async function exec({
       : SYSTEM_PROMPT
 
     // 3. Load eval prompt
-    const prompt = await loadPrompt(evalPath)
+    const prompt = await loadPrompt(evalPath, variant)
 
     // 4. Generate text
     const hasTools = Object.keys(tools).length > 0
@@ -91,7 +91,7 @@ export default async function exec({
       ...(hasTools && {
         tools,
         stopWhen: stepCountIs(effectiveMaxRounds),
-        maxTokens: 16384,
+        maxOutputTokens: 16384,
       }),
     })
 
@@ -108,13 +108,13 @@ export default async function exec({
     if (finishReason === 'length') {
       return ERR(
         new Error(
-          `Response truncated (finishReason: length, ${fullResponse.length} chars). Increase maxTokens or simplify the prompt.`,
+          `Response truncated (finishReason: length, ${fullResponse.length} chars). Increase maxOutputTokens or simplify the prompt.`,
         ),
       )
     }
 
     // 6. Grade
-    const graders = await loadGraders(evalPath)
+    const graders = await loadGraders(evalPath, variant)
     const graderResults = await runGraders(graders, fullResponse)
     const score = computeScore(graderResults)
 

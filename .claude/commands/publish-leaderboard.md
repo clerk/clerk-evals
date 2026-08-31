@@ -11,6 +11,7 @@ Export eval results from the local database and publish them to the clerk/clerk 
 ## Input
 
 `$ARGUMENTS` = Optional description of what changed. Examples:
+
 - `add Claude Opus 5.0`
 - `refresh all model scores`
 - `update MCP scores for GPT-5.2`
@@ -68,6 +69,7 @@ git diff public/llm-scores.json | head -100
 ```
 
 Summarize the changes for the user:
+
 - New models added (if any)
 - Score changes (significant deltas)
 - New categories or frameworks
@@ -79,6 +81,7 @@ Use AskUserQuestion to ask:
 > "Leaderboard scores updated locally. Want to create a draft PR?"
 
 Options:
+
 - **Create draft PR** — branch + commit + push + `gh pr create --draft`
 - **Leave local** — keep changes unstaged for manual handling
 
@@ -98,6 +101,7 @@ gh pr create --draft \
 ```
 
 **Commit message conventions** (match existing history):
+
 - `feat: add Claude Opus 5.0 to LLM leaderboard`
 - `feat: update LLM leaderboard scores`
 - `feat: add iOS Swift skill scores to LLM leaderboard`
@@ -106,6 +110,7 @@ gh pr create --draft \
 ### Step 6: Report
 
 Show the user:
+
 - PR URL (if created)
 - Summary of score changes
 - Any models with scores below 50% (potential issues)

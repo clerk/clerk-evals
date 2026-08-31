@@ -42,6 +42,7 @@ Add to the appropriate `MODELS[provider]` array:
 ```
 
 Fields:
+
 - `provider`: Must be one of `'openai' | 'anthropic' | 'vercel' | 'google'`
 - `name`: Exact API model identifier (e.g., `claude-opus-5-0`, NOT `claude-opus-5.0`)
 - `label`: Human-readable display name (shown in console reporter and leaderboard)
@@ -55,6 +56,7 @@ Add to the `MODEL_PRICING` record:
 ```
 
 Pricing sources (verify before adding):
+
 - OpenAI: https://platform.openai.com/docs/pricing
 - Anthropic: https://docs.anthropic.com/en/docs/about-claude/models
 - Google: https://ai.google.dev/gemini-api/docs/pricing
@@ -83,12 +85,14 @@ Extract provider and model name from `$ARGUMENTS`.
 ### Step 2: Verify Provider Support
 
 Check `src/providers/index.ts` — the `Provider` type must include the provider. Currently supported:
+
 - `openai` → uses `OPENAI_API_KEY`
 - `anthropic` → uses `ANTHROPIC_API_KEY`
 - `google` → uses `GOOGLE_API_KEY`
 - `vercel` → uses `V0_API_KEY`
 
 If adding a new provider, you must also:
+
 1. Add the provider to the `Provider` union type in `src/providers/index.ts`
 2. Add the SDK dependency (e.g., `bun add @ai-sdk/newprovider`)
 3. Create a client and add the case to `getModel()`
@@ -127,6 +131,7 @@ bun start --model "claude-opus-5-0" --smoke --debug
 ```
 
 Check that:
+
 - Model is discovered (appears in `--dry` output)
 - API call succeeds (no auth errors)
 - Score is computed
@@ -139,6 +144,7 @@ After the smoke test passes, ask the user:
 > "Model registered and verified. Do you want to run the full eval suite and publish scores to the LLM leaderboard?"
 
 If yes:
+
 1. Run full eval suite: `bun start --model "<name>" --debug`
 2. Run `/publish-leaderboard add <label>` to export and update the docs repo
 

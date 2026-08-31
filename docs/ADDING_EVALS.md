@@ -21,6 +21,7 @@ Example skeleton:
 Build a Waitlist feature in a Next.js app using Clerk.
 
 ## Acceptance criteria
+
 - Includes `@clerk/nextjs` installation and env setup
 - Implements a protected API route to submit waitlist entries
 - Stores entries and returns appropriate responses
@@ -63,7 +64,7 @@ Append an entry in `src/config/evaluations.ts`:
 
 - Smoke test: `bun start --eval "waitlist" --smoke --debug`
 - Run all: `bun start`
-- Debug artifacts: add `--debug` to write prompts, responses, and grader decisions under `debug-runs/`.
+- Debug mode: add `--debug` to collect detailed runner output while recording the run in SQLite.
 
 ## 6) Style and checks
 

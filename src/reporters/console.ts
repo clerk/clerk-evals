@@ -18,8 +18,7 @@ function colorize(value: number): string {
   return `${colors.red}${pct}${colors.reset}`
 }
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes are intentional
-const ANSI_RE = /\x1b\[[0-9;]*m/g
+const ANSI_RE = new RegExp(String.raw`\u001b\[[0-9;]*m`, 'g')
 
 function stripAnsi(str: string): string {
   return str.replace(ANSI_RE, '')

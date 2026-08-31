@@ -12,15 +12,6 @@ interface DBRow {
   updatedAt: string
 }
 
-interface Score {
-  model: string
-  label: string
-  framework: string
-  category: string
-  value: number
-  updatedAt: string
-}
-
 // Get BASELINE results (average of latest run per model+category)
 // 1. Find the latest run_id for each model (baseline)
 // 2. Average all eval scores from that run

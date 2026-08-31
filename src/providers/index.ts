@@ -1,9 +1,18 @@
-import { createAnthropic } from '@ai-sdk/anthropic'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createOpenAI } from '@ai-sdk/openai'
-import { createVercel } from '@ai-sdk/vercel'
+import { createAnthropic, type AnthropicProvider } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI, type GoogleGenerativeAIProvider } from '@ai-sdk/google'
+import { createOpenAI, type OpenAIProvider } from '@ai-sdk/openai'
+import { createVercel, type VercelProvider } from '@ai-sdk/vercel'
 
-export type Provider = 'openai' | 'anthropic' | 'vercel' | 'google'
+export type ProviderOpenAI = 'openai'
+export type ProviderAnthropic = 'anthropic'
+export type ProviderVercel = 'vercel'
+export type ProviderGoogle = 'google'
+export type Provider = ProviderOpenAI | ProviderAnthropic | ProviderVercel | ProviderGoogle
+
+export type ModelIdsOpenAI = Parameters<OpenAIProvider['chat']>[0]
+export type ModelIdsAnthropic = Parameters<AnthropicProvider['chat']>[0]
+export type ModelIdsVercel = Parameters<VercelProvider['languageModel']>[0]
+export type ModelIdsGoogle = Parameters<GoogleGenerativeAIProvider['chat']>[0]
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,

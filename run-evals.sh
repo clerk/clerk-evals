@@ -1,26 +1,16 @@
 #!/bin/bash
 # Sequential eval runner with timeout, retry logic, and model filtering (macOS compatible)
 
-TIMEOUT_SECONDS=300  # 5 min per model (16 evals each)
+TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-600}  # 10 min per model by default
 MAX_RETRIES=2
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-ALL_MODELS=(
-  "claude-sonnet-4-0"
-  "claude-sonnet-4-5"
-  "claude-opus-4-0"
-  "claude-opus-4-5"
-  "claude-opus-4-6"
-  "claude-haiku-4-5"
-  "gpt-4o"
-  "gpt-5"
-  "gpt-5-chat-latest"
-  "gpt-5.2"
-  "gpt-5.2-codex"
-  "gpt-5.4-2026-03-05"
-  "gemini-2.5-flash"
-  "gemini-3-pro-preview"
-  "v0-1.5-md"
-  "v0-1.5-lg"
+ALL_MODELS=()
+while IFS= read -r model; do
+  ALL_MODELS+=("$model")
+done < <(
+  cd "$SCRIPT_DIR" &&
+    bun --eval 'import { getAllModels } from "./src/config/models"; console.log(getAllModels().map((m) => m.name).join("\n"))'
 )
 
 # Usage
@@ -108,7 +98,7 @@ else
   MODELS=("${ALL_MODELS[@]}")
 fi
 
-cd ~/Clerk/clerk-evals
+cd "$SCRIPT_DIR"
 
 # Record batch start time for consolidated Braintrust reporting
 BATCH_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -137,10 +127,21 @@ run_with_timeout() {
   echo ""
   echo "=== [$mode] $model (timeout: ${TIMEOUT_SECONDS}s) ==="
 
+  local concurrency="${EVAL_CONCURRENCY:-}"
+  local delay_ms="${EVAL_DELAY_MS:-}"
+  if [[ -z "$concurrency" && "$model" == gemini* ]]; then
+    concurrency=4
+  fi
+  if [[ -z "$delay_ms" && "$model" == gemini* ]]; then
+    delay_ms=1000
+  fi
+
   if [ "$mode" = "mcp" ]; then
-    perl -e "alarm $TIMEOUT_SECONDS; exec @ARGV" bun start --mcp --model "$model"
+    EVAL_CONCURRENCY="$concurrency" EVAL_DELAY_MS="$delay_ms" \
+      perl -e "alarm $TIMEOUT_SECONDS; exec @ARGV" bun start --mcp --model "$model"
   else
-    perl -e "alarm $TIMEOUT_SECONDS; exec @ARGV" bun start --model "$model"
+    EVAL_CONCURRENCY="$concurrency" EVAL_DELAY_MS="$delay_ms" \
+      perl -e "alarm $TIMEOUT_SECONDS; exec @ARGV" bun start --model "$model"
   fi
   return $?
 }

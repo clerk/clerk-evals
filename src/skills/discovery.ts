@@ -36,25 +36,22 @@ export function stripFrontmatter(content: string): string {
 }
 
 /**
- * Discover all skills in a directory.
- * Scans for subdirectories containing a valid SKILL.md with name and description.
+ * Discover all skills under a directory.
+ * Supports both the original flat layout (`skills/foo/SKILL.md`) and the
+ * current grouped layout (`skills/core/foo/SKILL.md`).
  */
 export async function discoverSkills(skillsPath: string): Promise<SkillMetadata[]> {
   const skills: SkillMetadata[] = []
 
-  let entries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    entries = await fs.readdir(skillsPath, { withFileTypes: true })
-  } catch {
-    return []
-  }
+  async function walk(directory: string) {
+    let entries: Array<{ name: string; isDirectory(): boolean }>
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true })
+    } catch {
+      return
+    }
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
-
-    const skillDir = path.join(skillsPath, entry.name)
-    const skillFile = path.join(skillDir, 'SKILL.md')
-
+    const skillFile = path.join(directory, 'SKILL.md')
     try {
       const content = await fs.readFile(skillFile, 'utf8')
       const frontmatter = parseFrontmatter(content)
@@ -63,12 +60,19 @@ export async function discoverSkills(skillsPath: string): Promise<SkillMetadata[
         skills.push({
           name: frontmatter.name,
           description: frontmatter.description,
-          path: skillDir,
+          path: directory,
         })
+        return
       }
     } catch {}
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue
+      await walk(path.join(directory, entry.name))
+    }
   }
 
+  await walk(skillsPath)
   return skills
 }
 

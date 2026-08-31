@@ -17,20 +17,63 @@ YOU MUST output all files as fenced code blocks, like so
 \`\`\`lang file="path/to/file.ts"
 
 \`\`\`
+
+Do not ask clarifying questions. Complete the task with the information provided.
 `
+
+async function loadFixtureContext(evalPath: string, variant: string): Promise<string> {
+  const fixtureDir = path.join(evalPath, 'fixtures', variant)
+  const parts: string[] = []
+
+  async function walk(directory: string, relativeDir = '') {
+    let entries: Array<{ name: string; isDirectory(): boolean }>
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true })
+    } catch {
+      return
+    }
+
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+
+      const absolutePath = path.join(directory, entry.name)
+      const relativePath = path.join(relativeDir, entry.name)
+
+      if (entry.isDirectory()) {
+        await walk(absolutePath, relativePath)
+        continue
+      }
+
+      const content = await fs.readFile(absolutePath, 'utf8')
+      parts.push(`### ${relativePath}\n\n\`\`\`\n${content}\n\`\`\``)
+    }
+  }
+
+  await walk(fixtureDir)
+  return parts.join('\n\n')
+}
 
 /**
  * Loads the PROMPT.md file from an evaluation directory.
  */
-export async function loadPrompt(evalPath: string): Promise<string> {
-  return fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+export async function loadPrompt(evalPath: string, variant?: string): Promise<string> {
+  const prompt = await fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+  if (!variant) return prompt
+
+  const fixtureContext = await loadFixtureContext(evalPath, variant)
+  if (!fixtureContext) return prompt
+
+  return `${prompt}\n\n## Project files\n\n${fixtureContext}`
 }
 
 /**
  * Dynamically imports and returns the graders from an evaluation directory.
  */
-export async function loadGraders(evalPath: string): Promise<Graders> {
-  const graderModule = (await import(path.join(evalPath, 'graders.ts'))) as {
+export async function loadGraders(evalPath: string, variant?: string): Promise<Graders> {
+  const gradersPath = variant
+    ? path.join(evalPath, 'graders', `${variant}.ts`)
+    : path.join(evalPath, 'graders.ts')
+  const graderModule = (await import(gradersPath)) as {
     graders: Graders
   }
   return graderModule.graders
@@ -77,8 +120,14 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-4o': [2.5, 10],
   'gpt-5': [1.25, 10],
   'gpt-5-chat-latest': [1.25, 10],
+  'gpt-5.1': [1.25, 10],
+  'gpt-5.1-chat-latest': [1.25, 10],
+  'gpt-5.1-codex': [1.25, 10],
+  'gpt-5.1-codex-max': [1.25, 10],
   'gpt-5.2': [1.75, 14],
+  'gpt-5.2-chat-latest': [1.75, 14],
   'gpt-5.2-codex': [1.75, 14],
+  'gpt-5.2-pro': [21, 168],
   'gpt-5.4-2026-03-05': [2.5, 12],
   // Anthropic
   'claude-sonnet-4-0': [3, 15],

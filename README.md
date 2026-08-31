@@ -1,6 +1,6 @@
 # clerk-evals
 
-Evaluation suites for testing how LLMs perform at writing Clerk code. 27 evals across 8 categories (Quickstarts, Auth, User Management, UI Components, Organizations, Webhooks, Upgrades, Billing) covering Next.js, React, iOS, and Android. 16 models from OpenAI, Anthropic, Google, and Vercel.
+Evaluation suites for testing how LLMs perform at writing Clerk code. 31 evals across 9 categories (Quickstarts, Auth, User Management, UI Components, Organizations, Webhooks, Upgrades, Billing, Add Auth) covering Next.js, React, iOS, and Android. 31 models from OpenAI, Anthropic, Google, and Vercel.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -20,7 +20,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
-- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, and `path` (e.g., `evals/waitlist`).
+- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, `path`, `description`, and `primaryCapability`.
 - Run `bun start --eval "your-eval" --smoke --debug` to test with one model.
 
 <details>
@@ -70,17 +70,17 @@ bun start --eval "auth/routes" --smoke --debug
 bun start [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--mcp` | Enable MCP tools (uses mcp.clerk.dev by default) |
-| `--skills` | Enable skills tools (loads from `../skills/skills/`) |
-| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive) |
-| `--provider "anthropic"` | Filter by provider (openai, anthropic, google, vercel) |
-| `--eval "protect"` | Filter evals by category or path |
-| `--debug` | Save outputs to debug-runs/ |
-| `--dry` | Print task summary without running |
-| `--smoke` | Run only the first task (quick validation) |
-| `--fail-under 70` | CI gate: fail if average score < threshold % |
+| Flag                          | Description                                            |
+| ----------------------------- | ------------------------------------------------------ |
+| `--mcp`                       | Enable MCP tools (uses mcp.clerk.dev by default)       |
+| `--skills`                    | Enable skills tools (loads from `../skills/skills/`)   |
+| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive)          |
+| `--provider "anthropic"`      | Filter by provider (openai, anthropic, google, vercel) |
+| `--eval "protect"`            | Filter evals by category or path                       |
+| `--debug`                     | Collect debug details and print the score report       |
+| `--dry`                       | Print task summary without running                     |
+| `--smoke`                     | Run only the first task (quick validation)             |
+| `--fail-under 70`             | CI gate: fail if average score < threshold %           |
 
 ```bash
 # Baseline (no tools)
@@ -101,7 +101,7 @@ bun start --dry
 
 ### Batch Runner
 
-Run all 16 models sequentially with timeout and retry:
+Run all configured models sequentially with timeout and retry:
 
 ```bash
 ./run-evals.sh                              # All models, baseline + MCP
@@ -147,13 +147,13 @@ Both API keys must be set in your `.env`.
 bun start:agent --agent claude-code [options]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--agent, -a` | Agent type (required): `claude-code`, `cursor` |
-| `--mcp` | Enable MCP tools |
-| `--eval, -e` | Filter evals by path |
-| `--debug, -d` | Save outputs to debug-runs/ |
-| `--timeout, -t` | Timeout per eval (ms) |
+| Flag            | Description                                      |
+| --------------- | ------------------------------------------------ |
+| `--agent, -a`   | Agent type (required): `claude-code`, `cursor`   |
+| `--mcp`         | Enable MCP tools                                 |
+| `--eval, -e`    | Filter evals by path                             |
+| `--debug, -d`   | Collect debug details and print the score report |
+| `--timeout, -t` | Timeout per eval (ms)                            |
 
 **Shortcuts:**
 
@@ -177,14 +177,15 @@ bun start:agent --agent claude-code --mcp
 
 ### Output Files
 
-| Runner | Output | Description |
-|--------|--------|-------------|
-| `bun start` | `scores.json` | Baseline scores (no tools) |
-| `bun start --mcp` | `scores-mcp.json` | MCP scores (with tools) |
-| `bun start --skills` | `scores-skills.json` | Skills scores |
-| `bun start:agent` | `agent-scores.json` | Agent evaluation scores |
-| `bun merge-scores` | `llm-scores.json` | Combined for llm-leaderboard |
-| `bun report:braintrust` | Braintrust UI | Consolidated experiment per mode |
+| Runner                    | Output               | Description                      |
+| ------------------------- | -------------------- | -------------------------------- |
+| `bun start`               | `scores.json`        | Baseline scores (no tools)       |
+| `bun start --mcp`         | `scores-mcp.json`    | MCP scores (with tools)          |
+| `bun start --skills`      | `scores-skills.json` | Skills scores                    |
+| `bun start:agent`         | `agent-scores.json`  | Agent evaluation scores          |
+| `bun merge-scores`        | `llm-scores.json`    | Combined for llm-leaderboard     |
+| `bun export:capabilities` | Terminal / JSON      | Per-model capability breakdown   |
+| `bun report:braintrust`   | Braintrust UI        | Consolidated experiment per mode |
 
 ### Workflow for llm-leaderboard
 
@@ -226,7 +227,7 @@ A **runner** takes a simple object as an argument:
 {
   "provider": "openai",
   "model": "gpt-5",
-  "evalPath": "/absolute/path/to/clerk-evals/src/evals/auth/protect"
+  "evalPath": "/absolute/path/to/clerk-evals/src/evals/auth/protect",
 }
 ```
 

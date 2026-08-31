@@ -66,6 +66,7 @@ export type RunnerArgs = {
   provider: Provider
   model: string
   evalPath: string
+  variant?: string
   debug?: boolean
 }
 
@@ -136,4 +137,6 @@ export type Score = {
   tokens?: TokenUsage
   costUsd?: number
   durationMs?: number
+  /** Canonical eval identity, e.g. evals/add-auth::nextjs */
+  evalKey?: string
 }

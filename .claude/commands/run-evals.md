@@ -42,6 +42,7 @@ Then construct the appropriate `bun start` command from the answers.
 ### If Arguments Provided
 
 Parse from `$ARGUMENTS`:
+
 - `smoke claude-opus-4-6` — quick smoke test with one model
 - `full leaderboard` — all models, all modes, export to clerk repo
 - `mcp comparison claude-sonnet-4-5` — baseline vs MCP for one model
@@ -50,11 +51,11 @@ Parse from `$ARGUMENTS`:
 
 ## Execution Modes
 
-| Mode | Flag | Output File | What It Tests |
-|------|------|-------------|---------------|
-| Baseline | _(none)_ | `scores.json` | Pure LLM, no tools |
-| MCP | `--mcp` | `scores-mcp.json` | With MCP server tools |
-| Skills | `--skills` | `scores-skills.json` | With Clerk skill files |
+| Mode     | Flag       | Output File          | What It Tests          |
+| -------- | ---------- | -------------------- | ---------------------- |
+| Baseline | _(none)_   | `scores.json`        | Pure LLM, no tools     |
+| MCP      | `--mcp`    | `scores-mcp.json`    | With MCP server tools  |
+| Skills   | `--skills` | `scores-skills.json` | With Clerk skill files |
 
 ## Model Names (exact match required)
 
@@ -70,6 +71,7 @@ Model filtering is case-insensitive but must match the `name` field, NOT the `la
 ## Eval Filtering
 
 `--eval` accepts any of:
+
 - Category name: `auth`, `billing`, `webhooks`
 - Partial path: `auth/protect`, `billing/checkout-new`
 - Full path: `evals/auth/protect`
@@ -79,6 +81,7 @@ Model filtering is case-insensitive but must match the `name` field, NOT the `la
 ### Step 1: Parse the Scenario
 
 Identify from `$ARGUMENTS`:
+
 - Which model(s) to run
 - Which eval(s) to filter (if any)
 - Which mode(s) (baseline, MCP, skills)
@@ -147,6 +150,7 @@ For a complete leaderboard refresh, use the runner script:
 ```
 
 The runner script handles:
+
 - 5 min timeout per model
 - 2 retry attempts for failures
 - Auto-exports to `llm-scores.json`
@@ -154,6 +158,7 @@ The runner script handles:
 ### Step 5: Report Results
 
 After execution:
+
 1. Read the output scores file (`scores.json`, `scores-mcp.json`, or `scores-skills.json`)
 2. Summarize: per-model averages, per-category breakdown
 3. Flag any scores below 50% (likely regressions or broken evals)
@@ -168,14 +173,14 @@ If yes, run `/publish-leaderboard` to export, copy to the docs repo, and optiona
 
 ## Environment Variables
 
-| Variable | Required For | Default |
-|----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Claude models | - |
-| `OPENAI_API_KEY` | GPT models | - |
-| `GOOGLE_API_KEY` | Gemini models | - |
-| `V0_API_KEY` | Vercel models | - |
+| Variable                  | Required For      | Default                     |
+| ------------------------- | ----------------- | --------------------------- |
+| `ANTHROPIC_API_KEY`       | Claude models     | -                           |
+| `OPENAI_API_KEY`          | GPT models        | -                           |
+| `GOOGLE_API_KEY`          | Gemini models     | -                           |
+| `V0_API_KEY`              | Vercel models     | -                           |
 | `MCP_SERVER_URL_OVERRIDE` | Local MCP testing | `https://mcp.clerk.dev/mcp` |
-| `BRAINTRUST_API_KEY` | Braintrust export | _(optional)_ |
+| `BRAINTRUST_API_KEY`      | Braintrust export | _(optional)_                |
 
 ## Gotchas
 

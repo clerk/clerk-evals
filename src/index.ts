@@ -1,9 +1,10 @@
-import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 
 import Tinypool from 'tinypool'
 import { EVALUATIONS, getAllModels, getModelsByProvider, loadConfig } from '@/src/config'
-import { getResults, initDB, saveError, saveResult } from '@/src/db'
+import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
+import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 import type { BraintrustEntry } from '@/src/reporters/braintrust'
@@ -14,36 +15,23 @@ import { estimateCost } from '@/src/runners/shared'
 const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp' // Zero-config default
 
 // CLI argument parsing
-const args = process.argv.slice(2)
-
-const parseBooleanFlag = (name: string, alias?: string) => {
-  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) {
-    const [, rawValue] = equalsArg.split('=', 2)
-    const value = rawValue?.toLowerCase()
-    return !['false', '0', 'no'].includes(value ?? '')
-  }
-
-  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  if (index === -1) return false
-
-  const value = args[index + 1]
-  if (value && !value.startsWith('-')) {
-    return !['false', '0', 'no'].includes(value.toLowerCase())
-  }
-  return true
-}
-
-const parseStringArg = (name: string, alias?: string): string | undefined => {
-  const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
-  if (equalsArg) return equalsArg.split('=', 2)[1]
-
-  const index = args.findIndex((arg) => arg === `--${name}` || (alias && arg === alias))
-  if (index !== -1 && args[index + 1] && !args[index + 1].startsWith('-')) {
-    return args[index + 1]
-  }
-  return undefined
-}
+const { values } = parseArgs({
+  args: Bun.argv,
+  options: {
+    mcp: { type: 'boolean', default: false },
+    skills: { type: 'boolean', default: false },
+    debug: { type: 'boolean', short: 'd', default: false },
+    dry: { type: 'boolean', default: false },
+    smoke: { type: 'boolean', default: false },
+    'fail-under': { type: 'string' },
+    model: { type: 'string', short: 'm' },
+    provider: { type: 'string', short: 'p' },
+    eval: { type: 'string', short: 'e' },
+    'skills-path': { type: 'string' },
+  },
+  strict: true,
+  allowPositionals: true,
+})
 
 const normalizeEvalPath = (value: string) => {
   if (value.startsWith('./')) return normalizeEvalPath(value.slice(2))
@@ -52,17 +40,16 @@ const normalizeEvalPath = (value: string) => {
 }
 
 // Parse flags
-const mcpEnabled = parseBooleanFlag('mcp')
-const skillsEnabled = parseBooleanFlag('skills')
-const debugEnabled = parseBooleanFlag('debug', '-d')
-const dryRun = parseBooleanFlag('dry')
-const smokeTest = parseBooleanFlag('smoke')
-const failUnder = parseStringArg('fail-under')
-const modelFilter = parseStringArg('model', '-m')
-const providerFilter = parseStringArg('provider', '-p')
-const evalFilter = parseStringArg('eval', '-e')
-const skillsPath =
-  parseStringArg('skills-path') || path.join(process.cwd(), '..', 'skills', 'skills')
+const mcpEnabled = values.mcp
+const skillsEnabled = values.skills
+const debugEnabled = values.debug
+const dryRun = values.dry
+const smokeTest = values.smoke
+const failUnder = values['fail-under']
+const modelFilter = values.model
+const providerFilter = values.provider
+const evalFilter = values.eval
+const skillsPath = values['skills-path'] || path.join(process.cwd(), '..', 'skills', 'skills')
 
 // Setup
 initDB()
@@ -138,33 +125,14 @@ const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
 const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
+const suiteHash = await getSuiteHash(filteredEvaluations)
+const harnessCommit = getGitCommit()
+const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
 
-type DebugArtifact = {
-  provider: string
-  model: string
-  framework: string
-  category: string
-  evaluationPath: string
-  score: number
-  prompt: string
-  response: string
-  graders: RunnerDebugPayload['graders']
-  transcript?: string
-  finishReason?: string
-}
-
-const debugArtifacts: DebugArtifact[] = []
 const braintrustDebugMap = new Map<string, { debug: RunnerDebugPayload; evaluationPath: string }>()
 
 // Collect debug payloads for Braintrust even without --debug flag
 const collectDebug = debugEnabled || !!process.env.BRAINTRUST_API_KEY
-
-let debugRunDirectory: string | undefined
-if (debugEnabled) {
-  debugRunDirectory = path.join(process.cwd(), 'debug-runs', runId)
-  await mkdir(debugRunDirectory, { recursive: true })
-  console.log(`Debug mode enabled. Saving outputs to ${debugRunDirectory}`)
-}
 
 // Build tasks
 const tasks = filteredModels.flatMap((model) =>
@@ -174,6 +142,8 @@ const tasks = filteredModels.flatMap((model) =>
     label: model.label,
     category: evaluation.category,
     framework: evaluation.framework,
+    variant: evaluation.variant,
+    evalKey: getEvalKey(evaluation),
     evalPath: path.join(process.cwd(), 'src', evaluation.path),
     evaluationPath: evaluation.path,
   })),
@@ -220,9 +190,22 @@ if (smokeTest) {
   console.log(`Smoke test: running 1 of ${tasks.length} tasks\n`)
 }
 
+saveRun({
+  runId,
+  mode: modeLabel,
+  models: [...new Set(tasksToRun.map((task) => task.model))],
+  evalKeys: [...new Set(tasksToRun.map((task) => task.evalKey))],
+  suiteHash,
+  harnessCommit,
+  skillsCommit,
+  mcpServerUrl: modeLabel === 'mcp' ? mcpUrl : undefined,
+})
+
 let completed = 0
 let errors = 0
 const isTTY = process.stdout.isTTY ?? false
+const evalConcurrency = Number(process.env.EVAL_CONCURRENCY ?? tasksToRun.length)
+const evalDelayMs = Number(process.env.EVAL_DELAY_MS ?? 0)
 
 function logProgress(task: { label: string; evaluationPath: string }, status: string) {
   if (isTTY) {
@@ -241,129 +224,121 @@ if (config?.hooks?.preEval) {
   }
 }
 
-// Run all in parallel
-await Promise.all(
-  tasksToRun.map(async (task) => {
-    logProgress(task, 'running')
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
-    const runnerArgs: ExecArgs = {
-      evalPath: task.evalPath,
-      provider: task.provider as Provider,
-      model: task.model,
-      debug: collectDebug,
-      ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
-      ...(modeLabel === 'skills' && { skillsPath }),
-    }
+async function runTask(task: (typeof tasksToRun)[number]) {
+  logProgress(task, 'running')
 
-    try {
-      const result: RunnerResult = await pool.run(runnerArgs)
+  const runnerArgs: ExecArgs = {
+    evalPath: task.evalPath,
+    variant: task.variant,
+    provider: task.provider as Provider,
+    model: task.model,
+    debug: collectDebug,
+    ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
+    ...(modeLabel === 'skills' && { skillsPath }),
+  }
 
-      if (!result.ok) {
-        const errorMsg =
-          result.error instanceof Error
-            ? result.error.message
-            : typeof result.error === 'object'
-              ? JSON.stringify(result.error)
-              : String(result.error)
-        console.error(
-          `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
-        )
-        const labelSuffix = MODE_LABEL_SUFFIX[modeLabel]
-        saveError(runId, {
-          model: task.model,
-          label: `${task.label}${labelSuffix}`,
-          framework: task.framework,
-          category: task.category,
-          evaluationPath: task.evaluationPath,
-          error: result.error,
-        })
-        errors++
-        if (config?.hooks?.onError) {
-          try {
-            await config.hooks.onError({
-              model: task.model,
-              category: task.category,
-              error: result.error,
-            })
-          } catch (e) {
-            console.error('[hook:onError]', e)
-          }
-        }
-        return
-      }
+  try {
+    const result: RunnerResult = await pool.run(runnerArgs)
 
-      const scoreLabelSuffix = MODE_LABEL_SUFFIX[modeLabel]
-      const score: Score = {
+    if (!result.ok) {
+      const errorMsg =
+        result.error instanceof Error
+          ? result.error.message
+          : typeof result.error === 'object'
+            ? JSON.stringify(result.error)
+            : String(result.error)
+      console.error(
+        `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
+      )
+      const labelSuffix = MODE_LABEL_SUFFIX[modeLabel]
+      saveError(runId, {
         model: task.model,
-        label: `${task.label}${scoreLabelSuffix}`,
+        label: `${task.label}${labelSuffix}`,
         framework: task.framework,
         category: task.category,
-        value: result.value.score,
-        updatedAt: new Date().toISOString(),
-        tokens: result.value.tokens,
-        durationMs: result.value.durationMs,
-        costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
-      }
-      saveResult(runId, score, task.evaluationPath)
-      if (config?.hooks?.onSuccess) {
+        evaluationPath: task.evaluationPath,
+        error: result.error,
+      })
+      errors++
+      if (config?.hooks?.onError) {
         try {
-          await config.hooks.onSuccess({
+          await config.hooks.onError({
             model: task.model,
             category: task.category,
-            score: result.value.score,
+            error: result.error,
           })
         } catch (e) {
-          console.error('[hook:onSuccess]', e)
+          console.error('[hook:onError]', e)
         }
       }
-
-      // Collect debug data for Braintrust (even without --debug flag)
-      if (result.value.debug) {
-        braintrustDebugMap.set(`${task.model}::${task.category}`, {
-          debug: result.value.debug,
-          evaluationPath: task.evaluationPath,
-        })
-      }
-
-      if (debugEnabled && result.value.debug && debugRunDirectory) {
-        const artifact: DebugArtifact = {
-          provider: task.provider,
-          model: task.model,
-          framework: task.framework,
-          category: task.category,
-          evaluationPath: task.evaluationPath,
-          score: result.value.score,
-          prompt: result.value.debug.prompt,
-          response: result.value.debug.response,
-          graders: result.value.debug.graders,
-          transcript: result.value.debug.transcript,
-          finishReason: result.value.debug.finishReason,
-        }
-        debugArtifacts.push(artifact)
-
-        // Write debug files immediately for tool-using modes (MCP, Skills)
-        if (hasTools) {
-          const debugPath = path.join(
-            debugRunDirectory,
-            `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.json`,
-          )
-          await writeFile(debugPath, JSON.stringify(result.value.debug, null, 2))
-
-          if (result.value.debug.transcript) {
-            const transcriptPath = path.join(
-              debugRunDirectory,
-              `${task.evaluationPath.replace(/\//g, '__')}__${task.model}.md`,
-            )
-            await writeFile(transcriptPath, result.value.debug.transcript)
-          }
-        }
-      }
-    } finally {
-      completed++
-      logProgress(task, 'done')
+      return
     }
-  }),
-)
+
+    const scoreLabelSuffix = MODE_LABEL_SUFFIX[modeLabel]
+    const score: Score = {
+      model: task.model,
+      label: `${task.label}${scoreLabelSuffix}`,
+      framework: task.framework,
+      category: task.category,
+      value: result.value.score,
+      updatedAt: new Date().toISOString(),
+      tokens: result.value.tokens,
+      durationMs: result.value.durationMs,
+      costUsd: result.value.tokens ? estimateCost(task.model, result.value.tokens) : undefined,
+      evalKey: task.evalKey,
+    }
+    saveResult(runId, score, task.evaluationPath, task.evalKey)
+    if (config?.hooks?.onSuccess) {
+      try {
+        await config.hooks.onSuccess({
+          model: task.model,
+          category: task.category,
+          score: result.value.score,
+        })
+      } catch (e) {
+        console.error('[hook:onSuccess]', e)
+      }
+    }
+
+    // Collect debug data for Braintrust (even without --debug flag)
+    if (result.value.debug) {
+      braintrustDebugMap.set(`${task.model}::${task.evalKey}`, {
+        debug: result.value.debug,
+        evaluationPath: task.evaluationPath,
+      })
+    }
+  } finally {
+    completed++
+    logProgress(task, 'done')
+  }
+}
+
+async function runWithConcurrencyLimit() {
+  const concurrency = Number.isFinite(evalConcurrency)
+    ? Math.max(1, Math.min(tasksToRun.length, evalConcurrency))
+    : tasksToRun.length
+  let nextTaskIndex = 0
+
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      while (nextTaskIndex < tasksToRun.length) {
+        const task = tasksToRun[nextTaskIndex]
+        nextTaskIndex++
+        if (!task) return
+        await runTask(task)
+        if (evalDelayMs > 0 && nextTaskIndex < tasksToRun.length) {
+          await sleep(evalDelayMs)
+        }
+      }
+    }),
+  )
+}
+
+await runWithConcurrencyLimit()
 
 if (isTTY) process.stdout.write(`\r${' '.repeat(80)}\r`)
 console.log(
@@ -379,50 +354,6 @@ if (config?.hooks?.postEval) {
     })
   } catch (e) {
     console.error('[hook:postEval]', e)
-  }
-}
-
-// Write baseline debug artifacts (non-tool mode)
-if (debugEnabled && debugRunDirectory && !hasTools) {
-  const sanitize = (v: string) => v.replace(/[^a-zA-Z0-9._-]/g, '_')
-
-  for (const artifact of debugArtifacts) {
-    const evalSlug = artifact.evaluationPath.split('/').filter(Boolean).join('__')
-    const evalDir = path.join(debugRunDirectory, evalSlug)
-    await mkdir(evalDir, { recursive: true })
-
-    const fileName = sanitize(`${artifact.provider}__${artifact.model}`)
-    const gradersRows =
-      artifact.graders.length > 0
-        ? artifact.graders.map(([name, passed]) => `| ${name} | ${passed} |`).join('\n')
-        : '| (none) | - |'
-
-    const content = `---
-provider: ${artifact.provider}
-model: ${artifact.model}
-framework: ${artifact.framework}
-category: ${artifact.category}
-evaluation: ${artifact.evaluationPath}
-score: ${artifact.score.toFixed(2)}
-finishReason: ${artifact.finishReason ?? 'unknown'}
----
-
-## Prompt
-~~~
-${artifact.prompt.trimEnd()}
-~~~
-
-## Response
-~~~
-${artifact.response.trimEnd()}
-~~~
-
-## Graders
-| name | passed |
-| --- | --- |
-${gradersRows}
-`
-    await writeFile(path.join(evalDir, `${fileName}.md`), content, 'utf8')
   }
 }
 
@@ -463,7 +394,7 @@ if (dbScores.length > 0) {
     // Show eval-level breakdown inline
     const evalDetails = scores
       .map((s) => {
-        const evalName = s.evaluationPath?.split('/').pop() ?? s.category
+        const evalName = s.evalKey ?? s.evaluationPath?.split('/').pop() ?? s.category
         return `${evalName} ${colorPct(s.value)}`
       })
       .join(`${dim} | ${reset}`)
@@ -480,7 +411,7 @@ if (dbScores.length > 0) {
 // Skip when BRAINTRUST_DEFER_REPORT=1 (batch mode — report-braintrust.ts handles it).
 if (process.env.BRAINTRUST_API_KEY && !process.env.BRAINTRUST_DEFER_REPORT) {
   const entries: BraintrustEntry[] = dbScores.map((score) => {
-    const extra = braintrustDebugMap.get(`${score.model}::${score.category}`)
+    const extra = braintrustDebugMap.get(`${score.model}::${score.evalKey ?? score.category}`)
     return {
       ...score,
       evaluationPath: extra?.evaluationPath ?? '',
