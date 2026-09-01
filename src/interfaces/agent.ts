@@ -52,6 +52,8 @@ export type AgentRunnerArgs = {
   executablePath?: string
   /** PATH environment variable from main process */
   envPath?: string
+  /** Model to pin for the agent CLI (resolved in main process; workers have a trimmed env) */
+  model?: string
   /** Path to fixtures directory to copy into work dir before execution */
   fixturesPath?: string
   /** Full path to the variant grader file (e.g., .../graders/nextjs.ts) */

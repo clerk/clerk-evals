@@ -226,6 +226,7 @@ await Promise.all(
         timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
         executablePath,
         envPath: process.env.PATH,
+        model: process.env.ANTHROPIC_MODEL,
         fixturesPath: task.fixturesPath,
         gradersPath: task.gradersPath,
       }

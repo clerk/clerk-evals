@@ -99,6 +99,7 @@ async function execClaude(
   timeout: number,
   executablePath: string,
   envPath: string,
+  model?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
@@ -109,6 +110,11 @@ async function execClaude(
       'stream-json',
       '--verbose',
       '--dangerously-skip-permissions',
+      // Pin the agent model explicitly — the CLI flag wins over user settings
+      // and session context, which otherwise select a model the eval API key
+      // may not serve (instant 404, graded as a zero-score husk). Resolved in
+      // the main process: Tinypool workers run with a trimmed environment.
+      ...(model ? ['--model', model] : []),
       prompt,
     ]
 
@@ -188,6 +194,7 @@ export default async function exec({
   timeout = DEFAULT_AGENT_TIMEOUT,
   executablePath,
   envPath,
+  model,
   fixturesPath,
   gradersPath,
 }: AgentRunnerArgs): Promise<RunnerResult> {
@@ -248,7 +255,7 @@ export default async function exec({
     if (debug) {
       console.log(`[debug] Executing Claude Code in workDir: ${workDir}`)
     }
-    const result = await execClaude(prompt, workDir, timeout, executablePath, envPath)
+    const result = await execClaude(prompt, workDir, timeout, executablePath, envPath, model)
 
     if (!result.success && !result.output) {
       // Return error as string for cross-process serialization
