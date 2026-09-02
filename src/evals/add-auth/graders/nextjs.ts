@@ -3,7 +3,7 @@ import { authUIChecks, llmChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
   // The fixture pins next@15 → the CLI scaffolds middleware.ts (proxy.ts is Next 16+).
-  // If the fixture's Next version bumps, update this needle.
+  // If the fixture's Next version bumps, update this check.
   middleware_file: contains('middleware.ts'),
   // Quote-agnostic: the CLI scaffolds double quotes, handwritten code often single
   clerk_middleware_import: matches(/from ['"]@clerk\/nextjs\/server['"]/),
