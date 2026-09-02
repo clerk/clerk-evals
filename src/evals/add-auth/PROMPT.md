@@ -41,7 +41,15 @@ If `init` reports the framework unsupported or leaves setup incomplete, read the
 3. Create sign-in/sign-up routes if needed
 4. Test the integration
 
-## Step 4: If using shadcn/ui
+## Step 4: Add visible auth controls
+
+The app needs sign-in, sign-up, and signed-in user controls (for example `<SignInButton>`, `<SignUpButton>`, and `<UserButton>` inside `<SignedOut>`/`<SignedIn>`), worked into the existing layout or navigation. `clerk init` does not add these to an existing project — create them per the quickstart if they are missing.
+
+## Step 5: Verify the integration
+
+After setup completes, read the auth files it created or modified and show their contents — the middleware or proxy file, the provider wiring (for example `app/layout.tsx`), and any auth UI. If anything is missing, finish it per the quickstart before moving on.
+
+## Step 6: If using shadcn/ui
 
 If `components.json` exists in the project root:
 
