@@ -1,9 +1,9 @@
-import { contains, containsAny, defineGraders, judge } from '@/src/graders'
+import { contains, defineGraders, judge } from '@/src/graders'
 import { authUIChecks, llmChecks, quickstartChecks } from '@/src/graders/catalog'
 
 export const graders = defineGraders({
-  // Correct middleware/proxy setup (proxy.ts in Next.js 16+, middleware.ts in 15 and earlier)
-  middleware_or_proxy_file: containsAny(['proxy.ts', 'middleware.ts']),
+  // Correct proxy setup for the current Next.js quickstart
+  middleware_or_proxy_file: contains('proxy.ts'),
   clerk_middleware_import: contains("from '@clerk/nextjs/server'"),
   clerk_middleware_usage: contains('clerkMiddleware'),
 

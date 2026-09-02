@@ -10,9 +10,15 @@ Install `@clerk/nextjs@latest`. Create `proxy.ts` with `clerkMiddleware()` from 
 
 Latest docs: https://clerk.com/docs/nextjs/getting-started/quickstart
 
-## Keyless Mode
+## Accountless setup
 
-No signup required. Without env vars (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`), Clerk auto-generates temporary keys. A "Configure your application" prompt appears to claim later. Do NOT tell users to sign up, create accounts, get API keys, or add env vars before running.
+Run the Clerk CLI before manually configuring keys:
+
+```bash
+npx -y clerk@latest init --accountless
+```
+
+The `--accountless` flag provisions a claimable accountless application, writes `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` to `.env.local`, and configures the project — no Clerk account needed. Running `npx -y clerk@latest auth login` later claims the application. Do NOT tell users to sign up, create an account, obtain keys, or add env vars before running `clerk init`.
 
 ## Install
 
@@ -73,7 +79,7 @@ ALWAYS:
 - Use App Router (app/page.tsx, app/layout.tsx)
 - async/await with auth() from `@clerk/nextjs/server`
 - Use existing package manager
-- Rely on keyless mode, skip account creation and API keys
+- Run `clerk init` before asking the user to create an account or configure API keys
 
 NEVER:
 
@@ -94,7 +100,7 @@ pages / signin.js // WRONG
 <SignedOut> // WRONG, use <Show when="signed-out">
 ```
 
-## Verify Before Responding
+## Verify before responding
 
 1. Is `clerkMiddleware()` used in `proxy.ts`?
 2. Is `ClerkProvider` inside `<body>` in `app/layout.tsx`?
