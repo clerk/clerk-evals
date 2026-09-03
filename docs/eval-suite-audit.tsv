@@ -20,3 +20,4 @@ ts	phase	decision	why	evidence	result
 2026-09-03T09:10:02Z	domain	added Machine Auth as an explicit evaluation category	machine requests are a separate Clerk product surface from user sessions	src/interfaces/index.ts; src/config/evaluations.ts	32 registered tasks
 2026-09-03T09:10:02Z	agents	kept the machine-auth eval out of agent runs	the task has response fixtures but no complete repository fixture	agentEligible is absent	agent suite remains four fixture-backed tasks
 2026-09-03T09:11:25Z	verification	verified the machine-auth eval without a paid model call	contract behavior and suite discovery can be checked locally	lint; typecheck; 15 tests; grader contract; dry run; suite audit	all checks pass and 32 tasks register
+2026-09-03T09:16:02Z	verification	recorded the exact suite registry command on the current branch	the audit trail must name the valid flag that matches HEAD	bun start --dry	1216 baseline tasks on HEAD
