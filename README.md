@@ -1,6 +1,6 @@
 # clerk-evals
 
-Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 32 tasks across Next.js, React, iOS, and Android. The current model catalog includes OpenAI, Anthropic, Google, and Vercel models.
+Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 37 tasks across Next.js, React, iOS, and Android. The current model catalog includes OpenAI, Anthropic, Google, and Vercel models.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -20,7 +20,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
-- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, `path`, `description`, and `primaryCapability`.
+- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, and `path`.
 - Run `bun start --eval "your-eval" --smoke --debug` to test with one model.
 
 <details>
@@ -140,6 +140,8 @@ Agent evals spawn CLI tools as child processes and grade the final isolated work
 - [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
 
 Set the matching API key in `.env`. Pin the model with `--model` or `ANTHROPIC_MODEL` for Claude Code and `OPENAI_MODEL` for Codex.
+
+Registered agent tasks use an explicit repository fixture. A task can also define hidden Bun tests. The harness stages those tests outside the repository after the coding agent exits. Test failure is a hard score gate, while normal deterministic graders still provide diagnostic partial credit.
 
 ### Usage
 

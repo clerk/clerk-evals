@@ -14,6 +14,7 @@ import { execSync } from 'node:child_process'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import Tinypool from 'tinypool'
+import { isAgentEvaluation, resolveAgentConfig } from '@/src/agent-config'
 import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
@@ -112,7 +113,7 @@ console.log(`Using ${agentInfo.label} at: ${executablePath}`)
 
 // Setup
 initDB()
-const evaluations = EVALUATIONS.filter((evaluation) => evaluation.agentEligible)
+const evaluations = EVALUATIONS.filter(isAgentEvaluation)
 
 // Filter evaluations
 const filteredEvaluations = (() => {
@@ -159,21 +160,27 @@ const harnessCommit = getGitCommit()
 const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
 
 // Build tasks
-const tasks = filteredEvaluations.map((evaluation) => ({
-  agent: agentType,
-  category: evaluation.category,
-  framework: evaluation.framework,
-  evalPath: path.join(process.cwd(), 'src', evaluation.path),
-  evaluationPath: evaluation.path,
-  evalKey: getEvalKey(evaluation),
-  variant: evaluation.variant,
-  fixturesPath: evaluation.variant
-    ? path.join(process.cwd(), 'src', evaluation.path, 'fixtures', evaluation.variant)
-    : undefined,
-  gradersPath: evaluation.variant
-    ? path.join(process.cwd(), 'src', evaluation.path, 'graders', `${evaluation.variant}.ts`)
-    : undefined,
-}))
+const tasks = await Promise.all(
+  filteredEvaluations.map(async (evaluation) => {
+    const evalPath = path.join(process.cwd(), 'src', evaluation.path)
+    const agentConfig = await resolveAgentConfig(evalPath, evaluation.agent)
+
+    return {
+      agent: agentType,
+      category: evaluation.category,
+      framework: evaluation.framework,
+      evalPath,
+      evaluationPath: evaluation.path,
+      evalKey: getEvalKey(evaluation),
+      variant: evaluation.variant,
+      workspacePath: agentConfig.workspacePath,
+      gradersPath: evaluation.variant
+        ? path.join(evalPath, 'graders', `${evaluation.variant}.ts`)
+        : undefined,
+      verification: agentConfig.verification,
+    }
+  }),
+)
 
 // Progress output
 const modeLabels: string[] = [agentInfo.label]
@@ -238,8 +245,9 @@ await Promise.all(
         executablePath,
         envPath: process.env.PATH,
         model,
-        fixturesPath: task.fixturesPath,
+        workspacePath: task.workspacePath,
         gradersPath: task.gradersPath,
+        verification: task.verification,
       }
 
       const startTime = Date.now()

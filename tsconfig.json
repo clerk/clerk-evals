@@ -30,5 +30,5 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["src/evals/**/fixtures/**"]
+  "exclude": ["src/evals/**/fixtures/**", "src/evals/**/agent/workspace/**"]
 }

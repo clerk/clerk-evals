@@ -1,6 +1,6 @@
 # Task
 
-Add a machine-authenticated endpoint to a Next.js App Router project that uses Clerk Core 3.
+Add a machine-authenticated endpoint to the provided Next.js App Router project that uses Clerk Core 3.
 
 ## Requirements
 

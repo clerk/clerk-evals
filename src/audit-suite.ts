@@ -1,5 +1,6 @@
 import { access, readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { resolveAgentConfig } from '@/src/agent-config'
 import { EVALUATIONS, getAllModels } from '@/src/config'
 import { getEvalKey } from '@/src/eval-identity'
 import { getAllAgentTypes } from '@/src/interfaces'
@@ -76,11 +77,12 @@ export async function auditSuite(cwd = process.cwd()): Promise<AuditResult> {
       : path.join(evalDir, 'graders.ts')
     if (!(await exists(gradersPath))) errors.push(`Missing graders: ${getEvalKey(evaluation)}`)
 
-    if (evaluation.agentEligible) {
-      if (!evaluation.variant) {
-        errors.push(`Agent evaluation needs a variant: ${getEvalKey(evaluation)}`)
-      } else if (!(await exists(path.join(evalDir, 'fixtures', evaluation.variant)))) {
-        errors.push(`Agent evaluation needs fixtures: ${getEvalKey(evaluation)}`)
+    if (evaluation.agent) {
+      try {
+        await resolveAgentConfig(evalDir, evaluation.agent)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        errors.push(`${getEvalKey(evaluation)}: ${message}`)
       }
     }
   }
@@ -104,7 +106,7 @@ export async function auditSuite(cwd = process.cwd()): Promise<AuditResult> {
 if (import.meta.main) {
   const result = await auditSuite()
   console.log(
-    `Suite: ${getAllModels().length} models, ${EVALUATIONS.length} tasks, ${EVALUATIONS.filter((evaluation) => evaluation.agentEligible).length} agent tasks`,
+    `Suite: ${getAllModels().length} models, ${EVALUATIONS.length} tasks, ${EVALUATIONS.filter((evaluation) => evaluation.agent).length} agent tasks`,
   )
   for (const warning of result.warnings) console.warn(`WARN ${warning}`)
   for (const error of result.errors) console.error(`ERROR ${error}`)

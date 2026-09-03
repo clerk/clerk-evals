@@ -11,20 +11,19 @@
  * - Context file: AGENTS.md (via setupAgentContext)
  */
 import { execSync, spawn } from 'node:child_process'
-import path from 'node:path'
-import type { Graders } from '@/src/graders'
 import type { RunnerResult } from '@/src/interfaces'
 import type { AgentExecResult, AgentRunnerArgs } from '@/src/interfaces/agent'
-import { computeScore, runGraders } from '@/src/runners/shared'
 import { OK } from '@/src/utils/result'
 import {
+  AGENT_KILL_GRACE,
   buildAgentEnvironment,
-  buildAgentGradingArtifact,
   buildAgentPrompt,
+  buildAgentTranscript,
   cleanupTempWorkDir,
-  copyFixtures,
+  copyWorkspace,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
+  gradeAgentWorkspace,
   setupAgentContext,
   setupSkills,
 } from './shared'
@@ -121,6 +120,8 @@ async function execCodex(
     })
 
     let stdout = ''
+    let timedOut = false
+    let forceKillId: ReturnType<typeof setTimeout> | undefined
 
     proc.stdout.on('data', (data: Buffer) => {
       stdout += data.toString()
@@ -130,33 +131,33 @@ async function execCodex(
     proc.stderr.on('data', () => {})
 
     const timeoutId = setTimeout(() => {
+      timedOut = true
       proc.kill('SIGTERM')
-      const fullOutput = parseCodexJsonl(stdout)
-      resolve({
-        success: false,
-        output: fullOutput,
-        duration: Date.now() - startTime,
-        error: `Timeout after ${timeout}ms`,
-        exitCode: -1,
-      })
+      forceKillId = setTimeout(() => proc.kill('SIGKILL'), AGENT_KILL_GRACE)
     }, timeout)
 
     proc.on('close', (code) => {
       clearTimeout(timeoutId)
+      if (forceKillId) clearTimeout(forceKillId)
       const duration = Date.now() - startTime
       const fullOutput = parseCodexJsonl(stdout)
 
       resolve({
-        success: code === 0,
+        success: !timedOut && code === 0,
         output: fullOutput,
         duration,
-        exitCode: code ?? -1,
-        error: code !== 0 ? `Exit code: ${code}` : undefined,
+        exitCode: timedOut ? -1 : (code ?? -1),
+        error: timedOut
+          ? `Timeout after ${timeout}ms`
+          : code !== 0
+            ? `Exit code: ${code}`
+            : undefined,
       })
     })
 
     proc.on('error', (err) => {
       clearTimeout(timeoutId)
+      if (forceKillId) clearTimeout(forceKillId)
       const fullOutput = parseCodexJsonl(stdout)
       resolve({
         success: false,
@@ -189,8 +190,9 @@ export default async function exec({
   executablePath,
   envPath,
   model,
-  fixturesPath,
+  workspacePath,
   gradersPath,
+  verification,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -210,8 +212,8 @@ export default async function exec({
     workDir = await createTempWorkDir(evalName)
 
     // 2b. Copy fixtures into work dir
-    if (fixturesPath) {
-      await copyFixtures(workDir, fixturesPath)
+    if (workspacePath) {
+      await copyWorkspace(workDir, workspacePath)
     }
 
     // 2c. Codex requires a git repo to run
@@ -252,23 +254,40 @@ export default async function exec({
       return { ok: false as const, error: result.error || 'Codex execution failed' }
     }
 
-    const gradingArtifact = await buildAgentGradingArtifact(workDir, result.output)
-
-    const graderModule = gradersPath
-      ? ((await import(gradersPath)) as { graders: Graders })
-      : ((await import(path.join(evalPath, 'graders.ts'))) as { graders: Graders })
-    const graderResults = await runGraders(graderModule.graders, gradingArtifact)
-    const score = computeScore(graderResults)
+    const grading = await gradeAgentWorkspace({
+      workDir,
+      finalResponse: result.output,
+      evalPath,
+      gradersPath,
+      verification,
+      envPath,
+    })
 
     // 6. Return result
     return OK({
-      score,
+      score: grading.score,
+      durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
       debug: debug
         ? {
             prompt,
-            response: gradingArtifact,
-            graders: graderResults,
-            transcript: buildTranscript(prompt, result, graderResults, gradingArtifact),
+            response: grading.gradingArtifact,
+            graders: grading.graderResults,
+            transcript: buildAgentTranscript({
+              agentLabel: 'Codex',
+              prompt,
+              result,
+              graderResults: grading.graderResults,
+              gradingArtifact: grading.gradingArtifact,
+              hiddenVerification: grading.hiddenVerification,
+              score: grading.score,
+            }),
+            hiddenVerification: grading.hiddenVerification
+              ? {
+                  passed: grading.hiddenVerification.passed,
+                  durationMs: grading.hiddenVerification.durationMs,
+                  exitCode: grading.hiddenVerification.exitCode,
+                }
+              : undefined,
           }
         : undefined,
     })
@@ -284,42 +303,4 @@ export default async function exec({
       console.log(`[debug] Work dir preserved: ${workDir}`)
     }
   }
-}
-
-/**
- * Build a debug transcript for Codex execution.
- */
-function buildTranscript(
-  prompt: string,
-  result: AgentExecResult,
-  graderResults: [string, boolean][],
-  gradingArtifact: string,
-): string {
-  const passed = graderResults.filter(([, p]) => p).length
-  const scorePercent = ((passed / graderResults.length) * 100).toFixed(1)
-
-  return `# Codex Agent Transcript
-
-## Execution Info
-- **Duration**: ${(result.duration / 1000).toFixed(2)}s
-- **Exit Code**: ${result.exitCode}
-- **Success**: ${result.success}
-
-## Prompt
-\`\`\`markdown
-${prompt.trim()}
-\`\`\`
-
-## Output
-\`\`\`
-${gradingArtifact.slice(0, 10000)}${gradingArtifact.length > 10000 ? '\n... (truncated)' : ''}
-\`\`\`
-
-## Grader Results
-**Score: ${scorePercent}%** (${passed}/${graderResults.length})
-
-| Grader | Result |
-|--------|--------|
-${graderResults.map(([name, p]) => `| ${name} | ${p ? 'PASS' : 'FAIL'} |`).join('\n')}
-`
 }

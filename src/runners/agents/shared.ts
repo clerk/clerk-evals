@@ -4,13 +4,24 @@
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { spawn } from 'node:child_process'
 import { createSkillsClaudeMd } from '@/src/config/skills'
-import type { AgentMCPConfig, AgentType } from '@/src/interfaces/agent'
+import type {
+  AgentExecResult,
+  AgentMCPConfig,
+  AgentType,
+  ResolvedAgentVerificationConfig,
+} from '@/src/interfaces/agent'
+import type { Graders } from '@/src/graders'
+import { computeScore, runGraders } from '@/src/runners/shared'
 
 /**
  * Default timeout for agent execution (10 minutes).
  */
 export const DEFAULT_AGENT_TIMEOUT = 600_000
+export const AGENT_KILL_GRACE = 5_000
+const DEFAULT_HIDDEN_VERIFICATION_TIMEOUT = 120_000
+const MAX_HIDDEN_VERIFICATION_OUTPUT = 100_000
 
 /**
  * MCP config template for Claude Code.
@@ -86,12 +97,9 @@ export async function cleanupTempWorkDir(workDir: string): Promise<void> {
   }
 }
 
-/**
- * Copies fixture files into the agent's working directory.
- * Must be called before createTempMCPConfig/setupSkills so overlays work correctly.
- */
-export async function copyFixtures(workDir: string, fixturesPath: string): Promise<void> {
-  await fs.cp(fixturesPath, workDir, { recursive: true, force: true })
+/** Copy the workspace before MCP and skill setup so their files stay as overlays. */
+export async function copyWorkspace(workDir: string, workspacePath: string): Promise<void> {
+  await fs.cp(workspacePath, workDir, { recursive: true, force: true })
 }
 
 const SNAPSHOT_EXCLUSIONS = new Set([
@@ -99,6 +107,8 @@ const SNAPSHOT_EXCLUSIONS = new Set([
   '.mcp.json',
   '.skills',
   'AGENTS.md',
+  'bun.lock',
+  'bun.lockb',
   'CLAUDE.md',
   'node_modules',
   'package-lock.json',
@@ -154,6 +164,170 @@ export async function buildAgentGradingArtifact(
   return [`## Final response\n\n${finalResponse}`, `## Final workspace\n\n${workspace}`].join(
     '\n\n',
   )
+}
+
+export type HiddenVerificationResult = {
+  passed: boolean
+  output: string
+  durationMs: number
+  exitCode?: number
+}
+
+export type AgentWorkspaceGradingResult = {
+  gradingArtifact: string
+  graderResults: [string, boolean][]
+  score: number
+  hiddenVerification?: HiddenVerificationResult
+}
+
+function buildVerificationEnvironment(envPath: string, workDir: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    CLERK_EVAL_WORKSPACE: workDir,
+    NODE_ENV: 'test',
+    PATH: envPath,
+  }
+  for (const name of ['HOME', 'LANG', 'LC_ALL', 'NO_COLOR', 'SSL_CERT_FILE', 'TERM', 'TMPDIR']) {
+    if (process.env[name]) env[name] = process.env[name]
+  }
+  return env
+}
+
+export async function runHiddenVerification(
+  workDir: string,
+  config: ResolvedAgentVerificationConfig,
+  envPath: string,
+): Promise<HiddenVerificationResult> {
+  const startTime = Date.now()
+  const testsDir = await createTempWorkDir('hidden-tests')
+
+  try {
+    await fs.cp(config.testsPath, testsDir, { recursive: true, force: true })
+
+    return await new Promise((resolve, reject) => {
+      const proc = spawn(process.execPath, ['test', testsDir], {
+        cwd: testsDir,
+        env: buildVerificationEnvironment(envPath, workDir),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+
+      let output = ''
+      let timedOut = false
+      let forceKillId: ReturnType<typeof setTimeout> | undefined
+
+      const appendOutput = (data: Buffer) => {
+        if (output.length >= MAX_HIDDEN_VERIFICATION_OUTPUT) return
+        output += data.toString().slice(0, MAX_HIDDEN_VERIFICATION_OUTPUT - output.length)
+      }
+
+      proc.stdout.on('data', appendOutput)
+      proc.stderr.on('data', appendOutput)
+
+      const timeoutId = setTimeout(() => {
+        timedOut = true
+        proc.kill('SIGTERM')
+        forceKillId = setTimeout(() => proc.kill('SIGKILL'), AGENT_KILL_GRACE)
+      }, DEFAULT_HIDDEN_VERIFICATION_TIMEOUT)
+
+      proc.on('close', (code) => {
+        clearTimeout(timeoutId)
+        if (forceKillId) clearTimeout(forceKillId)
+        const sanitizedOutput = output
+          .replaceAll(testsDir, '<hidden-tests>')
+          .replaceAll(workDir, '<workspace>')
+        resolve({
+          passed: !timedOut && code === 0,
+          output: timedOut
+            ? `${sanitizedOutput}\nTimed out after ${DEFAULT_HIDDEN_VERIFICATION_TIMEOUT}ms`
+            : sanitizedOutput,
+          durationMs: Date.now() - startTime,
+          exitCode: code ?? -1,
+        })
+      })
+
+      proc.on('error', (error) => {
+        clearTimeout(timeoutId)
+        if (forceKillId) clearTimeout(forceKillId)
+        reject(error)
+      })
+    })
+  } finally {
+    await cleanupTempWorkDir(testsDir)
+  }
+}
+
+export async function gradeAgentWorkspace(args: {
+  workDir: string
+  finalResponse: string
+  evalPath: string
+  gradersPath?: string
+  verification?: ResolvedAgentVerificationConfig
+  envPath: string
+}): Promise<AgentWorkspaceGradingResult> {
+  const gradingArtifact = await buildAgentGradingArtifact(args.workDir, args.finalResponse)
+  const graderModule = args.gradersPath
+    ? ((await import(args.gradersPath)) as { graders: Graders })
+    : ((await import(path.join(args.evalPath, 'graders.ts'))) as { graders: Graders })
+
+  const graderResults = await runGraders(graderModule.graders, gradingArtifact)
+  const hiddenVerification = args.verification
+    ? await runHiddenVerification(args.workDir, args.verification, args.envPath)
+    : undefined
+
+  const hiddenGraderResult: [string, boolean] | undefined = hiddenVerification
+    ? ['hidden_functional_tests', hiddenVerification.passed]
+    : undefined
+  const resultsWithHidden = hiddenGraderResult
+    ? [...graderResults, hiddenGraderResult]
+    : graderResults
+  const score = hiddenVerification?.passed === false ? 0 : computeScore(graderResults)
+
+  return {
+    gradingArtifact,
+    graderResults: resultsWithHidden,
+    score,
+    hiddenVerification,
+  }
+}
+
+export function buildAgentTranscript(args: {
+  agentLabel: string
+  prompt: string
+  result: AgentExecResult
+  graderResults: [string, boolean][]
+  gradingArtifact: string
+  hiddenVerification?: HiddenVerificationResult
+  score: number
+}): string {
+  const scorePercent = (args.score * 100).toFixed(1)
+  const hiddenSummary = args.hiddenVerification
+    ? `\n\n## Hidden Verification\n**Passed**: ${args.hiddenVerification.passed}\n**Duration**: ${(args.hiddenVerification.durationMs / 1000).toFixed(2)}s\n**Exit Code**: ${args.hiddenVerification.exitCode ?? 'unknown'}`
+    : ''
+
+  return `# ${args.agentLabel} Agent Transcript
+
+## Execution Info
+- **Duration**: ${(args.result.duration / 1000).toFixed(2)}s
+- **Exit Code**: ${args.result.exitCode}
+- **Success**: ${args.result.success}
+
+## Prompt
+\`\`\`markdown
+${args.prompt.trim()}
+\`\`\`
+
+## Output
+\`\`\`
+${args.gradingArtifact.slice(0, 10000)}${args.gradingArtifact.length > 10000 ? '\n... (truncated)' : ''}
+\`\`\`
+${hiddenSummary}
+
+## Grader Results
+**Score: ${scorePercent}%**
+
+| Grader | Result |
+|--------|--------|
+${args.graderResults.map(([name, p]) => `| ${name} | ${p ? 'PASS' : 'FAIL'} |`).join('\n')}
+`
 }
 
 export function buildAgentEnvironment(agentType: AgentType, envPath: string): NodeJS.ProcessEnv {

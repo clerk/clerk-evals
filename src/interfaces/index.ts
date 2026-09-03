@@ -1,14 +1,18 @@
 import type { Provider } from '@/src/providers'
 import type { Result } from '@/src/utils/result'
+import type { AgentEvaluationConfig } from './agent'
 
 // Re-export agent types
 export type {
+  AgentEvaluationConfig,
   AgentExecResult,
   AgentInfo,
   AgentMCPConfig,
   AgentRunnerArgs,
   AgentSkillsConfig,
   AgentType,
+  ResolvedAgentEvaluationConfig,
+  ResolvedAgentVerificationConfig,
 } from './agent'
 export { AGENTS, getAgentInfo, getAllAgentTypes } from './agent'
 
@@ -40,6 +44,11 @@ export type RunnerDebugPayload = {
   toolResults?: ToolResultInfo[]
   transcript?: string
   finishReason?: string
+  hiddenVerification?: {
+    passed: boolean
+    durationMs: number
+    exitCode?: number
+  }
 }
 
 export type TokenUsage = {
@@ -123,7 +132,7 @@ export type Evaluation = {
   path: string
   /** Variant subdirectory for fixture-based evals (e.g., 'nextjs', 'android') */
   variant?: string
-  agentEligible?: boolean
+  agent?: AgentEvaluationConfig
 }
 
 /**

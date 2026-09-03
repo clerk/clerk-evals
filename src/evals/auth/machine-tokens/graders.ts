@@ -1,4 +1,7 @@
-import { contains, defineGraders } from '@/src/graders'
+import { defineGraders, getFileContent } from '@/src/graders'
+
+const machineRoute = (actual: string) => getFileContent(actual, 'app/api/machine-data/route.ts')
+const proxy = (actual: string) => getFileContent(actual, 'proxy.ts')
 
 function acceptedTokenTypes(actual: string): string[] | null {
   const match = /acceptsToken\s*:\s*\[([^\]]+)\]/.exec(actual)
@@ -29,22 +32,27 @@ function unauthenticatedBranch(actual: string): string | null {
 }
 
 export const graders = defineGraders({
-  machine_route_file: contains('app/api/machine-data/route.ts'),
-  proxy_file: contains('proxy.ts'),
+  machine_route_file: async (actual) => machineRoute(actual) !== null,
+  proxy_file: async (actual) => proxy(actual) !== null,
   imports_auth_from_server: async (actual) =>
-    /import\s*\{[^}]*\bauth\b[^}]*\}\s*from\s*['"]@clerk\/nextjs\/server['"]/.test(actual),
-  accepts_api_key_and_m2m_only: async (actual) => acceptsOnlyRequiredMachineTokens(actual),
-  checks_is_authenticated: async (actual) => unauthenticatedBranch(actual) !== null,
+    /import\s*\{[^}]*\bauth\b[^}]*\}\s*from\s*['"]@clerk\/nextjs\/server['"]/.test(
+      machineRoute(actual) ?? '',
+    ),
+  accepts_api_key_and_m2m_only: async (actual) =>
+    acceptsOnlyRequiredMachineTokens(machineRoute(actual) ?? ''),
+  checks_is_authenticated: async (actual) =>
+    unauthenticatedBranch(machineRoute(actual) ?? '') !== null,
   unauthenticated_returns_401: async (actual) => {
-    const branch = unauthenticatedBranch(actual)
+    const branch = unauthenticatedBranch(machineRoute(actual) ?? '')
     return branch !== null && /status\s*:\s*401/.test(branch)
   },
-  success_returns_200: async (actual) => /status\s*:\s*200/.test(actual),
+  success_returns_200: async (actual) => /status\s*:\s*200/.test(machineRoute(actual) ?? ''),
   imports_clerk_middleware: async (actual) =>
     /import\s*\{[^}]*\bclerkMiddleware\b[^}]*\}\s*from\s*['"]@clerk\/nextjs\/server['"]/.test(
-      actual,
+      proxy(actual) ?? '',
     ),
-  calls_clerk_middleware: async (actual) => /\bclerkMiddleware\s*\(\s*\)/.test(actual),
+  calls_clerk_middleware: async (actual) => /\bclerkMiddleware\s*\(\s*\)/.test(proxy(actual) ?? ''),
   no_manual_authorization_header: async (actual) =>
-    !/headers\.get\s*\(\s*['"]authorization['"]\s*\)/i.test(actual),
+    machineRoute(actual) !== null &&
+    !/headers\.get\s*\(\s*['"]authorization['"]\s*\)/i.test(machineRoute(actual) ?? ''),
 })

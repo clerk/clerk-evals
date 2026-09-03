@@ -31,6 +31,24 @@ export type AgentSkillsConfig = {
   evalPath: string
 }
 
+export type AgentVerificationConfig = {
+  testsPath: string
+}
+
+export type AgentEvaluationConfig = {
+  workspacePath: string
+  verification?: AgentVerificationConfig
+}
+
+export type ResolvedAgentVerificationConfig = {
+  testsPath: string
+}
+
+export type ResolvedAgentEvaluationConfig = {
+  workspacePath: string
+  verification?: ResolvedAgentVerificationConfig
+}
+
 /**
  * Arguments passed to agent runners.
  */
@@ -52,10 +70,10 @@ export type AgentRunnerArgs = {
   /** PATH environment variable from main process */
   envPath?: string
   model: string
-  /** Path to fixtures directory to copy into work dir before execution */
-  fixturesPath?: string
+  workspacePath?: string
   /** Full path to the variant grader file (e.g., .../graders/nextjs.ts) */
   gradersPath?: string
+  verification?: ResolvedAgentVerificationConfig
 }
 
 /**

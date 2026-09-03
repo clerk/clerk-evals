@@ -5,7 +5,7 @@ This repository evaluates how well LLMs write Clerk code. Follow this checklist 
 ## 1) Create the folder
 
 - Choose a concise, descriptive slug, e.g. `src/evals/waitlist/` (no numeric prefix).
-- Each evaluation folder contains exactly two required files:
+- Each direct evaluation folder contains two required files:
   - `PROMPT.md`
   - `graders.ts`
 
@@ -48,7 +48,30 @@ export const graders = defineGraders({
 - Keys are descriptive test names.
 - Values are grader functions or registered judges; they must return `boolean`.
 
-## 4) Register the evaluation
+Prefer deterministic graders for file paths, imports, API calls, and control flow. Use a judge only when code checks cannot express the requirement.
+
+Direct evaluations inspect structured code responses. They do not compile or run the generated project. Add an agent fixture when compilation or runtime behavior is a required result.
+
+## 4) Add a grader contract
+
+Add one accepted response and plausible wrong responses when a task uses deterministic graders:
+
+```text
+grader-contract/
+  accepted/reference.md
+  rejected/missing-authorization.md
+graders.test.ts
+```
+
+An accepted fixture must pass every grader. Each rejected fixture has a `fail` list in YAML frontmatter. Every grader that is not in that list must still pass. This rule prevents a weak negative fixture from hiding false positives.
+
+Run the contract with:
+
+```bash
+bun run grader:contract --eval waitlist
+```
+
+## 5) Register the evaluation
 
 Append an entry in `src/config/evaluations.ts`:
 
@@ -60,15 +83,48 @@ Append an entry in `src/config/evaluations.ts`:
 }
 ```
 
-## 5) Run and iterate
+## 6) Add an agent fixture when repository work matters
+
+Agent evaluations need a complete repository. Put the repository and its hidden Bun tests in separate directories:
+
+```text
+agent/
+  workspace/
+    package.json
+    tsconfig.json
+    app/
+  hidden-tests/
+    behavior.test.ts
+```
+
+Register the workspace and hidden tests with eval-relative paths:
+
+```ts
+{
+  framework: 'Next.js',
+  category: 'Waitlist',
+  path: 'evals/waitlist',
+  agent: {
+    workspacePath: 'agent/workspace',
+    verification: { testsPath: 'agent/hidden-tests' },
+  },
+}
+```
+
+The harness copies only `workspace` before the coding agent starts. It stages the hidden tests outside that workspace after the agent exits. A hidden test failure sets the task score to zero. A passing hidden test does not add score weight.
+
+Hidden tests must check runtime behavior. They can mock external services and import files from `process.env.CLERK_EVAL_WORKSPACE`, which is the final agent workspace. Do not put grader answers or test files in the workspace fixture.
+
+## 7) Run and iterate
 
 - Smoke test: `bun start --eval "waitlist" --smoke --debug`
 - Run all: `bun start`
 - Debug mode: add `--debug` to collect detailed runner output while recording the run in SQLite.
 
-## 6) Style and checks
+## 8) Style and checks
 
 - Use TypeScript ESNext and the `@/*` path alias (see `tsconfig.json`).
-- Format/lint before commit: `bun run lint:fix`.
+- Run `bun test`, `bun run typecheck`, `bun run audit`, and `bun run lint` before commit.
+- Apply formatting and safe lint fixes with `bun run lint:fix`.
 
-That’s it—your evaluation is ready to score models.
+The evaluation is now ready to score models.
