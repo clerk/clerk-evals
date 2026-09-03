@@ -22,6 +22,7 @@
     "export": "bun export-from-db.ts",
     "merge-scores": "bun src/merge-scores.ts",
     "audit": "bun src/audit-suite.ts",
+    "grader:contract": "bun src/grader-contract/cli.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware . && oxfmt --check .",

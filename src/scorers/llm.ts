@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { ClosedQA } from 'autoevals'
+import type { Grader } from '@/src/graders'
 
 const DEFAULT_JUDGE_MODEL = 'gpt-4.1'
 
@@ -8,6 +9,11 @@ const judgeModel = process.env.EVAL_JUDGE_MODEL || DEFAULT_JUDGE_MODEL
 
 /** In-memory cache for identical (criteria + response) pairs within a run */
 const judgeCache = new Map<string, boolean>()
+const API_BACKED_GRADER: unique symbol = Symbol('api-backed-grader')
+
+type ApiBackedGrader = Grader & {
+  readonly [API_BACKED_GRADER]: true
+}
 
 export type LLMJudgeConfig =
   | string
@@ -37,7 +43,7 @@ export const makeScorer = (config: LLMJudgeConfig) => {
     openAiApiKey: process.env.OPENAI_API_KEY,
     openAiBaseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
   })
-  return async (actual: string) => {
+  const grader = async (actual: string) => {
     const responseHash = createHash('sha256').update(actual).digest('hex')
     const cacheKey = `${model}::${criteria}::${responseHash}`
     const cached = judgeCache.get(cacheKey)
@@ -48,6 +54,13 @@ export const makeScorer = (config: LLMJudgeConfig) => {
     judgeCache.set(cacheKey, result)
     return result
   }
+
+  Object.defineProperty(grader, API_BACKED_GRADER, { value: true })
+  return grader as ApiBackedGrader
+}
+
+export function isApiBackedGrader(grader: Grader): boolean {
+  return API_BACKED_GRADER in grader
 }
 
 export function getJudgeCacheStats() {
