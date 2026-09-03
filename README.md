@@ -82,6 +82,7 @@ bun start [options]
 | `--dry`                  | Print task summary without running                           |
 | `--smoke`                | Run only the first task                                      |
 | `--fail-under 70`        | Fail if the average is below the percentage threshold        |
+| `--timeout 300000`       | Set the maximum time for each task in milliseconds           |
 
 ```bash
 # Baseline (no tools)
@@ -99,6 +100,9 @@ MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 # Dry run (see what would execute)
 bun start --dry
 ```
+
+Each task has a five-minute limit by default. Use `--timeout` for one run or set
+`EVAL_TASK_TIMEOUT_MS` to change the default.
 
 ### Model policy
 

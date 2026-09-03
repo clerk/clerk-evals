@@ -104,6 +104,7 @@ export type ExecArgs = RunnerArgs & {
   mcpServerUrl?: string
   skillsPath?: string
   maxToolRounds?: number
+  timeoutMs?: number
 }
 
 /**

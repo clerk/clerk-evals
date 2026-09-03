@@ -33,6 +33,7 @@ const { values } = parseArgs({
     smoke: { type: 'boolean', default: false },
     'include-legacy': { type: 'boolean', default: false },
     'fail-under': { type: 'string' },
+    timeout: { type: 'string', short: 't' },
     model: { type: 'string', short: 'm' },
     provider: { type: 'string', short: 'p' },
     eval: { type: 'string', short: 'e' },
@@ -56,6 +57,7 @@ const dryRun = values.dry
 const smokeTest = values.smoke
 const includeLegacy = values['include-legacy']
 const failUnder = values['fail-under']
+const timeoutMs = values.timeout ? Number(values.timeout) : undefined
 const modelFilter = values.model
 const providerFilter = values.provider
 const evalFilter = values.eval
@@ -261,6 +263,7 @@ async function runTask(task: (typeof tasksToRun)[number]) {
     provider: task.provider as Provider,
     model: task.model,
     debug: collectDebug,
+    timeoutMs,
     ...(mcpEnabled && { mcpServerUrl: mcpUrl }),
     ...(skillsEnabled && { skillsPath }),
   }
