@@ -86,10 +86,7 @@ export const MODELS: ProviderModels = {
     { provider: 'anthropic', name: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
     { provider: 'anthropic', name: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
   ],
-  vercel: [
-    { provider: 'vercel', name: 'v0-1.5-md', label: 'v0-1.5-md' },
-    { provider: 'vercel', name: 'v0-1.5-lg', label: 'v0-1.5-lg' },
-  ],
+  vercel: [],
   google: [
     { provider: 'google', name: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
     { provider: 'google', name: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
