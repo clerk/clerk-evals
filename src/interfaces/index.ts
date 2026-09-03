@@ -108,6 +108,7 @@ export type Framework = 'Next.js' | 'React' | 'iOS' | 'Android'
 export type Category =
   | 'Quickstarts'
   | 'Auth'
+  | 'Machine Auth'
   | 'User Management'
   | 'UI Components'
   | 'Organizations'

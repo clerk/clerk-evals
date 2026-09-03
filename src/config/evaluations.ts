@@ -15,9 +15,10 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Next.js', category: 'Quickstarts', path: 'evals/quickstarts/keyless' },
   { framework: 'React', category: 'Quickstarts', path: 'evals/quickstarts/react-vite' },
 
-  // Auth (2 evals)
+  // Auth (3 evals)
   { framework: 'Next.js', category: 'Auth', path: 'evals/auth/protect' },
   { framework: 'Next.js', category: 'Auth', path: 'evals/auth/routes' },
+  { framework: 'Next.js', category: 'Machine Auth', path: 'evals/auth/machine-tokens' },
 
   // User Management (1 eval)
   { framework: 'Next.js', category: 'User Management', path: 'evals/user-management/profile-page' },

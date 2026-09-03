@@ -1,6 +1,6 @@
 # clerk-evals
 
-Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 31 tasks across Next.js, React, iOS, and Android. The current model catalog includes OpenAI, Anthropic, Google, and Vercel models.
+Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 32 tasks across Next.js, React, iOS, and Android. The current model catalog includes OpenAI, Anthropic, Google, and Vercel models.
 
 ![diagram](./docs/diagram.jpg)
 
