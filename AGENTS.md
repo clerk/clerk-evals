@@ -55,20 +55,20 @@ Both API keys must be set in `.env`.
 
 ```bash
 # Run agent evals with Claude Code
-bun agent:claude
-bun agent:claude --eval add-auth --debug
+bun agent:claude --model claude-sonnet-5
+bun agent:claude --model claude-sonnet-5 --eval add-auth --debug
 
 # Run agent evals with Codex
-bun agent:codex
-bun agent:codex --eval add-auth --debug
+bun agent:codex --model gpt-5.6-sol
+bun agent:codex --model gpt-5.6-sol --eval add-auth --debug
 
 # Multi-trial (3 runs per eval, pass@k metrics)
-bun agent:claude --runs 3
-bun agent:codex --runs 3
+bun agent:claude --model claude-sonnet-5 --runs 3
+bun agent:codex --model gpt-5.6-sol --runs 3
 
 # With skills or MCP
-bun agent:claude --skills
-bun agent:claude --skills --mcp
+bun agent:claude --model claude-sonnet-5 --skills
+bun agent:claude --model claude-sonnet-5 --skills --mcp
 
 # Cross-agent leaderboard export
 bun export:leaderboard

@@ -3,7 +3,7 @@ import type { Score } from '@/src/interfaces'
 
 export type RunMetadata = {
   runId: string
-  mode: 'baseline' | 'mcp' | 'skills' | string
+  mode: string
   models: string[]
   evalKeys: string[]
   suiteHash: string
@@ -45,6 +45,9 @@ export function initDB() {
   }
   if (!colNames.has('eval_key')) {
     db.run('ALTER TABLE results ADD COLUMN eval_key TEXT')
+  }
+  if (!colNames.has('trial')) {
+    db.run('ALTER TABLE results ADD COLUMN trial INTEGER')
   }
 
   db.run(`
@@ -126,8 +129,8 @@ export function saveRun(metadata: RunMetadata) {
 
 export function saveResult(runId: string, score: Score, evaluationPath?: string, evalKey?: string) {
   const query = db.query(`
-    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms, evaluation_path, eval_key)
-    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms, $evaluation_path, $eval_key)
+    INSERT INTO results (run_id, model, label, framework, category, value, timestamp, tokens_in, tokens_out, cost_usd, duration_ms, evaluation_path, eval_key, trial)
+    VALUES ($run_id, $model, $label, $framework, $category, $value, $timestamp, $tokens_in, $tokens_out, $cost_usd, $duration_ms, $evaluation_path, $eval_key, $trial)
   `)
 
   query.run({
@@ -144,6 +147,7 @@ export function saveResult(runId: string, score: Score, evaluationPath?: string,
     $duration_ms: score.durationMs ?? null,
     $evaluation_path: evaluationPath ?? null,
     $eval_key: evalKey ?? score.evalKey ?? null,
+    $trial: score.trial ?? null,
   })
 }
 
@@ -186,7 +190,7 @@ export type DBScore = Score & { evaluationPath?: string; runId?: string }
 
 export function getResults(runId?: string): DBScore[] {
   let queryStr =
-    'SELECT run_id, model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key FROM results'
+    'SELECT run_id, model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key, trial FROM results'
   if (runId) {
     queryStr += ' WHERE run_id = $run_id'
   }
@@ -204,7 +208,7 @@ export function getResults(runId?: string): DBScore[] {
  */
 export function getResultsSince(since: string): DBScore[] {
   const query = db.query(
-    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key, run_id FROM results WHERE timestamp >= $since ORDER BY timestamp DESC',
+    'SELECT model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key, run_id, trial FROM results WHERE timestamp >= $since ORDER BY timestamp DESC',
   )
   return mapRows(query.all({ $since: since }) as Array<Record<string, unknown>>)
 }
@@ -238,6 +242,7 @@ function mapRows(results: Array<Record<string, unknown>>): DBScore[] {
     ...(r.durationMs != null && { durationMs: r.durationMs as number }),
     ...(r.evaluation_path != null && { evaluationPath: r.evaluation_path as string }),
     ...(r.eval_key != null && { evalKey: r.eval_key as string }),
+    ...(r.trial != null && { trial: r.trial as number }),
     ...(r.run_id != null && { runId: r.run_id as string }),
   }))
 }

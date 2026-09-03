@@ -1,7 +1,7 @@
 /**
  * Agent Evaluation Entry Point
  *
- * Runs evaluations using CLI agents (Claude Code, Cursor, etc.)
+ * Runs evaluations using supported CLI agents.
  * instead of API-based model calls.
  *
  * Usage:
@@ -23,6 +23,7 @@ import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
 import { summarizeTrials, type TrialResult } from '@/src/metrics/pass-at-k'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
+import { formatError } from '@/src/utils/error'
 
 /**
  * Resolve the path to an agent CLI executable.
@@ -54,6 +55,7 @@ const { values } = parseArgs({
     eval: { type: 'string', short: 'e' },
     timeout: { type: 'string', short: 't' },
     runs: { type: 'string', short: 'r' },
+    model: { type: 'string', short: 'm' },
   },
   strict: true,
   allowPositionals: true,
@@ -67,6 +69,9 @@ const debugEnabled = values.debug
 const evalFilter = values.eval
 const timeoutArg = values.timeout
 const runsCount = values.runs ? Number.parseInt(values.runs, 10) : 1
+const model =
+  values.model ??
+  (agentArg === 'claude-code' ? process.env.ANTHROPIC_MODEL : process.env.OPENAI_MODEL)
 
 const normalizeEvalPath = (value: string) => {
   if (value.startsWith('./')) return normalizeEvalPath(value.slice(2))
@@ -90,6 +95,12 @@ if (!AGENTS[agentType]) {
 
 const agentInfo = getAgentInfo(agentType)
 
+if (!model) {
+  const envName = agentType === 'claude-code' ? 'ANTHROPIC_MODEL' : 'OPENAI_MODEL'
+  console.error(`Error: --model or ${envName} is required for reproducible agent runs`)
+  process.exit(1)
+}
+
 // Resolve executable path in main process (where PATH is available)
 const executablePath = resolveAgentPath(agentType)
 if (!executablePath) {
@@ -101,7 +112,7 @@ console.log(`Using ${agentInfo.label} at: ${executablePath}`)
 
 // Setup
 initDB()
-const evaluations = EVALUATIONS
+const evaluations = EVALUATIONS.filter((evaluation) => evaluation.agentEligible)
 
 // Filter evaluations
 const filteredEvaluations = (() => {
@@ -186,7 +197,7 @@ console.log(
 saveRun({
   runId,
   mode: `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}`,
-  models: [agentType],
+  models: [`${agentType}:${model}`],
   evalKeys: tasks.map((task) => task.evalKey),
   suiteHash,
   harnessCommit,
@@ -226,7 +237,7 @@ await Promise.all(
         timeout: timeoutArg ? Number.parseInt(timeoutArg, 10) : undefined,
         executablePath,
         envPath: process.env.PATH,
-        model: process.env.ANTHROPIC_MODEL,
+        model,
         fixturesPath: task.fixturesPath,
         gradersPath: task.gradersPath,
       }
@@ -237,12 +248,7 @@ await Promise.all(
         const result: RunnerResult = await pool.run(runnerArgs)
 
         if (!result.ok) {
-          const errorMsg =
-            result.error instanceof Error
-              ? result.error.message
-              : typeof result.error === 'object'
-                ? JSON.stringify(result.error)
-                : String(result.error)
+          const errorMsg = formatError(result.error)
           console.error(`[error] ${task.agent}${trialLabel}: ${errorMsg}`)
 
           // Classify the failure
@@ -261,8 +267,8 @@ await Promise.all(
           if (skillsEnabled) errorLabelParts.push('Skills')
           if (mcpEnabled) errorLabelParts.push('MCP')
           saveError(runId, {
-            model: task.agent,
-            label: errorLabelParts.join(' + '),
+            model: `${task.agent}:${model}`,
+            label: `${errorLabelParts.join(' + ')} (${model})`,
             framework: task.framework,
             category: task.category,
             evaluationPath: task.evaluationPath,
@@ -284,14 +290,15 @@ await Promise.all(
         if (skillsEnabled) labelParts.push('Skills')
         if (mcpEnabled) labelParts.push('MCP')
         const score: Score = {
-          model: task.agent,
-          label: labelParts.join(' + '),
+          model: `${task.agent}:${model}`,
+          label: `${labelParts.join(' + ')} (${model})`,
           framework: task.framework,
           category: task.category,
           value: result.value.score,
           updatedAt: new Date().toISOString(),
           durationMs: result.value.durationMs,
           evalKey: task.evalKey,
+          trial,
         }
         saveResult(runId, score, task.evaluationPath, task.evalKey)
 
@@ -299,7 +306,7 @@ await Promise.all(
           trial,
           score: result.value.score,
           durationMs: result.value.durationMs ?? Date.now() - startTime,
-          success: result.value.score >= 0.5,
+          success: result.value.score === 1,
         })
       } finally {
         completed++

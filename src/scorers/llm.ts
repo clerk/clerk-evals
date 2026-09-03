@@ -1,13 +1,5 @@
-import { ClosedQA, init } from 'autoevals'
-import OpenAI from 'openai'
-
-// Explicitly initialize openai for autoevals (LLM-as-judge)
-init({
-  // @ts-expect-error
-  client: new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  }),
-})
+import { createHash } from 'node:crypto'
+import { ClosedQA } from 'autoevals'
 
 const DEFAULT_JUDGE_MODEL = 'gpt-4.1'
 
@@ -42,9 +34,12 @@ export const makeScorer = (config: LLMJudgeConfig) => {
 
   const scorer = ClosedQA.partial({
     model,
+    openAiApiKey: process.env.OPENAI_API_KEY,
+    openAiBaseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
   })
   return async (actual: string) => {
-    const cacheKey = `${model}::${criteria}::${actual.slice(0, 2000)}`
+    const responseHash = createHash('sha256').update(actual).digest('hex')
+    const cacheKey = `${model}::${criteria}::${responseHash}`
     const cached = judgeCache.get(cacheKey)
     if (cached !== undefined) return cached
 

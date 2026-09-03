@@ -122,6 +122,7 @@ export type Evaluation = {
   path: string
   /** Variant subdirectory for fixture-based evals (e.g., 'nextjs', 'android') */
   variant?: string
+  agentEligible?: boolean
 }
 
 /**
@@ -139,4 +140,5 @@ export type Score = {
   durationMs?: number
   /** Canonical eval identity, e.g. evals/add-auth::nextjs */
   evalKey?: string
+  trial?: number
 }

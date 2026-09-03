@@ -43,7 +43,7 @@ If `init` reports the framework unsupported or leaves setup incomplete, read the
 
 ## Step 4: Add visible auth controls
 
-The app needs sign-in, sign-up, and signed-in user controls (for example `<SignInButton>`, `<SignUpButton>`, and `<UserButton>` inside `<SignedOut>`/`<SignedIn>`), worked into the existing layout or navigation. `clerk init` does not add these to an existing project — create them per the quickstart if they are missing.
+The app needs sign-in, sign-up, and signed-in user controls. Use `<Show when="signed-out">` for `<SignInButton>` and `<SignUpButton>`. Use `<Show when="signed-in">` for `<UserButton>`. Work these controls into the existing layout or navigation. `clerk init` does not add them to an existing project, so create them if they are missing.
 
 ## Step 5: Verify the integration
 
@@ -75,6 +75,6 @@ Add to global CSS:
 - Next.js 15+: `auth()` is async. Always `await auth()`
 - `ClerkProvider` goes inside `<body>`, not wrapping `<html>`
 - Never expose `CLERK_SECRET_KEY` in client code
-- Use `@clerk/nextjs`, not `@clerk/clerk-react`
+- Use the current framework package, such as `@clerk/nextjs` or `@clerk/react`. Do not use legacy Core 2 package names.
 
 Full documentation: https://clerk.com/docs/llms.txt

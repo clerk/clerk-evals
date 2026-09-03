@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { Evaluation } from '@/src/interfaces'
 
@@ -16,6 +16,27 @@ async function readOptional(filePath: string): Promise<string> {
   }
 }
 
+async function readDirectory(directory: string, relativeDir = ''): Promise<[string, string][]> {
+  let entries
+  try {
+    entries = await readdir(directory, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const files: [string, string][] = []
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const absolutePath = path.join(directory, entry.name)
+    const relativePath = path.join(relativeDir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...(await readDirectory(absolutePath, relativePath)))
+    } else {
+      files.push([relativePath, await readOptional(absolutePath)])
+    }
+  }
+  return files
+}
+
 export async function getSuiteHash(
   evaluations: Pick<Evaluation, 'path' | 'variant'>[],
   cwd = process.cwd(),
@@ -26,18 +47,26 @@ export async function getSuiteHash(
     getEvalKey(a).localeCompare(getEvalKey(b)),
   )) {
     const evalDir = path.join(cwd, 'src', evaluation.path)
-    const prompt = await readOptional(path.join(evalDir, 'PROMPT.md'))
-    const graders = await readOptional(
-      evaluation.variant
-        ? path.join(evalDir, 'graders', `${evaluation.variant}.ts`)
-        : path.join(evalDir, 'graders.ts'),
-    )
 
     hash.update(getEvalKey(evaluation))
     hash.update('\0')
-    hash.update(prompt)
+    for (const [relativePath, content] of await readDirectory(evalDir)) {
+      hash.update(relativePath)
+      hash.update('\0')
+      hash.update(content)
+      hash.update('\0')
+    }
+  }
+
+  for (const relativePath of [
+    'src/graders/catalog.ts',
+    'src/graders/index.ts',
+    'src/runners/shared.ts',
+    'src/scorers/llm.ts',
+  ]) {
+    hash.update(relativePath)
     hash.update('\0')
-    hash.update(graders)
+    hash.update(await readOptional(path.join(cwd, relativePath)))
     hash.update('\0')
   }
 

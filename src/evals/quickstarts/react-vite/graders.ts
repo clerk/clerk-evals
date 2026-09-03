@@ -1,8 +1,8 @@
-import { contains, containsAny, defineGraders, judge, not } from '@/src/graders'
+import { contains, containsAny, defineGraders, judge, matches, not } from '@/src/graders'
 
 export const graders = defineGraders({
   // Correct package
-  clerk_react_package: contains('@clerk/clerk-react'),
+  clerk_react_package: contains('@clerk/react'),
 
   // ClerkProvider in main entry file
   clerk_provider_usage: contains('<ClerkProvider'),
@@ -14,8 +14,8 @@ export const graders = defineGraders({
   import_meta_env: contains('import.meta.env'),
 
   // UI components
-  uses_signed_in: contains('<SignedIn'),
-  uses_signed_out: contains('<SignedOut'),
+  uses_signed_in: matches(/<Show\s+when=["']signed-in["']/),
+  uses_signed_out: matches(/<Show\s+when=["']signed-out["']/),
   uses_sign_in_button: contains('<SignInButton'),
   uses_sign_up_button: contains('<SignUpButton'),
   uses_user_button: contains('<UserButton'),
@@ -24,6 +24,8 @@ export const graders = defineGraders({
   no_frontend_api: not(contains('frontendApi')),
   no_react_app_env: not(contains('REACT_APP_')),
   no_vite_react_app_env: not(contains('VITE_REACT_APP_')),
+  no_legacy_package: not(matches(/from\s+["']@clerk\/clerk-react["']/)),
+  no_removed_components: not(matches(/<\/?Signed(?:In|Out)\b/)),
 
   // Overall correctness: ClerkProvider wraps app at root with correct key
   setup_correct: judge(

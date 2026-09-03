@@ -18,23 +18,23 @@ export type SkillsImpact = {
 
 /**
  * Compute skills impact by comparing base and enhanced score sets.
- * A score >= 0.5 is considered "passed".
+ * A score of 1 is considered passed for agent tasks.
  */
 export function computeSkillsImpact(baseScores: Score[], enhancedScores: Score[]): SkillsImpact {
   const baseMap = new Map<string, number>()
   const enhancedMap = new Map<string, number>()
 
   for (const s of baseScores) {
-    const key = `${s.framework}/${s.category}`
+    const key = `${s.evalKey ?? `${s.framework}/${s.category}`}::${s.trial ?? 1}`
     baseMap.set(key, s.value)
   }
   for (const s of enhancedScores) {
-    const key = `${s.framework}/${s.category}`
+    const key = `${s.evalKey ?? `${s.framework}/${s.category}`}::${s.trial ?? 1}`
     enhancedMap.set(key, s.value)
   }
 
-  const basePassCount = [...baseMap.values()].filter((v) => v >= 0.5).length
-  const enhancedPassCount = [...enhancedMap.values()].filter((v) => v >= 0.5).length
+  const basePassCount = [...baseMap.values()].filter((v) => v === 1).length
+  const enhancedPassCount = [...enhancedMap.values()].filter((v) => v === 1).length
 
   const baseRate = baseMap.size > 0 ? (basePassCount / baseMap.size) * 100 : 0
   const enhancedRate = enhancedMap.size > 0 ? (enhancedPassCount / enhancedMap.size) * 100 : 0
@@ -46,8 +46,8 @@ export function computeSkillsImpact(baseScores: Score[], enhancedScores: Score[]
   for (const [key, enhancedScore] of enhancedMap) {
     const baseScore = baseMap.get(key)
     if (baseScore != null) {
-      if (baseScore < 0.5 && enhancedScore >= 0.5) newlyPassed.push(key)
-      if (baseScore >= 0.5 && enhancedScore < 0.5) newlyFailed.push(key)
+      if (baseScore < 1 && enhancedScore === 1) newlyPassed.push(key)
+      if (baseScore === 1 && enhancedScore < 1) newlyFailed.push(key)
     }
   }
 

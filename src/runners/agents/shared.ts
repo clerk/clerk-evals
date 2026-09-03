@@ -2,9 +2,10 @@
  * Shared utilities for agent-based evaluation runners.
  */
 import * as fs from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { createSkillsClaudeMd } from '@/src/config/skills'
-import type { AgentMCPConfig } from '@/src/interfaces/agent'
+import type { AgentMCPConfig, AgentType } from '@/src/interfaces/agent'
 
 /**
  * Default timeout for agent execution (10 minutes).
@@ -70,11 +71,8 @@ export async function buildAgentPrompt(evalPath: string): Promise<string> {
  * Creates a temporary working directory for agent execution.
  */
 export async function createTempWorkDir(suffix?: string): Promise<string> {
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  const name = suffix ? `run-${id}-${suffix}` : `run-${id}`
-  const tempDir = path.join(process.cwd(), '.agent-temp', name)
-  await fs.mkdir(tempDir, { recursive: true })
-  return tempDir
+  const prefix = suffix ? `clerk-evals-${suffix}-` : 'clerk-evals-'
+  return fs.mkdtemp(path.join(tmpdir(), prefix))
 }
 
 /**
@@ -94,6 +92,87 @@ export async function cleanupTempWorkDir(workDir: string): Promise<void> {
  */
 export async function copyFixtures(workDir: string, fixturesPath: string): Promise<void> {
   await fs.cp(fixturesPath, workDir, { recursive: true, force: true })
+}
+
+const SNAPSHOT_EXCLUSIONS = new Set([
+  '.git',
+  '.mcp.json',
+  '.skills',
+  'AGENTS.md',
+  'CLAUDE.md',
+  'node_modules',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+])
+const MAX_SNAPSHOT_FILES = 200
+const MAX_SNAPSHOT_BYTES = 1_000_000
+
+export async function snapshotWorkDir(workDir: string): Promise<string> {
+  const files: Array<{ path: string; content: string }> = []
+  let totalBytes = 0
+
+  async function walk(directory: string, relativeDir = ''): Promise<void> {
+    if (files.length >= MAX_SNAPSHOT_FILES || totalBytes >= MAX_SNAPSHOT_BYTES) return
+    const entries = await fs.readdir(directory, { withFileTypes: true })
+    entries.sort((a, b) => a.name.localeCompare(b.name))
+
+    for (const entry of entries) {
+      if (files.length >= MAX_SNAPSHOT_FILES || totalBytes >= MAX_SNAPSHOT_BYTES) return
+      if (SNAPSHOT_EXCLUSIONS.has(entry.name) || entry.name.startsWith('.env')) continue
+
+      const absolutePath = path.join(directory, entry.name)
+      const relativePath = path.join(relativeDir, entry.name)
+      if (entry.isDirectory()) {
+        await walk(absolutePath, relativePath)
+        continue
+      }
+      if (!entry.isFile()) continue
+
+      const buffer = await fs.readFile(absolutePath)
+      if (
+        buffer.length > 256_000 ||
+        totalBytes + buffer.length > MAX_SNAPSHOT_BYTES ||
+        buffer.includes(0)
+      ) {
+        continue
+      }
+      files.push({ path: relativePath, content: buffer.toString('utf8') })
+      totalBytes += buffer.length
+    }
+  }
+
+  await walk(workDir)
+  return files.map((file) => `### ${file.path}\n\n${file.content}`).join('\n\n')
+}
+
+export async function buildAgentGradingArtifact(
+  workDir: string,
+  finalResponse: string,
+): Promise<string> {
+  const workspace = await snapshotWorkDir(workDir)
+  return [`## Final response\n\n${finalResponse}`, `## Final workspace\n\n${workspace}`].join(
+    '\n\n',
+  )
+}
+
+export function buildAgentEnvironment(agentType: AgentType, envPath: string): NodeJS.ProcessEnv {
+  const apiKeyName = agentType === 'claude-code' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'
+  const allowedNames = [
+    apiKeyName,
+    'HOME',
+    'LANG',
+    'LC_ALL',
+    'NO_COLOR',
+    'SSL_CERT_FILE',
+    'TERM',
+    'TMPDIR',
+  ]
+  const env: NodeJS.ProcessEnv = { PATH: envPath }
+  for (const name of allowedNames) {
+    if (process.env[name]) env[name] = process.env[name]
+  }
+  return env
 }
 
 /**

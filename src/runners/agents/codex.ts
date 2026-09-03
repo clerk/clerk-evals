@@ -6,7 +6,7 @@
  *
  * Key differences from Claude Code:
  * - Uses `codex exec` subcommand (non-interactive)
- * - Full-auto sandbox permissions for disk writes
+ * - Workspace-write sandbox permissions
  * - JSONL event stream via --json flag
  * - Context file: AGENTS.md (via setupAgentContext)
  */
@@ -18,6 +18,8 @@ import type { AgentExecResult, AgentRunnerArgs } from '@/src/interfaces/agent'
 import { computeScore, runGraders } from '@/src/runners/shared'
 import { OK } from '@/src/utils/result'
 import {
+  buildAgentEnvironment,
+  buildAgentGradingArtifact,
   buildAgentPrompt,
   cleanupTempWorkDir,
   copyFixtures,
@@ -55,15 +57,10 @@ type CodexJsonEvent = {
 }
 
 /**
- * Parse Codex JSONL output into the full conversation text for grading.
- *
- * Extracts:
- * - Agent messages (item.type === "agent_message")
- * - Command outputs (item.type === "command_execution")
- * - File edits/writes (item.type === "file_edit" or "file_create")
+ * Parse Codex JSONL output and return the final agent message.
  */
-function parseCodexJsonl(raw: string): string {
-  const parts: string[] = []
+export function parseCodexJsonl(raw: string): string {
+  const assistantMessages: string[] = []
 
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue
@@ -71,8 +68,6 @@ function parseCodexJsonl(raw: string): string {
     try {
       event = JSON.parse(line)
     } catch {
-      // Non-JSON output lines are plain text from the agent
-      parts.push(line)
       continue
     }
 
@@ -81,24 +76,11 @@ function parseCodexJsonl(raw: string): string {
 
     // Agent text messages
     if (item.type === 'agent_message' && item.text) {
-      parts.push(item.text)
-    }
-
-    // Command execution outputs (shell commands the agent ran)
-    if (item.type === 'command_execution' && item.aggregated_output) {
-      parts.push(item.aggregated_output)
-    }
-
-    // File writes/edits - capture the content
-    if ((item.type === 'file_edit' || item.type === 'file_create') && item.file_path) {
-      const content = item.new_content ?? item.content ?? ''
-      if (content) {
-        parts.push(`${item.file_path}\n${content}`)
-      }
+      assistantMessages.push(item.text)
     }
   }
 
-  return parts.join('\n\n')
+  return assistantMessages.at(-1) ?? ''
 }
 
 /**
@@ -110,18 +92,31 @@ async function execCodex(
   timeout: number,
   executablePath: string,
   envPath: string,
+  model: string,
+  mcpServerUrl?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
   return new Promise((resolve) => {
-    const args = ['exec', '--json', '--ephemeral', '--full-auto', prompt]
+    const args = [
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--sandbox',
+      'workspace-write',
+      '--ignore-user-config',
+      '--ignore-rules',
+      '--model',
+      model,
+      ...(mcpServerUrl
+        ? ['--config', `mcp_servers.clerk.url=${JSON.stringify(mcpServerUrl)}`]
+        : []),
+      prompt,
+    ]
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: {
-        ...process.env,
-        PATH: envPath,
-      },
+      env: buildAgentEnvironment('codex', envPath),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -189,9 +184,11 @@ export default async function exec({
   evalPath,
   debug = false,
   skillsConfig,
+  mcpConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
   executablePath,
   envPath,
+  model,
   fixturesPath,
   gradersPath,
 }: AgentRunnerArgs): Promise<RunnerResult> {
@@ -241,17 +238,26 @@ export default async function exec({
     if (debug) {
       console.log(`[debug] Executing Codex in workDir: ${workDir}`)
     }
-    const result = await execCodex(prompt, workDir, timeout, executablePath, envPath)
+    const result = await execCodex(
+      prompt,
+      workDir,
+      timeout,
+      executablePath,
+      envPath,
+      model,
+      mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
+    )
 
-    if (!result.success && !result.output) {
+    if (!result.success) {
       return { ok: false as const, error: result.error || 'Codex execution failed' }
     }
 
-    // 5. Run graders against output (variant-aware)
+    const gradingArtifact = await buildAgentGradingArtifact(workDir, result.output)
+
     const graderModule = gradersPath
       ? ((await import(gradersPath)) as { graders: Graders })
       : ((await import(path.join(evalPath, 'graders.ts'))) as { graders: Graders })
-    const graderResults = await runGraders(graderModule.graders, result.output)
+    const graderResults = await runGraders(graderModule.graders, gradingArtifact)
     const score = computeScore(graderResults)
 
     // 6. Return result
@@ -260,9 +266,9 @@ export default async function exec({
       debug: debug
         ? {
             prompt,
-            response: result.output,
+            response: gradingArtifact,
             graders: graderResults,
-            transcript: buildTranscript(prompt, result, graderResults),
+            transcript: buildTranscript(prompt, result, graderResults, gradingArtifact),
           }
         : undefined,
     })
@@ -287,6 +293,7 @@ function buildTranscript(
   prompt: string,
   result: AgentExecResult,
   graderResults: [string, boolean][],
+  gradingArtifact: string,
 ): string {
   const passed = graderResults.filter(([, p]) => p).length
   const scorePercent = ((passed / graderResults.length) * 100).toFixed(1)
@@ -305,7 +312,7 @@ ${prompt.trim()}
 
 ## Output
 \`\`\`
-${result.output.slice(0, 10000)}${result.output.length > 10000 ? '\n... (truncated)' : ''}
+${gradingArtifact.slice(0, 10000)}${gradingArtifact.length > 10000 ? '\n... (truncated)' : ''}
 \`\`\`
 
 ## Grader Results

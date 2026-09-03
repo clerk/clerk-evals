@@ -4,9 +4,8 @@
  * Spawns the Claude Code CLI to execute evaluations.
  * Supports MCP integration via temporary .mcp.json config.
  *
- * Uses --output-format stream-json --verbose to capture the full conversation
- * (including tool calls and their results), not just the final assistant message.
- * This is critical because graders need to see code written via tool calls.
+ * Uses --output-format stream-json to capture the final assistant message.
+ * Graders also receive a snapshot of the final workspace.
  *
  * With MCP:
  *   Creates .mcp.json in working directory, then runs claude.
@@ -19,6 +18,8 @@ import type { AgentExecResult, AgentRunnerArgs } from '@/src/interfaces/agent'
 import { computeScore, runGraders } from '@/src/runners/shared'
 import { OK } from '@/src/utils/result'
 import {
+  buildAgentEnvironment,
+  buildAgentGradingArtifact,
   buildAgentPrompt,
   cleanupTempMCPConfig,
   cleanupTempWorkDir,
@@ -44,15 +45,10 @@ type StreamJsonMessage = {
 }
 
 /**
- * Parse stream-json NDJSON output into the full conversation text for grading.
- *
- * Extracts:
- * - Assistant text blocks
- * - Tool use inputs (e.g., file content written via Write tool)
- * - Tool results (e.g., file contents from Read tool)
+ * Parse stream-json NDJSON output and return the final assistant text block.
  */
-function parseStreamJson(raw: string): string {
-  const parts: string[] = []
+export function parseStreamJson(raw: string): string {
+  const assistantMessages: string[] = []
 
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue
@@ -64,30 +60,15 @@ function parseStreamJson(raw: string): string {
     }
 
     if (msg.type === 'assistant' && msg.message?.content) {
-      for (const block of msg.message.content) {
-        if (block.type === 'text' && block.text) {
-          parts.push(block.text)
-        } else if (block.type === 'tool_use' && block.input) {
-          // Capture string values from tool inputs (file content from Write/Edit tools)
-          const inputStr = Object.values(block.input)
-            .filter((v) => typeof v === 'string')
-            .join('\n')
-          if (inputStr) {
-            parts.push(inputStr)
-          }
-        }
-      }
-    } else if (msg.type === 'user' && msg.message?.content) {
-      // Tool results come back as user messages
-      for (const block of msg.message.content) {
-        if (block.type === 'tool_result' && typeof block.content === 'string') {
-          parts.push(block.content)
-        }
-      }
+      const text = msg.message.content
+        .filter((block) => block.type === 'text' && block.text)
+        .map((block) => block.text)
+        .join('\n\n')
+      if (text) assistantMessages.push(text)
     }
   }
 
-  return parts.join('\n\n')
+  return assistantMessages.at(-1) ?? ''
 }
 
 /**
@@ -99,7 +80,8 @@ async function execClaude(
   timeout: number,
   executablePath: string,
   envPath: string,
-  model?: string,
+  model: string,
+  mcpConfigPath?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
@@ -109,21 +91,24 @@ async function execClaude(
       '--output-format',
       'stream-json',
       '--verbose',
+      '--no-session-persistence',
+      '--setting-sources',
+      'project',
+      '--strict-mcp-config',
       '--dangerously-skip-permissions',
       // Pin the agent model explicitly — the CLI flag wins over user settings
       // and session context, which otherwise select a model the eval API key
       // may not serve (instant 404, graded as a zero-score husk). Resolved in
       // the main process: Tinypool workers run with a trimmed environment.
-      ...(model ? ['--model', model] : []),
+      '--model',
+      model,
+      ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath] : []),
       prompt,
     ]
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: {
-        ...process.env,
-        PATH: envPath,
-      },
+      env: buildAgentEnvironment('claude-code', envPath),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -255,18 +240,26 @@ export default async function exec({
     if (debug) {
       console.log(`[debug] Executing Claude Code in workDir: ${workDir}`)
     }
-    const result = await execClaude(prompt, workDir, timeout, executablePath, envPath, model)
+    const result = await execClaude(
+      prompt,
+      workDir,
+      timeout,
+      executablePath,
+      envPath,
+      model,
+      mcpConfigPath,
+    )
 
-    if (!result.success && !result.output) {
-      // Return error as string for cross-process serialization
+    if (!result.success) {
       return { ok: false as const, error: result.error || 'Claude Code execution failed' }
     }
 
-    // 5. Run graders against output (variant-aware)
+    const gradingArtifact = await buildAgentGradingArtifact(workDir, result.output)
+
     const graderModule = gradersPath
       ? ((await import(gradersPath)) as { graders: Graders })
       : ((await import(path.join(evalPath, 'graders.ts'))) as { graders: Graders })
-    const graderResults = await runGraders(graderModule.graders, result.output)
+    const graderResults = await runGraders(graderModule.graders, gradingArtifact)
     const score = computeScore(graderResults)
 
     // 6. Return result
@@ -275,9 +268,9 @@ export default async function exec({
       debug: debug
         ? {
             prompt,
-            response: result.output,
+            response: gradingArtifact,
             graders: graderResults,
-            transcript: buildTranscript(prompt, result, graderResults),
+            transcript: buildTranscript(prompt, result, graderResults, gradingArtifact),
           }
         : undefined,
     })
@@ -306,6 +299,7 @@ function buildTranscript(
   prompt: string,
   result: AgentExecResult,
   graderResults: [string, boolean][],
+  gradingArtifact: string,
 ): string {
   const passed = graderResults.filter(([, p]) => p).length
   const scorePercent = ((passed / graderResults.length) * 100).toFixed(1)
@@ -324,7 +318,7 @@ ${prompt.trim()}
 
 ## Output
 \`\`\`
-${result.output.slice(0, 10000)}${result.output.length > 10000 ? '\n... (truncated)' : ''}
+${gradingArtifact.slice(0, 10000)}${gradingArtifact.length > 10000 ? '\n... (truncated)' : ''}
 \`\`\`
 
 ## Grader Results

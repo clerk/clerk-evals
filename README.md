@@ -1,6 +1,6 @@
 # clerk-evals
 
-Evaluation suites for testing how LLMs perform at writing Clerk code. 31 evals across 9 categories (Quickstarts, Auth, User Management, UI Components, Organizations, Webhooks, Upgrades, Billing, Add Auth) covering Next.js, React, iOS, and Android. 31 models from OpenAI, Anthropic, Google, and Vercel.
+Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 31 tasks across Next.js, React, iOS, and Android. The current model catalog includes OpenAI, Anthropic, Google, and Vercel models.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -128,28 +128,29 @@ BRAINTRUST_API_KEY=sk-... bun report:braintrust --since "2026-03-19T17:00:00Z"
 
 The eval runner uses `wrapAISDK` to auto-trace all `generateText` calls (inputs, outputs, tool invocations, token usage). Traces flow to Braintrust even during batch runs.
 
-## Agent Evals
+## Coding-agent evals
 
 Run evaluations using AI coding agents (Claude Code, Codex) instead of direct LLM calls.
 
 ### Prerequisites
 
-Agent evals spawn CLI tools as child processes. Install them globally before running:
+Agent evals spawn CLI tools as child processes and grade the final isolated workspace. Install a supported CLI before running:
 
 - [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
 - [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
 
-Both API keys must be set in your `.env`.
+Set the matching API key in `.env`. Pin the model with `--model` or `ANTHROPIC_MODEL` for Claude Code and `OPENAI_MODEL` for Codex.
 
 ### Usage
 
 ```bash
-bun start:agent --agent claude-code [options]
+bun start:agent --agent claude-code --model claude-sonnet-5 [options]
 ```
 
 | Flag            | Description                                      |
 | --------------- | ------------------------------------------------ |
-| `--agent, -a`   | Agent type (required): `claude-code`, `cursor`   |
+| `--agent, -a`   | Agent type (required): `claude-code`, `codex`    |
+| `--model, -m`   | Exact model ID (required unless set by env)      |
 | `--mcp`         | Enable MCP tools                                 |
 | `--eval, -e`    | Filter evals by path                             |
 | `--debug, -d`   | Collect debug details and print the score report |
@@ -158,34 +159,34 @@ bun start:agent --agent claude-code [options]
 **Shortcuts:**
 
 ```bash
-bun agent:claude        # claude-code baseline
-bun agent:claude:mcp    # claude-code with MCP
+bun agent:claude --model claude-sonnet-5
+bun agent:claude:mcp --model claude-sonnet-5
+bun agent:codex --model gpt-5.6-sol
 ```
 
 **Examples:**
 
 ```bash
 # Run all evals with Claude Code
-bun start:agent --agent claude-code
+bun start:agent --agent claude-code --model claude-sonnet-5
 
 # Run specific eval with debug output
-bun start:agent -a claude-code -e auth/protect -d
+bun start:agent -a claude-code -m claude-sonnet-5 -e add-auth -d
 
 # Run with MCP tools enabled
-bun start:agent --agent claude-code --mcp
+bun start:agent --agent codex --model gpt-5.6-sol --mcp
 ```
 
 ### Output Files
 
-| Runner                    | Output               | Description                      |
-| ------------------------- | -------------------- | -------------------------------- |
-| `bun start`               | `scores.json`        | Baseline scores (no tools)       |
-| `bun start --mcp`         | `scores-mcp.json`    | MCP scores (with tools)          |
-| `bun start --skills`      | `scores-skills.json` | Skills scores                    |
-| `bun start:agent`         | `agent-scores.json`  | Agent evaluation scores          |
-| `bun merge-scores`        | `llm-scores.json`    | Combined for llm-leaderboard     |
-| `bun export:capabilities` | Terminal / JSON      | Per-model capability breakdown   |
-| `bun report:braintrust`   | Braintrust UI        | Consolidated experiment per mode |
+| Runner                  | Output               | Description                      |
+| ----------------------- | -------------------- | -------------------------------- |
+| `bun start`             | `scores.json`        | Baseline scores (no tools)       |
+| `bun start --mcp`       | `scores-mcp.json`    | MCP scores (with tools)          |
+| `bun start --skills`    | `scores-skills.json` | Skills scores                    |
+| `bun start:agent`       | `agent-scores.json`  | Agent evaluation scores          |
+| `bun merge-scores`      | `llm-scores.json`    | Combined for llm-leaderboard     |
+| `bun report:braintrust` | Braintrust UI        | Consolidated experiment per mode |
 
 ### Workflow for llm-leaderboard
 

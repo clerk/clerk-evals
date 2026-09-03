@@ -1,0 +1,14 @@
+ts	phase	decision	why	evidence	result
+2026-09-03T08:47:14Z	catalog	removed retired model IDs and added current provider models	retired IDs cannot produce a valid comparison	src/config/models.ts	38 active model entries
+2026-09-03T08:47:14Z	catalog	added duplicate and pricing checks to the suite audit	model drift needs a repeatable check	src/audit-suite.ts	no catalog errors
+2026-09-03T08:47:14Z	product	updated React tasks to use @clerk/react and Show	Core 3 removed the old package and control components	src/evals/add-auth/graders/react.ts; src/evals/quickstarts/react-vite/graders.ts	current React rules enforced
+2026-09-03T08:47:14Z	agents	limited agent runs to the four fixture-backed add-auth variants	empty workspaces do not test repository changes	src/config/evaluations.ts	4 agent tasks
+2026-09-03T08:47:14Z	agents	graded the final response and a deterministic workspace snapshot	tool output and intermediate text must not earn task credit	src/runners/agents/shared.ts; src/runners/agents/parsers.test.ts	parser and snapshot tests pass
+2026-09-03T08:47:14Z	agents	moved trials to operating-system temporary directories and limited inherited environment variables	the agent must not receive repository graders or unrelated credentials	src/runners/agents/shared.ts; src/runners/agents/shared.test.ts	isolation tests pass
+2026-09-03T08:47:14Z	agents	required an explicit model ID and stored it with the agent ID	unpinned model selection cannot be reproduced	src/agent-index.ts	missing model IDs fail before execution
+2026-09-03T08:47:14Z	metrics	stored trial numbers and used strict pass rules	partial task scores are not completed tasks	src/db.ts; src/metrics/pass-at-k.test.ts	pass@k and pass^k tests pass
+2026-09-03T08:47:14Z	identity	hashed complete evaluation directories and shared grading code	prompt-only hashes miss fixture and grader changes	src/eval-identity.ts	suite identity covers grading inputs
+2026-09-03T08:47:14Z	modes	added a combined skills and MCP mode	the two capabilities must be measured together without losing either configuration	src/index.ts	combined dry run resolves 1178 tasks
+2026-09-03T08:47:14Z	verification	added lint, type, test, and suite audit commands	reviewers need repeatable checks instead of session claims	package.json	all checks pass
+2026-09-03T08:47:14Z	scope	deferred complex agent work to a separate track	planning and delegation need isolated repositories and hidden functional tests	docs/eval-suite-audit.tsv	open
+2026-09-03T08:47:14Z	checkpoint	created brk/eval-suite-quality before more experiments	the verified first pass needs a stable review point	git branch brk/eval-suite-quality	branch exists

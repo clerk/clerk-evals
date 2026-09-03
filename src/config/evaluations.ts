@@ -73,8 +73,32 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Android', category: 'Auth', path: 'evals/android/routing' },
 
   // Add Auth — framework-agnostic agent eval (4 variants, shared prompt)
-  { framework: 'Next.js', category: 'Add Auth', path: 'evals/add-auth', variant: 'nextjs' },
-  { framework: 'React', category: 'Add Auth', path: 'evals/add-auth', variant: 'react' },
-  { framework: 'Android', category: 'Add Auth', path: 'evals/add-auth', variant: 'android' },
-  { framework: 'iOS', category: 'Add Auth', path: 'evals/add-auth', variant: 'ios' },
+  {
+    framework: 'Next.js',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'nextjs',
+    agentEligible: true,
+  },
+  {
+    framework: 'React',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'react',
+    agentEligible: true,
+  },
+  {
+    framework: 'Android',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'android',
+    agentEligible: true,
+  },
+  {
+    framework: 'iOS',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'ios',
+    agentEligible: true,
+  },
 ]
