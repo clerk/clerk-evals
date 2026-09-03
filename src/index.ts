@@ -2,7 +2,14 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 
 import Tinypool from 'tinypool'
-import { EVALUATIONS, getAllModels, getModelsByProvider, loadConfig } from '@/src/config'
+import {
+  EVALUATIONS,
+  getAllModels,
+  getDefaultModels,
+  getModelsByProvider,
+  loadConfig,
+  MODEL_CUTOFF_DAYS,
+} from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
@@ -24,6 +31,7 @@ const { values } = parseArgs({
     debug: { type: 'boolean', short: 'd', default: false },
     dry: { type: 'boolean', default: false },
     smoke: { type: 'boolean', default: false },
+    'include-legacy': { type: 'boolean', default: false },
     'fail-under': { type: 'string' },
     model: { type: 'string', short: 'm' },
     provider: { type: 'string', short: 'p' },
@@ -46,6 +54,7 @@ const skillsEnabled = values.skills
 const debugEnabled = values.debug
 const dryRun = values.dry
 const smokeTest = values.smoke
+const includeLegacy = values['include-legacy']
 const failUnder = values['fail-under']
 const modelFilter = values.model
 const providerFilter = values.provider
@@ -63,9 +72,13 @@ if (config) {
 const effectiveFailUnder =
   failUnder ?? (config?.ci?.failUnder ? String(config.ci.failUnder) : undefined)
 
-const models = providerFilter
-  ? getModelsByProvider(providerFilter.toLowerCase() as Provider)
-  : getAllModels()
+const models = modelFilter
+  ? getAllModels()
+  : providerFilter
+    ? getModelsByProvider(providerFilter.toLowerCase() as Provider, { includeLegacy })
+    : includeLegacy
+      ? getAllModels()
+      : getDefaultModels()
 const evaluations = EVALUATIONS
 
 // Filter models - exact match on name only (case-insensitive, deterministic)
@@ -162,6 +175,12 @@ const modeDisplay = (() => {
 console.log(
   `\nMode: ${modeDisplay} | ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
 )
+if (!modelFilter && !includeLegacy) {
+  const excludedCount = getAllModels().length - getDefaultModels().length
+  console.log(
+    `Model policy: released within ${MODEL_CUTOFF_DAYS} days or marked current best (${excludedCount} legacy models excluded).\n`,
+  )
+}
 
 // Dry run: print summary table and exit
 if (dryRun) {
@@ -203,6 +222,7 @@ saveRun({
   harnessCommit,
   skillsCommit,
   mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
+  transport: 'vercel-ai-gateway',
 })
 
 let completed = 0

@@ -1,7 +1,7 @@
 import { access, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { resolveAgentConfig } from '@/src/agent-config'
-import { EVALUATIONS, getAllModels } from '@/src/config'
+import { EVALUATIONS, getAllModels, getDefaultModels, MODEL_CUTOFF_DAYS } from '@/src/config'
 import { getEvalKey } from '@/src/eval-identity'
 import { getAllAgentTypes } from '@/src/interfaces'
 import { estimateCost } from '@/src/runners/shared'
@@ -57,10 +57,23 @@ export async function auditSuite(cwd = process.cwd()): Promise<AuditResult> {
   for (const value of duplicates(models.map((model) => `${model.provider}/${model.label}`))) {
     errors.push(`Duplicate model label: ${value}`)
   }
+  for (const value of duplicates(models.map((model) => model.gatewayId))) {
+    errors.push(`Duplicate gateway model ID: ${value}`)
+  }
+  const currentBestCounts = new Map<string, number>()
   for (const model of models) {
+    if (Number.isNaN(Date.parse(`${model.releasedAt}T00:00:00.000Z`))) {
+      errors.push(`Invalid release date: ${model.provider}/${model.name}`)
+    }
+    if (model.currentBest) {
+      currentBestCounts.set(model.provider, (currentBestCounts.get(model.provider) ?? 0) + 1)
+    }
     if (!estimateCost(model.name, { promptTokens: 1, completionTokens: 1 })) {
       warnings.push(`Missing pricing: ${model.provider}/${model.name}`)
     }
+  }
+  for (const [provider, count] of currentBestCounts) {
+    if (count > 1) errors.push(`Multiple current-best models for provider: ${provider}`)
   }
 
   const evalKeys = EVALUATIONS.map(getEvalKey)
@@ -106,7 +119,7 @@ export async function auditSuite(cwd = process.cwd()): Promise<AuditResult> {
 if (import.meta.main) {
   const result = await auditSuite()
   console.log(
-    `Suite: ${getAllModels().length} models, ${EVALUATIONS.length} tasks, ${EVALUATIONS.filter((evaluation) => evaluation.agent).length} agent tasks`,
+    `Suite: ${getDefaultModels().length} default models (${getAllModels().length} catalog, ${MODEL_CUTOFF_DAYS}-day cutoff), ${EVALUATIONS.length} tasks, ${EVALUATIONS.filter((evaluation) => evaluation.agent).length} agent tasks`,
   )
   for (const warning of result.warnings) console.warn(`WARN ${warning}`)
   for (const error of result.errors) console.error(`ERROR ${error}`)

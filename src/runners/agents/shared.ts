@@ -6,6 +6,12 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createSkillsClaudeMd } from '@/src/config/skills'
+import {
+  getGatewayCredential,
+  VERCEL_AI_GATEWAY_KEY_ENV,
+  VERCEL_AI_GATEWAY_OPENAI_URL,
+  VERCEL_AI_GATEWAY_URL,
+} from '@/src/gateway'
 import type {
   AgentExecResult,
   AgentMCPConfig,
@@ -330,23 +336,57 @@ ${args.graderResults.map(([name, p]) => `| ${name} | ${p ? 'PASS' : 'FAIL'} |`).
 `
 }
 
-export function buildAgentEnvironment(agentType: AgentType, envPath: string): NodeJS.ProcessEnv {
-  const apiKeyName = agentType === 'claude-code' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'
-  const allowedNames = [
-    apiKeyName,
-    'HOME',
-    'LANG',
-    'LC_ALL',
-    'NO_COLOR',
-    'SSL_CERT_FILE',
-    'TERM',
-    'TMPDIR',
-  ]
+export function buildAgentEnvironment(
+  agentType: AgentType,
+  envPath: string,
+  gatewayCredential = getGatewayCredential(),
+): NodeJS.ProcessEnv {
+  const commonNames = ['HOME', 'LANG', 'LC_ALL', 'NO_COLOR', 'SSL_CERT_FILE', 'TERM', 'TMPDIR']
   const env: NodeJS.ProcessEnv = { PATH: envPath }
-  for (const name of allowedNames) {
+  for (const name of commonNames) {
     if (process.env[name]) env[name] = process.env[name]
   }
+
+  if (gatewayCredential) {
+    if (agentType === 'claude-code') {
+      env.ANTHROPIC_AUTH_TOKEN = gatewayCredential
+      env.ANTHROPIC_BASE_URL = VERCEL_AI_GATEWAY_URL
+    } else {
+      env[VERCEL_AI_GATEWAY_KEY_ENV] = gatewayCredential
+    }
+    return env
+  }
+
+  const apiKeyName = agentType === 'claude-code' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'
+  if (process.env[apiKeyName]) env[apiKeyName] = process.env[apiKeyName]
   return env
+}
+
+export function getAgentTransport(): 'vercel-ai-gateway' | 'direct' {
+  return getGatewayCredential() ? 'vercel-ai-gateway' : 'direct'
+}
+
+export function getCodexGatewayArgs(
+  model: string,
+  gatewayConfigured = Boolean(getGatewayCredential()),
+): string[] {
+  if (!gatewayConfigured) return ['--model', model]
+
+  const gatewayModel = model.includes('/') ? model : `openai/${model}`
+  return [
+    '--model',
+    gatewayModel,
+    '--config',
+    'model_provider="vercel-ai-gateway"',
+    '--config',
+    'model_providers.vercel-ai-gateway.name="Vercel AI Gateway"',
+    '--config',
+    `model_providers.vercel-ai-gateway.base_url=${JSON.stringify(VERCEL_AI_GATEWAY_OPENAI_URL)}`,
+    '--config',
+    `model_providers.vercel-ai-gateway.env_key=${JSON.stringify(VERCEL_AI_GATEWAY_KEY_ENV)}`,
+    '--config',
+    'model_providers.vercel-ai-gateway.wire_api="responses"',
+  ]
 }
 
 /**

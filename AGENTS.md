@@ -37,7 +37,7 @@ bun start --mcp --model "claude-sonnet-4-5"
 # Run with skills
 bun start --skills --model "claude-sonnet-4-5"
 
-# Full batch (all 16 models, baseline + MCP, with retry)
+# Full batch (cutoff-selected models, baseline + MCP, with retry)
 ./run-evals.sh
 
 # Export to Braintrust
@@ -48,10 +48,10 @@ BRAINTRUST_API_KEY=sk-... bun report:braintrust
 
 Agent evals spawn CLI tools as child processes. Install them before running:
 
-- [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
-- [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
+- [Claude Code](https://code.claude.com/docs/en/quickstart)
+- [Codex CLI](https://developers.openai.com/codex/cli)
 
-Both API keys must be set in `.env`.
+Set `VERCEL_AI_GATEWAY_API_KEY` in `.env`.
 
 ```bash
 # Run agent evals with Claude Code
@@ -81,7 +81,7 @@ bun export:leaderboard --since 2026-03-20
 
 ## Environment Setup & Secrets
 
-This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, then copy `.env.example` to `.env` and populate `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `V0_API_KEY`. Avoid checking secrets into version control; reference them through `process.env` only.
+This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, then copy `.env.example` to `.env` and populate `VERCEL_AI_GATEWAY_API_KEY`. Avoid checking secrets into version control; reference them through `process.env` only.
 
 For MCP evaluations, the runner connects to `https://mcp.clerk.dev/mcp` by default. Override with `MCP_SERVER_URL_OVERRIDE` for local testing.
 

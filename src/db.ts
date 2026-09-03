@@ -10,6 +10,7 @@ export type RunMetadata = {
   harnessCommit?: string
   skillsCommit?: string
   mcpServerUrl?: string
+  transport?: string
   createdAt?: string
 }
 
@@ -60,9 +61,15 @@ export function initDB() {
       harness_commit TEXT,
       skills_commit TEXT,
       mcp_server_url TEXT,
+      transport TEXT,
       created_at TEXT NOT NULL
     )
   `)
+
+  const runCols = db.query('PRAGMA table_info(runs)').all() as { name: string }[]
+  if (!runCols.some((column) => column.name === 'transport')) {
+    db.run('ALTER TABLE runs ADD COLUMN transport TEXT')
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS errors (
@@ -99,6 +106,7 @@ export function saveRun(metadata: RunMetadata) {
       harness_commit,
       skills_commit,
       mcp_server_url,
+      transport,
       created_at
     )
     VALUES (
@@ -110,6 +118,7 @@ export function saveRun(metadata: RunMetadata) {
       $harness_commit,
       $skills_commit,
       $mcp_server_url,
+      $transport,
       $created_at
     )
   `)
@@ -123,6 +132,7 @@ export function saveRun(metadata: RunMetadata) {
     $harness_commit: metadata.harnessCommit ?? null,
     $skills_commit: metadata.skillsCommit ?? null,
     $mcp_server_url: metadata.mcpServerUrl ?? null,
+    $transport: metadata.transport ?? null,
     $created_at: metadata.createdAt ?? new Date().toISOString(),
   })
 }

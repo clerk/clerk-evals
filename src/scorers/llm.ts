@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { ClosedQA } from 'autoevals'
 import type { Grader } from '@/src/graders'
+import { requireGatewayCredential, VERCEL_AI_GATEWAY_OPENAI_URL } from '@/src/gateway'
 
-const DEFAULT_JUDGE_MODEL = 'gpt-4.1'
+const DEFAULT_JUDGE_MODEL = 'openai/gpt-5.6-luna'
 
 /** Configurable via EVAL_JUDGE_MODEL env var or --judge-model CLI flag */
 const judgeModel = process.env.EVAL_JUDGE_MODEL || DEFAULT_JUDGE_MODEL
@@ -40,8 +41,8 @@ export const makeScorer = (config: LLMJudgeConfig) => {
 
   const scorer = ClosedQA.partial({
     model,
-    openAiApiKey: process.env.OPENAI_API_KEY,
-    openAiBaseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+    openAiApiKey: requireGatewayCredential(),
+    openAiBaseUrl: VERCEL_AI_GATEWAY_OPENAI_URL,
   })
   const grader = async (actual: string) => {
     const responseHash = createHash('sha256').update(actual).digest('hex')

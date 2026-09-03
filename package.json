@@ -31,11 +31,7 @@
     "check": "oxlint --type-aware --fix-dangerously . && oxfmt --write ."
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.14",
-    "@ai-sdk/google": "^4.0.14",
     "@ai-sdk/mcp": "^2.0.12",
-    "@ai-sdk/openai": "^4.0.13",
-    "@ai-sdk/vercel": "^3.0.9",
     "@modelcontextprotocol/sdk": "^1.17.3",
     "ai": "^7.0.26",
     "autoevals": "^0.0.131",

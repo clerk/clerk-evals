@@ -1,12 +1,12 @@
 # clerk-evals
 
-Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 37 tasks across Next.js, React, iOS, and Android. The current model catalog includes OpenAI, Anthropic, Google, and Vercel models.
+Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 37 tasks across Next.js, React, iOS, and Android. Vercel AI Gateway provides one transport for models from OpenAI, Anthropic, Google, xAI, Moonshot AI, and Tencent.
 
 ![diagram](./docs/diagram.jpg)
 
 ## Quickstart
 
-Install [Bun](https://bun.sh) `>=1.3.0`, then gather the required API keys. See [`.env.example`](./.env.example)
+Install [Bun](https://bun.sh) `>=1.3.0`, then add a Vercel AI Gateway key. See [`.env.example`](./.env.example).
 
 ```bash
 cp .env.example .env
@@ -70,24 +70,25 @@ bun start --eval "auth/routes" --smoke --debug
 bun start [options]
 ```
 
-| Flag                          | Description                                            |
-| ----------------------------- | ------------------------------------------------------ |
-| `--mcp`                       | Enable MCP tools (uses mcp.clerk.dev by default)       |
-| `--skills`                    | Enable skills tools (loads from `../skills/skills/`)   |
-| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive)          |
-| `--provider "anthropic"`      | Filter by provider (openai, anthropic, google, vercel) |
-| `--eval "protect"`            | Filter evals by category or path                       |
-| `--debug`                     | Collect debug details and print the score report       |
-| `--dry`                       | Print task summary without running                     |
-| `--smoke`                     | Run only the first task (quick validation)             |
-| `--fail-under 70`             | CI gate: fail if average score < threshold %           |
+| Flag                     | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `--mcp`                  | Enable MCP tools (uses mcp.clerk.dev by default)             |
+| `--skills`               | Enable skills tools (loads from `../skills/skills/`)         |
+| `--model "grok-4.6"`     | Select an exact model; explicit selection can use old models |
+| `--provider "anthropic"` | Filter by model creator                                      |
+| `--include-legacy`       | Include catalog models that do not meet the default policy   |
+| `--eval "protect"`       | Filter evals by category or path                             |
+| `--debug`                | Collect debug details and print the score report             |
+| `--dry`                  | Print task summary without running                           |
+| `--smoke`                | Run only the first task                                      |
+| `--fail-under 70`        | Fail if the average is below the percentage threshold        |
 
 ```bash
 # Baseline (no tools)
-bun start --model "claude-sonnet-4-0" --eval "protect"
+bun start --model "grok-4.6" --eval "protect"
 
 # With MCP tools
-bun start --mcp --model "claude-sonnet-4-0" --eval "protect"
+bun start --mcp --model "claude-sonnet-5" --eval "protect"
 
 # With skills
 bun start --skills --model "claude-sonnet-4-5"
@@ -99,13 +100,20 @@ MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 bun start --dry
 ```
 
+### Model policy
+
+Routine runs include models released in the last 90 days. A creator's model marked as its current best model remains in routine runs after 90 days. An exact `--model` selection always works for models that remain in the catalog. Use `--include-legacy` to run the complete catalog.
+
+The external model set also tracks strong results from the [Convex LLM leaderboard](https://www.convex.dev/llm-leaderboard). The current additions are Grok 4.6, Grok 4.5, Tencent Hy4 Preview, and Kimi K3. These models ranked 4, 8, 9, and 13 when selected on September 3, 2026.
+
 ### Batch Runner
 
 Run all configured models sequentially with timeout and retry:
 
 ```bash
-./run-evals.sh                              # All models, baseline + MCP
+./run-evals.sh                              # Default models, baseline + MCP
 ./run-evals.sh --models "gpt-5,claude-sonnet-4-5"  # Specific models
+./run-evals.sh --include-legacy             # Complete catalog
 ./run-evals.sh --baseline-only              # Skip MCP
 ./run-evals.sh --mcp-only                   # Skip baseline
 ./run-evals.sh --list                       # List available models
@@ -136,10 +144,10 @@ Run evaluations using AI coding agents (Claude Code, Codex) instead of direct LL
 
 Agent evals spawn CLI tools as child processes and grade the final isolated workspace. Install a supported CLI before running:
 
-- [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
-- [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
+- [Claude Code](https://code.claude.com/docs/en/quickstart)
+- [Codex CLI](https://developers.openai.com/codex/cli)
 
-Set the matching API key in `.env`. Pin the model with `--model` or `ANTHROPIC_MODEL` for Claude Code and `OPENAI_MODEL` for Codex.
+Set `VERCEL_AI_GATEWAY_API_KEY` in `.env`. The harness maps this key to each CLI. Direct provider keys remain a fallback for local compatibility. Pin the model with `--model` or `ANTHROPIC_MODEL` for Claude Code and `OPENAI_MODEL` for Codex.
 
 Registered agent tasks use an explicit repository fixture. A task can also define hidden Bun tests. The harness stages those tests outside the repository after the coding agent exits. Test failure is a hard score gate, while normal deterministic graders still provide diagnostic partial credit.
 

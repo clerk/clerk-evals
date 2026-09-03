@@ -1,4 +1,14 @@
 export { defineConfig, type EvalSuiteConfig, loadConfig } from './define'
 export { EVALUATIONS } from './evaluations'
-export { getAllModels, getModelsByProvider, MODELS, type ModelInfo } from './models'
+export {
+  getAllModels,
+  getDefaultModels,
+  getModelEligibility,
+  getModelInfo,
+  getModelsByProvider,
+  MODEL_CUTOFF_DAYS,
+  MODELS,
+  type ModelEligibility,
+  type ModelInfo,
+} from './models'
 export { createSkillsClaudeMd } from './skills'

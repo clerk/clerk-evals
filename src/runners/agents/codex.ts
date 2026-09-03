@@ -24,6 +24,7 @@ import {
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
   gradeAgentWorkspace,
+  getCodexGatewayArgs,
   setupAgentContext,
   setupSkills,
 } from './shared'
@@ -105,8 +106,7 @@ async function execCodex(
       'workspace-write',
       '--ignore-user-config',
       '--ignore-rules',
-      '--model',
-      model,
+      ...getCodexGatewayArgs(model),
       ...(mcpServerUrl
         ? ['--config', `mcp_servers.clerk.url=${JSON.stringify(mcpServerUrl)}`]
         : []),

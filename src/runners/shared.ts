@@ -114,6 +114,7 @@ export function resolveModel(provider: Provider, model: string) {
  * - OpenAI: https://platform.openai.com/docs/pricing
  * - Anthropic: https://docs.anthropic.com/en/docs/about-claude/models
  * - Google: https://ai.google.dev/gemini-api/docs/pricing
+ * - Gateway models: https://ai-gateway.vercel.sh/v1/models
  */
 const MODEL_PRICING: Record<string, [number, number]> = {
   // OpenAI
@@ -163,6 +164,11 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gemini-2.5-flash': [0.3, 2.5],
   'gemini-2.5-flash-lite': [0.1, 0.4],
   'gemini-3-pro-preview': [2, 12],
+  // Convex leaderboard leaders selected for the default run set
+  'grok-4.6': [2, 6],
+  'grok-4.5': [2, 6],
+  'kimi-k3': [3, 15],
+  'hy4-preview': [0.834, 2.501],
 }
 
 export function estimateCost(

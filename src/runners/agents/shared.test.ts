@@ -2,9 +2,11 @@ import { mkdir, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
+  buildAgentEnvironment,
   cleanupTempWorkDir,
   createTempWorkDir,
   gradeAgentWorkspace,
+  getCodexGatewayArgs,
   runHiddenVerification,
   snapshotWorkDir,
 } from './shared'
@@ -37,6 +39,30 @@ describe('agent workspace isolation', () => {
     expect(snapshot).not.toContain('CLERK_SECRET_KEY')
     expect(snapshot).not.toContain('linked-secret')
     expect(snapshot).not.toContain('hidden harness instructions')
+  })
+})
+
+describe('agent gateway configuration', () => {
+  test('maps one gateway credential to Claude Code variables', () => {
+    const env = buildAgentEnvironment('claude-code', '/bin', 'gateway-secret')
+
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe('gateway-secret')
+    expect(env.ANTHROPIC_BASE_URL).toBe('https://ai-gateway.vercel.sh')
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined()
+  })
+
+  test('configures Codex to use the gateway Responses API', () => {
+    const env = buildAgentEnvironment('codex', '/bin', 'gateway-secret')
+    const args = getCodexGatewayArgs('gpt-5.6-luna', true)
+
+    expect(env.VERCEL_AI_GATEWAY_API_KEY).toBe('gateway-secret')
+    expect(args).toContain('openai/gpt-5.6-luna')
+    expect(args).toContain('model_provider="vercel-ai-gateway"')
+    expect(args).toContain('model_providers.vercel-ai-gateway.wire_api="responses"')
+  })
+
+  test('keeps native Codex arguments when no gateway is configured', () => {
+    expect(getCodexGatewayArgs('gpt-5.6-luna', false)).toEqual(['--model', 'gpt-5.6-luna'])
   })
 })
 

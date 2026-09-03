@@ -24,6 +24,7 @@ import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
 import { summarizeTrials, type TrialResult } from '@/src/metrics/pass-at-k'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
+import { getAgentTransport } from '@/src/runners/agents/shared'
 import { formatError } from '@/src/utils/error'
 
 /**
@@ -210,6 +211,7 @@ saveRun({
   harnessCommit,
   skillsCommit,
   mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
+  transport: getAgentTransport(),
 })
 
 let completed = 0
