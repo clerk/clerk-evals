@@ -34,6 +34,7 @@ const { values } = parseArgs({
     'include-legacy': { type: 'boolean', default: false },
     'fail-under': { type: 'string' },
     timeout: { type: 'string', short: 't' },
+    'max-output-tokens': { type: 'string' },
     model: { type: 'string', short: 'm' },
     provider: { type: 'string', short: 'p' },
     eval: { type: 'string', short: 'e' },
@@ -58,6 +59,9 @@ const smokeTest = values.smoke
 const includeLegacy = values['include-legacy']
 const failUnder = values['fail-under']
 const timeoutMs = values.timeout ? Number(values.timeout) : undefined
+const maxOutputTokens = values['max-output-tokens']
+  ? Number(values['max-output-tokens'])
+  : undefined
 const modelFilter = values.model
 const providerFilter = values.provider
 const evalFilter = values.eval
@@ -264,6 +268,7 @@ async function runTask(task: (typeof tasksToRun)[number]) {
     model: task.model,
     debug: collectDebug,
     timeoutMs,
+    maxOutputTokens,
     ...(mcpEnabled && { mcpServerUrl: mcpUrl }),
     ...(skillsEnabled && { skillsPath }),
   }

@@ -38,6 +38,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 scores.json
 scores-mcp.json
+scores-skills.json
 llm-scores.json
 mcp-comparison-*.json
 mcp-comparison-*.md

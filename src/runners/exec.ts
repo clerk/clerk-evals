@@ -21,7 +21,7 @@ import {
   runGraders,
   SYSTEM_PROMPT,
 } from './shared'
-import { getEvalTaskTimeoutMs } from './timeout'
+import { getEvalTaskTimeoutMs, getToolMaxOutputTokens } from './timeout'
 
 // Initialize Braintrust tracing in worker process (opt-in via env var).
 // wrapAISDK auto-traces generateText calls including tool invocations.
@@ -44,6 +44,7 @@ export default async function exec({
   mcpServerUrl,
   skillsPath,
   maxToolRounds,
+  maxOutputTokens,
   timeoutMs,
 }: ExecArgs): Promise<RunnerResult> {
   const languageModel = resolveModel(provider, model)
@@ -96,7 +97,9 @@ export default async function exec({
       ...(hasTools && {
         tools,
         stopWhen: stepCountIs(effectiveMaxRounds),
-        maxOutputTokens: 16384,
+        maxOutputTokens: getToolMaxOutputTokens(
+          maxOutputTokens ?? process.env.EVAL_MAX_OUTPUT_TOKENS,
+        ),
       }),
     })
 

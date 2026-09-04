@@ -29,7 +29,21 @@ type EnhancedScore = Score & {
   }
 }
 
-type FileScore = Score & { evaluationPath?: string; runId?: string }
+export type FileScore = Score & { evaluationPath?: string; runId?: string }
+
+export type CompleteModelSelection = {
+  baseline: FileScore[]
+  mcp: FileScore[]
+  skills: FileScore[]
+  includedModels: string[]
+  excludedModels: Array<{
+    model: string
+    baseline: number
+    mcp: number
+    skills: number
+    expected: number
+  }>
+}
 
 /** Lookup provider from model name using MODELS config */
 function getProvider(model: string): Provider {
@@ -114,6 +128,62 @@ function indexByCell(scores: FileScore[]): Map<string, FileScore> {
     }
   }
   return cells
+}
+
+export function selectCompleteModels(
+  baseline: FileScore[],
+  mcp: FileScore[],
+  skills: FileScore[],
+  evaluations = EVALUATIONS,
+): CompleteModelSelection {
+  const expectedCells = new Set(
+    evaluations.map((evaluation) => `${evaluation.framework}:${getEvalKey(evaluation)}`),
+  )
+  const cellsFor = (scores: FileScore[], model: string) =>
+    new Set(
+      scores
+        .filter((score) => score.model === model)
+        .map((score) => {
+          const evalKey = getScoreEvalKey(score)
+          return evalKey ? `${score.framework}:${evalKey}` : undefined
+        })
+        .filter((value): value is string => !!value && expectedCells.has(value)),
+    )
+
+  const includedModels: string[] = []
+  const excludedModels: CompleteModelSelection['excludedModels'] = []
+  const models = [...new Set(baseline.map((score) => score.model))].sort()
+
+  for (const model of models) {
+    const baselineCount = cellsFor(baseline, model).size
+    const mcpCount = cellsFor(mcp, model).size
+    const skillsCount = cellsFor(skills, model).size
+
+    if (
+      baselineCount === expectedCells.size &&
+      mcpCount === expectedCells.size &&
+      skillsCount === expectedCells.size
+    ) {
+      includedModels.push(model)
+    } else {
+      excludedModels.push({
+        model,
+        baseline: baselineCount,
+        mcp: mcpCount,
+        skills: skillsCount,
+        expected: expectedCells.size,
+      })
+    }
+  }
+
+  const included = new Set(includedModels)
+  return {
+    baseline: baseline.filter((score) => included.has(score.model)),
+    mcp: mcp.filter((score) => included.has(score.model)),
+    skills: skills.filter((score) => included.has(score.model)),
+    includedModels,
+    excludedModels,
+  }
 }
 
 export function mergeScores(
@@ -240,7 +310,17 @@ if (import.meta.main) {
   console.log(`Loaded ${mcp.length} MCP scores`)
   console.log(`Loaded ${skills.length} Skills scores`)
 
-  const enhanced = mergeScores(baseline, mcp, skills)
+  const selected = selectCompleteModels(baseline, mcp, skills)
+  for (const excluded of selected.excludedModels) {
+    console.warn(
+      `[merge-scores] Excluding ${excluded.model}: baseline ${excluded.baseline}/${excluded.expected}, MCP ${excluded.mcp}/${excluded.expected}, Skills ${excluded.skills}/${excluded.expected}`,
+    )
+  }
+  console.log(
+    `Publishing ${selected.includedModels.length} models with complete three-mode coverage`,
+  )
+
+  const enhanced = mergeScores(selected.baseline, selected.mcp, selected.skills)
 
   fs.writeFileSync('llm-scores.json', JSON.stringify(enhanced, null, 2))
   console.log(`Written ${enhanced.length} enhanced scores to llm-scores.json`)

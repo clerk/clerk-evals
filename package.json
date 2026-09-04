@@ -21,6 +21,7 @@
     "export:leaderboard": "bun src/export/leaderboard.ts",
     "export": "bun export-from-db.ts",
     "merge-scores": "bun src/merge-scores.ts",
+    "retry:run": "bun src/retry-run.ts",
     "audit": "bun src/audit-suite.ts",
     "grader:contract": "bun src/grader-contract/cli.ts",
     "test": "bun test",

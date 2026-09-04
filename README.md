@@ -83,6 +83,7 @@ bun start [options]
 | `--smoke`                | Run only the first task                                      |
 | `--fail-under 70`        | Fail if the average is below the percentage threshold        |
 | `--timeout 300000`       | Set the maximum time for each task in milliseconds           |
+| `--max-output-tokens`    | Set the tool-mode output token limit (defaults to 32,768)    |
 
 ```bash
 # Baseline (no tools)
@@ -102,7 +103,15 @@ bun start --dry
 ```
 
 Each task has a five-minute limit by default. Use `--timeout` for one run or set
-`EVAL_TASK_TIMEOUT_MS` to change the default.
+`EVAL_TASK_TIMEOUT_MS` to change the default. Tool-assisted runs allow 32,768
+output tokens by default. Use `--max-output-tokens` or `EVAL_MAX_OUTPUT_TOKENS`
+to change that limit.
+
+Retry only the missing cells from a stored run, then rebuild its score file:
+
+```bash
+bun retry:run "mcp-2026-09-03T19-08-33-670Z" --concurrency 1
+```
 
 ### Model policy
 

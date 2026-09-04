@@ -198,6 +198,63 @@ export function saveError(
 
 export type DBScore = Score & { evaluationPath?: string; runId?: string }
 
+export type DBError = {
+  runId: string
+  model: string
+  label?: string
+  framework?: string
+  category?: string
+  evaluationPath: string
+  errorMessage: string
+  timestamp: string
+}
+
+export function getRun(runId: string): RunMetadata | undefined {
+  const row = db
+    .query(
+      `SELECT run_id, mode, models_json, eval_keys_json, suite_hash, harness_commit,
+        skills_commit, mcp_server_url, transport, created_at
+       FROM runs WHERE run_id = $run_id`,
+    )
+    .get({ $run_id: runId }) as Record<string, unknown> | null
+
+  if (!row) return undefined
+
+  return {
+    runId: row.run_id as string,
+    mode: row.mode as string,
+    models: JSON.parse(row.models_json as string) as string[],
+    evalKeys: JSON.parse(row.eval_keys_json as string) as string[],
+    suiteHash: row.suite_hash as string,
+    ...(row.harness_commit != null && { harnessCommit: row.harness_commit as string }),
+    ...(row.skills_commit != null && { skillsCommit: row.skills_commit as string }),
+    ...(row.mcp_server_url != null && { mcpServerUrl: row.mcp_server_url as string }),
+    ...(row.transport != null && { transport: row.transport as string }),
+    createdAt: row.created_at as string,
+  }
+}
+
+export function getErrors(runId: string): DBError[] {
+  const rows = db
+    .query(
+      `SELECT run_id, model, label, framework, category, evaluation_path,
+        error_message, timestamp
+       FROM errors WHERE run_id = $run_id ORDER BY timestamp`,
+    )
+    .all({ $run_id: runId }) as Array<Record<string, unknown>>
+
+  return rows.map((row) => ({
+    runId: row.run_id as string,
+    model: row.model as string,
+    ...(row.label != null && { label: row.label as string }),
+    ...(row.framework != null && { framework: row.framework as string }),
+    ...(row.category != null && { category: row.category as string }),
+    evaluationPath: row.evaluation_path as string,
+    errorMessage: row.error_message as string,
+    timestamp: row.timestamp as string,
+  }))
+}
+
 export function getResults(runId?: string): DBScore[] {
   let queryStr =
     'SELECT run_id, model, label, framework, category, value, timestamp as updatedAt, tokens_in, tokens_out, cost_usd, duration_ms as durationMs, evaluation_path, eval_key, trial FROM results'
