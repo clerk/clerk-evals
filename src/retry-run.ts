@@ -17,7 +17,9 @@ type Mode = (typeof SUPPORTED_MODES)[number]
 
 const [runId, ...cliArgs] = Bun.argv.slice(2)
 if (!runId) {
-  console.error('Usage: bun retry:run <run-id> [--concurrency 1] [--timeout 300000] [--model name]')
+  console.error(
+    'Usage: bun retry:run <run-id> [--concurrency 1] [--timeout 300000] [--max-retries 2] [--model name] [--eval path] [--debug]',
+  )
   process.exit(1)
 }
 
@@ -27,8 +29,11 @@ const { values } = parseArgs({
     concurrency: { type: 'string', short: 'c', default: '1' },
     timeout: { type: 'string', short: 't' },
     'max-output-tokens': { type: 'string' },
+    'max-retries': { type: 'string' },
     model: { type: 'string', short: 'm' },
+    eval: { type: 'string', short: 'e' },
     'skills-path': { type: 'string' },
+    debug: { type: 'boolean', short: 'd', default: false },
   },
   strict: true,
 })
@@ -47,6 +52,11 @@ if (!SUPPORTED_MODES.includes(run.mode as Mode)) {
 
 const mode = run.mode as Mode
 const timeoutMs = getEvalTaskTimeoutMs(values.timeout ?? process.env.EVAL_TASK_TIMEOUT_MS)
+const maxRetries = values['max-retries'] ? Number(values['max-retries']) : undefined
+if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0)) {
+  console.error(`Max retries must be a non-negative integer, received: ${values['max-retries']}`)
+  process.exit(1)
+}
 const requestedConcurrency = Number(values.concurrency)
 if (!Number.isInteger(requestedConcurrency) || requestedConcurrency <= 0) {
   console.error(`Retry concurrency must be a positive integer, received: ${values.concurrency}`)
@@ -74,6 +84,7 @@ const retryTasks = new Map<
 
 for (const error of getErrors(runId)) {
   if (values.model && error.model !== values.model) continue
+  if (values.eval && !error.evaluationPath.includes(values.eval)) continue
 
   const model = modelsByName.get(error.model)
   const evaluation = evaluationsByIdentity.get(
@@ -119,7 +130,9 @@ await Promise.all(
         model: model.name,
         evalPath: path.join(process.cwd(), 'src', evaluation.path),
         variant: evaluation.variant,
+        debug: values.debug,
         timeoutMs,
+        maxRetries,
         ...(values['max-output-tokens'] && {
           maxOutputTokens: Number(values['max-output-tokens']),
         }),

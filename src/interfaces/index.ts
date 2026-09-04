@@ -105,6 +105,7 @@ export type ExecArgs = RunnerArgs & {
   skillsPath?: string
   maxToolRounds?: number
   maxOutputTokens?: number
+  maxRetries?: number
   timeoutMs?: number
 }
 

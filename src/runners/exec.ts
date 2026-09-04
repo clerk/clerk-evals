@@ -13,6 +13,8 @@ import { buildSkillsSystemPrompt, createLoadSkillTool, discoverSkills } from '@/
 import { buildMCPDebugPayload } from '@/src/utils/debug'
 import { createMCPClient, type MCPClient } from '@/src/utils/mcp-client'
 import { ERR, OK } from '@/src/utils/result'
+import { formatErrorDetails } from '@/src/utils/error'
+import { getFinishPolicy } from './finish-policy'
 import {
   computeScore,
   loadGraders,
@@ -21,10 +23,10 @@ import {
   runGraders,
   SYSTEM_PROMPT,
 } from './shared'
-import { getEvalTaskTimeoutMs, getToolMaxOutputTokens } from './timeout'
+import { getEvalTaskTimeoutMs, getMaxOutputTokens } from './timeout'
 
 // Initialize Braintrust tracing in worker process (opt-in via env var).
-// wrapAISDK auto-traces generateText calls including tool invocations.
+// wrapAISDK auto-traces model calls including tool invocations.
 if (process.env.BRAINTRUST_API_KEY) {
   initLogger({
     projectName: process.env.BRAINTRUST_PROJECT || 'clerk-evals',
@@ -32,7 +34,7 @@ if (process.env.BRAINTRUST_API_KEY) {
   })
 }
 
-const { generateText } = wrapAISDK(ai)
+const { streamText } = wrapAISDK(ai)
 const { stepCountIs } = ai
 
 export default async function exec({
@@ -45,6 +47,7 @@ export default async function exec({
   skillsPath,
   maxToolRounds,
   maxOutputTokens,
+  maxRetries,
   timeoutMs,
 }: ExecArgs): Promise<RunnerResult> {
   const languageModel = resolveModel(provider, model)
@@ -53,6 +56,9 @@ export default async function exec({
   }
 
   let mcpClient: MCPClient | null = null
+  let generationStartedAt: number | undefined
+  let generationAbortSignal: AbortSignal | undefined
+  let streamError: unknown
 
   try {
     // 1. Collect tools from all providers
@@ -85,39 +91,142 @@ export default async function exec({
     // 4. Generate text
     const hasTools = Object.keys(tools).length > 0
     const effectiveMaxRounds = maxToolRounds ?? (skillsPath ? 15 : 10)
+    const effectiveTimeoutMs = getEvalTaskTimeoutMs(timeoutMs ?? process.env.EVAL_TASK_TIMEOUT_MS)
+    const effectiveMaxRetries = maxRetries ?? 2
+    const effectiveMaxOutputTokens = getMaxOutputTokens(
+      maxOutputTokens ?? process.env.EVAL_MAX_OUTPUT_TOKENS,
+    )
+    generationAbortSignal = AbortSignal.timeout(effectiveTimeoutMs)
+
+    if (debug) {
+      console.error(
+        '[DEBUG-eval-timeout] generation-start',
+        JSON.stringify({
+          provider,
+          model,
+          evalPath,
+          variant,
+          mode: skillsPath
+            ? mcpServerUrl
+              ? 'skills-mcp'
+              : 'skills'
+            : mcpServerUrl
+              ? 'mcp'
+              : 'baseline',
+          timeoutMs: effectiveTimeoutMs,
+          maxRetries: effectiveMaxRetries,
+          requestedMaxOutputTokens: maxOutputTokens,
+          effectiveMaxOutputTokens,
+          maxToolRounds: hasTools ? effectiveMaxRounds : undefined,
+          toolCount: Object.keys(tools).length,
+        }),
+      )
+    }
 
     const startTime = performance.now()
-    const response = await generateText({
+    generationStartedAt = startTime
+    let chunkCount = 0
+    const response = streamText({
       model: languageModel,
       prompt,
       system,
-      abortSignal: AbortSignal.timeout(
-        getEvalTaskTimeoutMs(timeoutMs ?? process.env.EVAL_TASK_TIMEOUT_MS),
-      ),
+      abortSignal: generationAbortSignal,
+      maxRetries: effectiveMaxRetries,
+      maxOutputTokens: effectiveMaxOutputTokens,
       ...(hasTools && {
         tools,
         stopWhen: stepCountIs(effectiveMaxRounds),
-        maxOutputTokens: getToolMaxOutputTokens(
-          maxOutputTokens ?? process.env.EVAL_MAX_OUTPUT_TOKENS,
-        ),
+      }),
+      onError: ({ error }) => {
+        streamError = error
+        if (debug) {
+          console.error('[DEBUG-eval-timeout] stream-error', formatErrorDetails(error))
+        }
+      },
+      ...(debug && {
+        onChunk: ({ chunk }) => {
+          chunkCount++
+          if (chunkCount === 1) {
+            console.error(
+              '[DEBUG-eval-timeout] first-chunk',
+              JSON.stringify({
+                type: chunk.type,
+                elapsedMs: Math.round(performance.now() - startTime),
+              }),
+            )
+          }
+        },
+        onLanguageModelCallStart: ({ callId, provider, modelId }) => {
+          console.error(
+            '[DEBUG-eval-timeout] model-call-start',
+            JSON.stringify({
+              callId,
+              provider,
+              modelId,
+              elapsedMs: Math.round(performance.now() - startTime),
+            }),
+          )
+        },
+        onLanguageModelCallEnd: ({ callId, finishReason, usage, performance: callPerformance }) => {
+          console.error(
+            '[DEBUG-eval-timeout] model-call-end',
+            JSON.stringify({
+              callId,
+              finishReason,
+              usage,
+              performance: callPerformance,
+              elapsedMs: Math.round(performance.now() - startTime),
+            }),
+          )
+        },
+        onStepEnd: ({ finishReason, usage, toolCalls, toolResults }) => {
+          console.error(
+            '[DEBUG-eval-timeout] step-end',
+            JSON.stringify({
+              finishReason,
+              usage,
+              toolCalls: toolCalls.length,
+              toolResults: toolResults.length,
+              elapsedMs: Math.round(performance.now() - startTime),
+            }),
+          )
+        },
       }),
     })
 
+    const [steps, responseText, finishReason, totalUsage] = await Promise.all([
+      response.steps,
+      response.text,
+      response.finishReason,
+      response.totalUsage,
+    ])
+    if (debug) {
+      console.error(
+        '[DEBUG-eval-timeout] stream-end',
+        JSON.stringify({
+          finishReason,
+          steps: steps.length,
+          textChars: responseText.length,
+          chunkCount,
+          usage: totalUsage,
+          elapsedMs: Math.round(performance.now() - startTime),
+        }),
+      )
+    }
+    if (streamError) throw streamError
+
     // 5. Extract response text and check for truncation
     const fullResponse = hasTools
-      ? response.steps
-          ?.map((s) => s.text)
+      ? steps
+          .map((s) => s.text)
           .filter(Boolean)
-          .join('\n\n') || response.text
-      : response.text
+          .join('\n\n') || responseText
+      : responseText
 
-    const finishReason = hasTools ? response.steps?.at(-1)?.finishReason : response.finishReason
-
-    if (finishReason === 'length') {
-      return ERR(
-        new Error(
-          `Response truncated (finishReason: length, ${fullResponse.length} chars). Increase maxOutputTokens or simplify the prompt.`,
-        ),
+    const finishPolicy = getFinishPolicy(finishReason)
+    if (finishPolicy.truncated) {
+      console.warn(
+        `[truncated] ${provider}/${model} -> ${evalPath}: grading ${fullResponse.length} available characters`,
       )
     }
 
@@ -128,7 +237,7 @@ export default async function exec({
 
     // 7. Extract token usage and duration
     const durationMs = Math.round(performance.now() - startTime)
-    const { inputTokens = 0, outputTokens = 0 } = response.totalUsage ?? response.usage ?? {}
+    const { inputTokens = 0, outputTokens = 0 } = totalUsage
     const hasUsage = (inputTokens ?? 0) > 0 || (outputTokens ?? 0) > 0
     const tokens: TokenUsage | undefined = hasUsage
       ? {
@@ -145,11 +254,33 @@ export default async function exec({
       durationMs,
       debug: debug
         ? hasTools
-          ? { ...buildMCPDebugPayload(response, prompt, fullResponse, graderResults), finishReason }
+          ? {
+              ...buildMCPDebugPayload({ steps }, prompt, fullResponse, graderResults),
+              finishReason,
+            }
           : { prompt, response: fullResponse, graders: graderResults, finishReason }
         : undefined,
     })
   } catch (error) {
+    if (debug) {
+      console.error(
+        '[DEBUG-eval-timeout] generation-error',
+        JSON.stringify({
+          provider,
+          model,
+          evalPath,
+          elapsedMs:
+            generationStartedAt === undefined
+              ? undefined
+              : Math.round(performance.now() - generationStartedAt),
+          aborted: generationAbortSignal?.aborted ?? false,
+          abortReason: generationAbortSignal?.reason
+            ? formatErrorDetails(generationAbortSignal.reason)
+            : undefined,
+        }),
+      )
+      console.error('[DEBUG-eval-timeout] error-details', formatErrorDetails(error))
+    }
     return ERR(error)
   } finally {
     await mcpClient?.close()

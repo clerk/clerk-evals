@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import {
   DEFAULT_EVAL_TASK_TIMEOUT_MS,
-  DEFAULT_TOOL_MAX_OUTPUT_TOKENS,
+  DEFAULT_MAX_OUTPUT_TOKENS,
   getEvalTaskTimeoutMs,
-  getToolMaxOutputTokens,
+  getMaxOutputTokens,
 } from './timeout'
 
 describe('eval task timeout', () => {
@@ -23,14 +23,14 @@ describe('eval task timeout', () => {
   })
 })
 
-describe('tool output limit', () => {
+describe('model output limit', () => {
   test('uses a 32K token default', () => {
-    expect(getToolMaxOutputTokens()).toBe(DEFAULT_TOOL_MAX_OUTPUT_TOKENS)
-    expect(DEFAULT_TOOL_MAX_OUTPUT_TOKENS).toBe(32_768)
+    expect(getMaxOutputTokens()).toBe(DEFAULT_MAX_OUTPUT_TOKENS)
+    expect(DEFAULT_MAX_OUTPUT_TOKENS).toBe(32_768)
   })
 
   test('accepts an override and rejects invalid values', () => {
-    expect(getToolMaxOutputTokens('65536')).toBe(65_536)
-    expect(() => getToolMaxOutputTokens(2.5)).toThrow('positive integer')
+    expect(getMaxOutputTokens('65536')).toBe(65_536)
+    expect(() => getMaxOutputTokens(2.5)).toThrow('positive integer')
   })
 })

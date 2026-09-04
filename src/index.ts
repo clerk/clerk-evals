@@ -35,6 +35,7 @@ const { values } = parseArgs({
     'fail-under': { type: 'string' },
     timeout: { type: 'string', short: 't' },
     'max-output-tokens': { type: 'string' },
+    'max-retries': { type: 'string' },
     model: { type: 'string', short: 'm' },
     provider: { type: 'string', short: 'p' },
     eval: { type: 'string', short: 'e' },
@@ -62,6 +63,11 @@ const timeoutMs = values.timeout ? Number(values.timeout) : undefined
 const maxOutputTokens = values['max-output-tokens']
   ? Number(values['max-output-tokens'])
   : undefined
+const maxRetries = values['max-retries'] ? Number(values['max-retries']) : undefined
+if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0)) {
+  console.error(`Max retries must be a non-negative integer, received: ${values['max-retries']}`)
+  process.exit(1)
+}
 const modelFilter = values.model
 const providerFilter = values.provider
 const evalFilter = values.eval
@@ -269,6 +275,7 @@ async function runTask(task: (typeof tasksToRun)[number]) {
     debug: collectDebug,
     timeoutMs,
     maxOutputTokens,
+    maxRetries,
     ...(mcpEnabled && { mcpServerUrl: mcpUrl }),
     ...(skillsEnabled && { skillsPath }),
   }
