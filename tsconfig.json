@@ -29,5 +29,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "exclude": ["src/evals/**/fixtures/**", "src/evals/**/agent/workspace/**"]
 }

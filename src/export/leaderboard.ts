@@ -33,6 +33,7 @@ type EvalResult = {
   category: string
   score: number
   evaluationPath?: string
+  trial?: number
 }
 
 type LeaderboardData = {
@@ -91,7 +92,7 @@ for (const [mode, modeRunIds] of runsByMode) {
 
   if (scores.length === 0) continue
 
-  const passed = scores.filter((s) => s.value >= 0.5).length
+  const passed = scores.filter((s) => s.value === 1).length
   const meanScore = scores.reduce((sum, s) => sum + s.value, 0) / scores.length
 
   // Determine agent label from scores
@@ -121,11 +122,12 @@ for (const [mode, modeRunIds] of runsByMode) {
   leaderboard.metadata.experiments.push(experiment)
 
   leaderboard.results[mode] = scores.map((s) => ({
-    evalKey: `${s.framework}/${s.category}`,
+    evalKey: s.evalKey ?? `${s.framework}/${s.category}`,
     framework: s.framework,
     category: s.category,
     score: s.value,
     evaluationPath: (s as Score & { evaluationPath?: string }).evaluationPath,
+    trial: s.trial,
   }))
 }
 

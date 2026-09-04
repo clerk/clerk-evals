@@ -22,7 +22,7 @@ function getGitInfo() {
 export default async function braintrustReporter(
   entries: BraintrustEntry[],
   runId: string,
-  mode: 'baseline' | 'mcp' | 'skills',
+  mode: 'baseline' | 'mcp' | 'skills' | 'skills-mcp',
 ) {
   const git = getGitInfo()
   const projectName = process.env.BRAINTRUST_PROJECT || DEFAULT_PROJECT

@@ -6,23 +6,25 @@
  *
  * Key differences from Claude Code:
  * - Uses `codex exec` subcommand (non-interactive)
- * - Full-auto sandbox permissions for disk writes
+ * - Workspace-write sandbox permissions
  * - JSONL event stream via --json flag
  * - Context file: AGENTS.md (via setupAgentContext)
  */
 import { execSync, spawn } from 'node:child_process'
-import path from 'node:path'
-import type { Graders } from '@/src/graders'
 import type { RunnerResult } from '@/src/interfaces'
 import type { AgentExecResult, AgentRunnerArgs } from '@/src/interfaces/agent'
-import { computeScore, runGraders } from '@/src/runners/shared'
 import { OK } from '@/src/utils/result'
 import {
+  AGENT_KILL_GRACE,
+  buildAgentEnvironment,
   buildAgentPrompt,
+  buildAgentTranscript,
   cleanupTempWorkDir,
-  copyFixtures,
+  copyWorkspace,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
+  gradeAgentWorkspace,
+  getCodexGatewayArgs,
   setupAgentContext,
   setupSkills,
 } from './shared'
@@ -55,15 +57,10 @@ type CodexJsonEvent = {
 }
 
 /**
- * Parse Codex JSONL output into the full conversation text for grading.
- *
- * Extracts:
- * - Agent messages (item.type === "agent_message")
- * - Command outputs (item.type === "command_execution")
- * - File edits/writes (item.type === "file_edit" or "file_create")
+ * Parse Codex JSONL output and return the final agent message.
  */
-function parseCodexJsonl(raw: string): string {
-  const parts: string[] = []
+export function parseCodexJsonl(raw: string): string {
+  const assistantMessages: string[] = []
 
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue
@@ -71,8 +68,6 @@ function parseCodexJsonl(raw: string): string {
     try {
       event = JSON.parse(line)
     } catch {
-      // Non-JSON output lines are plain text from the agent
-      parts.push(line)
       continue
     }
 
@@ -81,24 +76,11 @@ function parseCodexJsonl(raw: string): string {
 
     // Agent text messages
     if (item.type === 'agent_message' && item.text) {
-      parts.push(item.text)
-    }
-
-    // Command execution outputs (shell commands the agent ran)
-    if (item.type === 'command_execution' && item.aggregated_output) {
-      parts.push(item.aggregated_output)
-    }
-
-    // File writes/edits - capture the content
-    if ((item.type === 'file_edit' || item.type === 'file_create') && item.file_path) {
-      const content = item.new_content ?? item.content ?? ''
-      if (content) {
-        parts.push(`${item.file_path}\n${content}`)
-      }
+      assistantMessages.push(item.text)
     }
   }
 
-  return parts.join('\n\n')
+  return assistantMessages.at(-1) ?? ''
 }
 
 /**
@@ -110,22 +92,36 @@ async function execCodex(
   timeout: number,
   executablePath: string,
   envPath: string,
+  model: string,
+  mcpServerUrl?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
   return new Promise((resolve) => {
-    const args = ['exec', '--json', '--ephemeral', '--full-auto', prompt]
+    const args = [
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--sandbox',
+      'workspace-write',
+      '--ignore-user-config',
+      '--ignore-rules',
+      ...getCodexGatewayArgs(model),
+      ...(mcpServerUrl
+        ? ['--config', `mcp_servers.clerk.url=${JSON.stringify(mcpServerUrl)}`]
+        : []),
+      prompt,
+    ]
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: {
-        ...process.env,
-        PATH: envPath,
-      },
+      env: buildAgentEnvironment('codex', envPath),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
     let stdout = ''
+    let timedOut = false
+    let forceKillId: ReturnType<typeof setTimeout> | undefined
 
     proc.stdout.on('data', (data: Buffer) => {
       stdout += data.toString()
@@ -135,33 +131,33 @@ async function execCodex(
     proc.stderr.on('data', () => {})
 
     const timeoutId = setTimeout(() => {
+      timedOut = true
       proc.kill('SIGTERM')
-      const fullOutput = parseCodexJsonl(stdout)
-      resolve({
-        success: false,
-        output: fullOutput,
-        duration: Date.now() - startTime,
-        error: `Timeout after ${timeout}ms`,
-        exitCode: -1,
-      })
+      forceKillId = setTimeout(() => proc.kill('SIGKILL'), AGENT_KILL_GRACE)
     }, timeout)
 
     proc.on('close', (code) => {
       clearTimeout(timeoutId)
+      if (forceKillId) clearTimeout(forceKillId)
       const duration = Date.now() - startTime
       const fullOutput = parseCodexJsonl(stdout)
 
       resolve({
-        success: code === 0,
+        success: !timedOut && code === 0,
         output: fullOutput,
         duration,
-        exitCode: code ?? -1,
-        error: code !== 0 ? `Exit code: ${code}` : undefined,
+        exitCode: timedOut ? -1 : (code ?? -1),
+        error: timedOut
+          ? `Timeout after ${timeout}ms`
+          : code !== 0
+            ? `Exit code: ${code}`
+            : undefined,
       })
     })
 
     proc.on('error', (err) => {
       clearTimeout(timeoutId)
+      if (forceKillId) clearTimeout(forceKillId)
       const fullOutput = parseCodexJsonl(stdout)
       resolve({
         success: false,
@@ -189,11 +185,14 @@ export default async function exec({
   evalPath,
   debug = false,
   skillsConfig,
+  mcpConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
   executablePath,
   envPath,
-  fixturesPath,
+  model,
+  workspacePath,
   gradersPath,
+  verification,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -213,8 +212,8 @@ export default async function exec({
     workDir = await createTempWorkDir(evalName)
 
     // 2b. Copy fixtures into work dir
-    if (fixturesPath) {
-      await copyFixtures(workDir, fixturesPath)
+    if (workspacePath) {
+      await copyWorkspace(workDir, workspacePath)
     }
 
     // 2c. Codex requires a git repo to run
@@ -241,28 +240,54 @@ export default async function exec({
     if (debug) {
       console.log(`[debug] Executing Codex in workDir: ${workDir}`)
     }
-    const result = await execCodex(prompt, workDir, timeout, executablePath, envPath)
+    const result = await execCodex(
+      prompt,
+      workDir,
+      timeout,
+      executablePath,
+      envPath,
+      model,
+      mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
+    )
 
-    if (!result.success && !result.output) {
+    if (!result.success) {
       return { ok: false as const, error: result.error || 'Codex execution failed' }
     }
 
-    // 5. Run graders against output (variant-aware)
-    const graderModule = gradersPath
-      ? ((await import(gradersPath)) as { graders: Graders })
-      : ((await import(path.join(evalPath, 'graders.ts'))) as { graders: Graders })
-    const graderResults = await runGraders(graderModule.graders, result.output)
-    const score = computeScore(graderResults)
+    const grading = await gradeAgentWorkspace({
+      workDir,
+      finalResponse: result.output,
+      evalPath,
+      gradersPath,
+      verification,
+      envPath,
+    })
 
     // 6. Return result
     return OK({
-      score,
+      score: grading.score,
+      durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
       debug: debug
         ? {
             prompt,
-            response: result.output,
-            graders: graderResults,
-            transcript: buildTranscript(prompt, result, graderResults),
+            response: grading.gradingArtifact,
+            graders: grading.graderResults,
+            transcript: buildAgentTranscript({
+              agentLabel: 'Codex',
+              prompt,
+              result,
+              graderResults: grading.graderResults,
+              gradingArtifact: grading.gradingArtifact,
+              hiddenVerification: grading.hiddenVerification,
+              score: grading.score,
+            }),
+            hiddenVerification: grading.hiddenVerification
+              ? {
+                  passed: grading.hiddenVerification.passed,
+                  durationMs: grading.hiddenVerification.durationMs,
+                  exitCode: grading.hiddenVerification.exitCode,
+                }
+              : undefined,
           }
         : undefined,
     })
@@ -278,41 +303,4 @@ export default async function exec({
       console.log(`[debug] Work dir preserved: ${workDir}`)
     }
   }
-}
-
-/**
- * Build a debug transcript for Codex execution.
- */
-function buildTranscript(
-  prompt: string,
-  result: AgentExecResult,
-  graderResults: [string, boolean][],
-): string {
-  const passed = graderResults.filter(([, p]) => p).length
-  const scorePercent = ((passed / graderResults.length) * 100).toFixed(1)
-
-  return `# Codex Agent Transcript
-
-## Execution Info
-- **Duration**: ${(result.duration / 1000).toFixed(2)}s
-- **Exit Code**: ${result.exitCode}
-- **Success**: ${result.success}
-
-## Prompt
-\`\`\`markdown
-${prompt.trim()}
-\`\`\`
-
-## Output
-\`\`\`
-${result.output.slice(0, 10000)}${result.output.length > 10000 ? '\n... (truncated)' : ''}
-\`\`\`
-
-## Grader Results
-**Score: ${scorePercent}%** (${passed}/${graderResults.length})
-
-| Grader | Result |
-|--------|--------|
-${graderResults.map(([name, p]) => `| ${name} | ${p ? 'PASS' : 'FAIL'} |`).join('\n')}
-`
 }

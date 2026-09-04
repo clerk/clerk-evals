@@ -5,7 +5,7 @@ import type { Evaluation } from '@/src/interfaces'
  * Categories aligned with Clerk product verticals.
  */
 export const EVALUATIONS: Evaluation[] = [
-  // Quickstarts (4 evals)
+  // Web quickstarts (4 evals)
   { framework: 'Next.js', category: 'Quickstarts', path: 'evals/quickstarts/nextjs' },
   {
     framework: 'Next.js',
@@ -15,9 +15,27 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Next.js', category: 'Quickstarts', path: 'evals/quickstarts/keyless' },
   { framework: 'React', category: 'Quickstarts', path: 'evals/quickstarts/react-vite' },
 
-  // Auth (2 evals)
+  // Web authentication (6 evals)
   { framework: 'Next.js', category: 'Auth', path: 'evals/auth/protect' },
   { framework: 'Next.js', category: 'Auth', path: 'evals/auth/routes' },
+  { framework: 'Next.js', category: 'Auth', path: 'evals/auth/passkey-sign-in' },
+  { framework: 'Next.js', category: 'Auth', path: 'evals/auth/setup-mfa-task' },
+  {
+    framework: 'Next.js',
+    category: 'Auth',
+    path: 'evals/auth/reverification-sensitive-action',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Machine Auth',
+    path: 'evals/auth/machine-tokens',
+    agent: {
+      workspacePath: 'agent/workspace',
+      verification: {
+        testsPath: 'agent/hidden-tests',
+      },
+    },
+  },
 
   // User Management (1 eval)
   { framework: 'Next.js', category: 'User Management', path: 'evals/user-management/profile-page' },
@@ -40,12 +58,17 @@ export const EVALUATIONS: Evaluation[] = [
     path: 'evals/ui-components/organization-switcher',
   },
 
-  // Organizations (2 evals)
+  // Organizations (3 evals)
   { framework: 'Next.js', category: 'Organizations', path: 'evals/organizations/url-sync' },
   {
     framework: 'Next.js',
     category: 'Organizations',
     path: 'evals/organizations/membership-webhook',
+  },
+  {
+    framework: 'Next.js',
+    category: 'Organizations',
+    path: 'evals/organizations/onboarding-task',
   },
 
   // Webhooks (3 evals)
@@ -56,11 +79,12 @@ export const EVALUATIONS: Evaluation[] = [
   // Upgrades (1 eval)
   { framework: 'Next.js', category: 'Upgrades', path: 'evals/upgrades/core-3' },
 
-  // Billing (4 evals)
+  // Billing (5 evals)
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/checkout-new' },
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/checkout-existing' },
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/events-webhook' },
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/subscriptions-webhook' },
+  { framework: 'Next.js', category: 'Billing', path: 'evals/billing/feature-authorization' },
 
   // iOS (3 evals)
   { framework: 'iOS', category: 'Quickstarts', path: 'evals/ios/prebuilt-setup' },
@@ -73,8 +97,40 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Android', category: 'Auth', path: 'evals/android/routing' },
 
   // Add Auth — framework-agnostic agent eval (4 variants, shared prompt)
-  { framework: 'Next.js', category: 'Add Auth', path: 'evals/add-auth', variant: 'nextjs' },
-  { framework: 'React', category: 'Add Auth', path: 'evals/add-auth', variant: 'react' },
-  { framework: 'Android', category: 'Add Auth', path: 'evals/add-auth', variant: 'android' },
-  { framework: 'iOS', category: 'Add Auth', path: 'evals/add-auth', variant: 'ios' },
+  {
+    framework: 'Next.js',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'nextjs',
+    agent: {
+      workspacePath: 'fixtures/nextjs',
+    },
+  },
+  {
+    framework: 'React',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'react',
+    agent: {
+      workspacePath: 'fixtures/react',
+    },
+  },
+  {
+    framework: 'Android',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'android',
+    agent: {
+      workspacePath: 'fixtures/android',
+    },
+  },
+  {
+    framework: 'iOS',
+    category: 'Add Auth',
+    path: 'evals/add-auth',
+    variant: 'ios',
+    agent: {
+      workspacePath: 'fixtures/ios',
+    },
+  },
 ]

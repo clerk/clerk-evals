@@ -1,12 +1,12 @@
 # clerk-evals
 
-Evaluation suites for testing how LLMs perform at writing Clerk code. 31 evals across 9 categories (Quickstarts, Auth, User Management, UI Components, Organizations, Webhooks, Upgrades, Billing, Add Auth) covering Next.js, React, iOS, and Android. 31 models from OpenAI, Anthropic, Google, and Vercel.
+Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 37 tasks across Next.js, React, iOS, and Android. Vercel AI Gateway provides one transport for models from OpenAI, Anthropic, Google, xAI, Moonshot AI, and Tencent.
 
 ![diagram](./docs/diagram.jpg)
 
 ## Quickstart
 
-Install [Bun](https://bun.sh) `>=1.3.0`, then gather the required API keys. See [`.env.example`](./.env.example)
+Install [Bun](https://bun.sh) `>=1.3.0`, then add a Vercel AI Gateway key. See [`.env.example`](./.env.example).
 
 ```bash
 cp .env.example .env
@@ -20,7 +20,7 @@ For detailed, copy-pastable steps see [`docs/ADDING_EVALS.md`](./docs/ADDING_EVA
 
 - Create `src/evals/your-eval/` with `PROMPT.md` and `graders.ts`.
 - Implement graders that return booleans using `defineGraders(...)` and shared judges in `@/src/graders/catalog`.
-- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, `path`, `description`, and `primaryCapability`.
+- Append an entry to the `evaluations` array in `src/config/evaluations.ts` with `framework`, `category`, and `path`.
 - Run `bun start --eval "your-eval" --smoke --debug` to test with one model.
 
 <details>
@@ -70,24 +70,28 @@ bun start --eval "auth/routes" --smoke --debug
 bun start [options]
 ```
 
-| Flag                          | Description                                            |
-| ----------------------------- | ------------------------------------------------------ |
-| `--mcp`                       | Enable MCP tools (uses mcp.clerk.dev by default)       |
-| `--skills`                    | Enable skills tools (loads from `../skills/skills/`)   |
-| `--model "claude-sonnet-4-0"` | Filter by exact model name (case-insensitive)          |
-| `--provider "anthropic"`      | Filter by provider (openai, anthropic, google, vercel) |
-| `--eval "protect"`            | Filter evals by category or path                       |
-| `--debug`                     | Collect debug details and print the score report       |
-| `--dry`                       | Print task summary without running                     |
-| `--smoke`                     | Run only the first task (quick validation)             |
-| `--fail-under 70`             | CI gate: fail if average score < threshold %           |
+| Flag                     | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `--mcp`                  | Enable MCP tools (uses mcp.clerk.dev by default)             |
+| `--skills`               | Enable skills tools (loads from `../skills/skills/`)         |
+| `--model "grok-4.6"`     | Select an exact model; explicit selection can use old models |
+| `--provider "anthropic"` | Filter by model creator                                      |
+| `--include-legacy`       | Include catalog models that do not meet the default policy   |
+| `--eval "protect"`       | Filter evals by category or path                             |
+| `--debug`                | Collect debug details and print the score report             |
+| `--dry`                  | Print task summary without running                           |
+| `--smoke`                | Run only the first task                                      |
+| `--fail-under 70`        | Fail if the average is below the percentage threshold        |
+| `--timeout 300000`       | Set the maximum time for each task in milliseconds           |
+| `--max-output-tokens`    | Set the model output token limit (defaults to 32,768)        |
+| `--max-retries`          | Set AI SDK request retries (defaults to 2)                   |
 
 ```bash
 # Baseline (no tools)
-bun start --model "claude-sonnet-4-0" --eval "protect"
+bun start --model "grok-4.6" --eval "protect"
 
 # With MCP tools
-bun start --mcp --model "claude-sonnet-4-0" --eval "protect"
+bun start --mcp --model "claude-sonnet-5" --eval "protect"
 
 # With skills
 bun start --skills --model "claude-sonnet-4-5"
@@ -99,13 +103,38 @@ MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 bun start --dry
 ```
 
+Each task has a five-minute limit by default. Use `--timeout` for one run or set
+`EVAL_TASK_TIMEOUT_MS` to change the default. Direct eval runs allow 32,768 output
+tokens by default. Use `--max-output-tokens` or `EVAL_MAX_OUTPUT_TOKENS` to change
+that limit. Add `--debug` to print task timing, step progress, and redacted gateway
+error details. Use `--max-retries 0` to isolate one gateway attempt.
+
+Responses that reach the output token limit are graded with their available
+text. This makes truncation a model-quality result instead of missing data.
+Transport and gateway failures remain retryable errors.
+
+Retry only the missing cells from a stored run, then rebuild its score file:
+
+```bash
+bun retry:run "mcp-2026-09-03T19-08-33-670Z" --concurrency 1
+bun retry:run "skills-2026-09-03T20-20-09-441Z" --model grok-4.6 --eval ios/custom-setup
+bun rebuild:scores "skills-2026-09-03T20-20-09-441Z"
+```
+
+### Model policy
+
+Routine runs include models released in the last 90 days. A creator's model marked as its current best model remains in routine runs after 90 days. An exact `--model` selection always works for models that remain in the catalog. Use `--include-legacy` to run the complete catalog.
+
+The external model set also tracks strong results from the [Convex LLM leaderboard](https://www.convex.dev/llm-leaderboard). The current additions are Grok 4.6, Grok 4.5, Tencent Hy4 Preview, and Kimi K3. These models ranked 4, 8, 9, and 13 when selected on September 3, 2026.
+
 ### Batch Runner
 
 Run all configured models sequentially with timeout and retry:
 
 ```bash
-./run-evals.sh                              # All models, baseline + MCP
+./run-evals.sh                              # Default models, baseline + MCP
 ./run-evals.sh --models "gpt-5,claude-sonnet-4-5"  # Specific models
+./run-evals.sh --include-legacy             # Complete catalog
 ./run-evals.sh --baseline-only              # Skip MCP
 ./run-evals.sh --mcp-only                   # Skip baseline
 ./run-evals.sh --list                       # List available models
@@ -128,28 +157,31 @@ BRAINTRUST_API_KEY=sk-... bun report:braintrust --since "2026-03-19T17:00:00Z"
 
 The eval runner uses `wrapAISDK` to auto-trace all `generateText` calls (inputs, outputs, tool invocations, token usage). Traces flow to Braintrust even during batch runs.
 
-## Agent Evals
+## Coding-agent evals
 
 Run evaluations using AI coding agents (Claude Code, Codex) instead of direct LLM calls.
 
 ### Prerequisites
 
-Agent evals spawn CLI tools as child processes. Install them globally before running:
+Agent evals spawn CLI tools as child processes and grade the final isolated workspace. Install a supported CLI before running:
 
-- [Claude Code](https://code.claude.com/docs/en/quickstart) — requires `ANTHROPIC_API_KEY`
-- [Codex CLI](https://developers.openai.com/codex/cli) — requires `OPENAI_API_KEY`
+- [Claude Code](https://code.claude.com/docs/en/quickstart)
+- [Codex CLI](https://developers.openai.com/codex/cli)
 
-Both API keys must be set in your `.env`.
+Set `VERCEL_AI_GATEWAY_API_KEY` in `.env`. The harness maps this key to each CLI. Direct provider keys remain a fallback for local compatibility. Pin the model with `--model` or `ANTHROPIC_MODEL` for Claude Code and `OPENAI_MODEL` for Codex.
+
+Registered agent tasks use an explicit repository fixture. A task can also define hidden Bun tests. The harness stages those tests outside the repository after the coding agent exits. Test failure is a hard score gate, while normal deterministic graders still provide diagnostic partial credit.
 
 ### Usage
 
 ```bash
-bun start:agent --agent claude-code [options]
+bun start:agent --agent claude-code --model claude-sonnet-5 [options]
 ```
 
 | Flag            | Description                                      |
 | --------------- | ------------------------------------------------ |
-| `--agent, -a`   | Agent type (required): `claude-code`, `cursor`   |
+| `--agent, -a`   | Agent type (required): `claude-code`, `codex`    |
+| `--model, -m`   | Exact model ID (required unless set by env)      |
 | `--mcp`         | Enable MCP tools                                 |
 | `--eval, -e`    | Filter evals by path                             |
 | `--debug, -d`   | Collect debug details and print the score report |
@@ -158,34 +190,34 @@ bun start:agent --agent claude-code [options]
 **Shortcuts:**
 
 ```bash
-bun agent:claude        # claude-code baseline
-bun agent:claude:mcp    # claude-code with MCP
+bun agent:claude --model claude-sonnet-5
+bun agent:claude:mcp --model claude-sonnet-5
+bun agent:codex --model gpt-5.6-sol
 ```
 
 **Examples:**
 
 ```bash
 # Run all evals with Claude Code
-bun start:agent --agent claude-code
+bun start:agent --agent claude-code --model claude-sonnet-5
 
 # Run specific eval with debug output
-bun start:agent -a claude-code -e auth/protect -d
+bun start:agent -a claude-code -m claude-sonnet-5 -e add-auth -d
 
 # Run with MCP tools enabled
-bun start:agent --agent claude-code --mcp
+bun start:agent --agent codex --model gpt-5.6-sol --mcp
 ```
 
 ### Output Files
 
-| Runner                    | Output               | Description                      |
-| ------------------------- | -------------------- | -------------------------------- |
-| `bun start`               | `scores.json`        | Baseline scores (no tools)       |
-| `bun start --mcp`         | `scores-mcp.json`    | MCP scores (with tools)          |
-| `bun start --skills`      | `scores-skills.json` | Skills scores                    |
-| `bun start:agent`         | `agent-scores.json`  | Agent evaluation scores          |
-| `bun merge-scores`        | `llm-scores.json`    | Combined for llm-leaderboard     |
-| `bun export:capabilities` | Terminal / JSON      | Per-model capability breakdown   |
-| `bun report:braintrust`   | Braintrust UI        | Consolidated experiment per mode |
+| Runner                  | Output               | Description                      |
+| ----------------------- | -------------------- | -------------------------------- |
+| `bun start`             | `scores.json`        | Baseline scores (no tools)       |
+| `bun start --mcp`       | `scores-mcp.json`    | MCP scores (with tools)          |
+| `bun start --skills`    | `scores-skills.json` | Skills scores                    |
+| `bun start:agent`       | `agent-scores.json`  | Agent evaluation scores          |
+| `bun merge-scores`      | `llm-scores.json`    | Combined for llm-leaderboard     |
+| `bun report:braintrust` | Braintrust UI        | Consolidated experiment per mode |
 
 ### Workflow for llm-leaderboard
 

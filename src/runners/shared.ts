@@ -114,6 +114,7 @@ export function resolveModel(provider: Provider, model: string) {
  * - OpenAI: https://platform.openai.com/docs/pricing
  * - Anthropic: https://docs.anthropic.com/en/docs/about-claude/models
  * - Google: https://ai.google.dev/gemini-api/docs/pricing
+ * - Gateway models: https://ai-gateway.vercel.sh/v1/models
  */
 const MODEL_PRICING: Record<string, [number, number]> = {
   // OpenAI
@@ -128,17 +129,46 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-5.2-chat-latest': [1.75, 14],
   'gpt-5.2-codex': [1.75, 14],
   'gpt-5.2-pro': [21, 168],
+  'gpt-5.3-codex': [1.75, 14],
+  'gpt-5.4': [2.5, 12],
   'gpt-5.4-2026-03-05': [2.5, 12],
+  'gpt-5.4-mini': [0.75, 4.5],
+  'gpt-5.4-nano': [0.2, 1.25],
+  'gpt-5.4-pro': [30, 180],
+  'gpt-5.5': [5, 30],
+  'gpt-5.5-pro': [30, 180],
+  'gpt-5.6-sol': [4, 20],
+  'gpt-5.6-terra': [2, 12],
+  'gpt-5.6-luna': [0.2, 1.2],
   // Anthropic
-  'claude-sonnet-4-0': [3, 15],
+  'claude-fable-5-1': [10, 50],
+  'claude-fable-5': [10, 50],
+  'claude-opus-5': [5, 25],
+  'claude-sonnet-5': [2, 10],
   'claude-sonnet-4-5': [3, 15],
-  'claude-opus-4-0': [15, 75],
+  'claude-sonnet-4-6': [3, 15],
   'claude-opus-4-5': [5, 25],
   'claude-opus-4-6': [5, 25],
+  'claude-opus-4-7': [5, 25],
+  'claude-opus-4-8': [5, 25],
   'claude-haiku-4-5': [1, 5],
   // Google
-  'gemini-2.5-flash': [0.15, 0.6],
+  'gemini-3.8-flash': [0.75, 3.75],
+  'gemini-3.7-flash': [0.75, 3.75],
+  'gemini-3.6-flash': [0.75, 3.75],
+  'gemini-3.5-flash': [1.5, 9],
+  'gemini-3.5-flash-lite': [0.3, 2.5],
+  'gemini-3.1-pro-preview': [2, 12],
+  'gemini-3.1-flash-lite': [0.25, 1.5],
+  'gemini-2.5-pro': [1.25, 10],
+  'gemini-2.5-flash': [0.3, 2.5],
+  'gemini-2.5-flash-lite': [0.1, 0.4],
   'gemini-3-pro-preview': [2, 12],
+  // Convex leaderboard leaders selected for the default run set
+  'grok-4.6': [2, 6],
+  'grok-4.5': [2, 6],
+  'kimi-k3': [3, 15],
+  'hy4-preview': [0.834, 2.501],
 }
 
 export function estimateCost(

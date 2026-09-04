@@ -1,14 +1,18 @@
 import type { Provider } from '@/src/providers'
 import type { Result } from '@/src/utils/result'
+import type { AgentEvaluationConfig } from './agent'
 
 // Re-export agent types
 export type {
+  AgentEvaluationConfig,
   AgentExecResult,
   AgentInfo,
   AgentMCPConfig,
   AgentRunnerArgs,
   AgentSkillsConfig,
   AgentType,
+  ResolvedAgentEvaluationConfig,
+  ResolvedAgentVerificationConfig,
 } from './agent'
 export { AGENTS, getAgentInfo, getAllAgentTypes } from './agent'
 
@@ -40,6 +44,11 @@ export type RunnerDebugPayload = {
   toolResults?: ToolResultInfo[]
   transcript?: string
   finishReason?: string
+  hiddenVerification?: {
+    passed: boolean
+    durationMs: number
+    exitCode?: number
+  }
 }
 
 export type TokenUsage = {
@@ -95,6 +104,9 @@ export type ExecArgs = RunnerArgs & {
   mcpServerUrl?: string
   skillsPath?: string
   maxToolRounds?: number
+  maxOutputTokens?: number
+  maxRetries?: number
+  timeoutMs?: number
 }
 
 /**
@@ -108,6 +120,7 @@ export type Framework = 'Next.js' | 'React' | 'iOS' | 'Android'
 export type Category =
   | 'Quickstarts'
   | 'Auth'
+  | 'Machine Auth'
   | 'User Management'
   | 'UI Components'
   | 'Organizations'
@@ -122,6 +135,7 @@ export type Evaluation = {
   path: string
   /** Variant subdirectory for fixture-based evals (e.g., 'nextjs', 'android') */
   variant?: string
+  agent?: AgentEvaluationConfig
 }
 
 /**
@@ -139,4 +153,5 @@ export type Score = {
   durationMs?: number
   /** Canonical eval identity, e.g. evals/add-auth::nextjs */
   evalKey?: string
+  trial?: number
 }

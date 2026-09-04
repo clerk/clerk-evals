@@ -1,7 +1,6 @@
 /**
  * Debug utilities for evaluation runners.
  */
-import type { generateText } from 'ai'
 import type { ToolCallInfo, ToolResultInfo } from '@/src/interfaces'
 import { SYSTEM_PROMPT } from '@/src/runners/shared'
 
@@ -32,7 +31,14 @@ const getToolText = (tr: MCPToolResult) =>
 
 /** Builds MCP debug payload with tool usage and transcript */
 export function buildMCPDebugPayload(
-  response: Awaited<ReturnType<typeof generateText>>,
+  response: {
+    steps?: ReadonlyArray<{
+      finishReason: string
+      text: string
+      toolCalls: ReadonlyArray<unknown>
+      toolResults: ReadonlyArray<unknown>
+    }>
+  },
   prompt: string,
   fullResponse: string,
   graderResults: [string, boolean][],
