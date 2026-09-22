@@ -9,6 +9,7 @@ export type RunMetadata = {
   suiteHash: string
   harnessCommit?: string
   skillsCommit?: string
+  cliVersion?: string
   mcpServerUrl?: string
   createdAt?: string
 }
@@ -56,10 +57,17 @@ export function initDB() {
       suite_hash TEXT NOT NULL,
       harness_commit TEXT,
       skills_commit TEXT,
+      cli_version TEXT,
       mcp_server_url TEXT,
       created_at TEXT NOT NULL
     )
   `)
+
+  const runCols = db.query('PRAGMA table_info(runs)').all() as { name: string }[]
+  const runColNames = new Set(runCols.map((c) => c.name))
+  if (!runColNames.has('cli_version')) {
+    db.run('ALTER TABLE runs ADD COLUMN cli_version TEXT')
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS errors (
@@ -95,6 +103,7 @@ export function saveRun(metadata: RunMetadata) {
       suite_hash,
       harness_commit,
       skills_commit,
+      cli_version,
       mcp_server_url,
       created_at
     )
@@ -106,6 +115,7 @@ export function saveRun(metadata: RunMetadata) {
       $suite_hash,
       $harness_commit,
       $skills_commit,
+      $cli_version,
       $mcp_server_url,
       $created_at
     )
@@ -119,6 +129,7 @@ export function saveRun(metadata: RunMetadata) {
     $suite_hash: metadata.suiteHash,
     $harness_commit: metadata.harnessCommit ?? null,
     $skills_commit: metadata.skillsCommit ?? null,
+    $cli_version: metadata.cliVersion ?? null,
     $mcp_server_url: metadata.mcpServerUrl ?? null,
     $created_at: metadata.createdAt ?? new Date().toISOString(),
   })

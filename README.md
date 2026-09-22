@@ -141,6 +141,15 @@ Agent evals spawn CLI tools as child processes. Install them globally before run
 
 Both API keys must be set in your `.env`.
 
+The `add-auth` eval is the exception to the repository's checked-in `PROMPT.md` convention. It
+fetches `skills/core/clerk-setup/SKILL.md` from an immutable `clerk/skills` revision at runtime so
+the baseline and Skills columns always evaluate the canonical setup prompt. Set the full source
+commit before running it locally:
+
+```bash
+CLERK_SKILLS_SHA=<full-clerk-skills-sha> bun agent:claude --eval add-auth
+```
+
 ### Usage
 
 ```bash
@@ -215,7 +224,7 @@ The merge script combines both score files and calculates improvement metrics:
 This project is broken up into a few core pieces:
 
 - [`src/index.ts`](./src/index.ts): This is the main entrypoint of the project. Models, reporters, and the runner are registered here, and all executed. Evaluations are defined in [`src/config/evaluations.ts`](./src/config/evaluations.ts).
-- [`/evals`](./src/evals): Folders that contain a prompt and grading expectations. Runners currently assume that eval folders contain two files: `graders.ts` and `PROMPT.md`.
+- [`/evals`](./src/evals): Folders that contain grading expectations and, except for `add-auth`, a checked-in prompt. The `add-auth` prompt is fetched from the canonical `clerk/skills` revision identified by `CLERK_SKILLS_SHA`.
 - [`/runners`](./src/runners): The primary logic responsible for loading evaluations, calling provider llms, and outputting scores.
 - [`/reporters`](./src/reporters): The primary logic responsible for sending scores somewhere — stdout, a file, etc.
 
@@ -239,7 +248,7 @@ It will load the designated **evaluation**, generate LLM text from the prompt, a
 
 At the moment, **evaluations** are simply folders that contain:
 
-- `PROMPT.md`: the instruction for which we're evaluating the model's output on
+- `PROMPT.md`: the instruction for which we're evaluating the model's output on. The `add-auth` eval instead fetches the canonical `clerk-setup` skill at runtime.
 - `graders.ts`: a module containing grader functions which return `true/false` signalling if the model's output passed or failed. This is essentially our acceptance criteria.
 
 ### Graders

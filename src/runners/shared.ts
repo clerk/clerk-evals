@@ -3,6 +3,7 @@
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { loadEvaluationPrompt } from '@/src/eval-prompt'
 import type { Graders } from '@/src/graders'
 import type { Provider } from '@/src/providers'
 import { getModel } from '@/src/providers'
@@ -54,10 +55,10 @@ async function loadFixtureContext(evalPath: string, variant: string): Promise<st
 }
 
 /**
- * Loads the PROMPT.md file from an evaluation directory.
+ * Loads an evaluation prompt from its configured source.
  */
 export async function loadPrompt(evalPath: string, variant?: string): Promise<string> {
-  const prompt = await fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+  const prompt = await loadEvaluationPrompt(evalPath)
   if (!variant) return prompt
 
   const fixtureContext = await loadFixtureContext(evalPath, variant)

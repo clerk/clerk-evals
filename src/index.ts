@@ -127,7 +127,9 @@ const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
 const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
-const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
+const skillsCommit =
+  process.env.CLERK_SKILLS_SHA ?? (skillsEnabled ? getGitCommit(skillsPath) : undefined)
+const cliVersion = process.env.CLERK_CLI_VERSION
 
 const braintrustDebugMap = new Map<string, { debug: RunnerDebugPayload; evaluationPath: string }>()
 
@@ -198,6 +200,7 @@ saveRun({
   suiteHash,
   harnessCommit,
   skillsCommit,
+  cliVersion,
   mcpServerUrl: modeLabel === 'mcp' ? mcpUrl : undefined,
 })
 

@@ -85,8 +85,9 @@ function parseCodexJsonl(raw: string): string {
     }
 
     // Command execution outputs (shell commands the agent ran)
-    if (item.type === 'command_execution' && item.aggregated_output) {
-      parts.push(item.aggregated_output)
+    if (item.type === 'command_execution') {
+      if (item.command) parts.push(`$ ${item.command}`)
+      if (item.aggregated_output) parts.push(item.aggregated_output)
     }
 
     // File writes/edits - capture the content

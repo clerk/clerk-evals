@@ -4,6 +4,7 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { createSkillsClaudeMd } from '@/src/config/skills'
+import { loadEvaluationPrompt } from '@/src/eval-prompt'
 import type { AgentMCPConfig } from '@/src/interfaces/agent'
 
 /**
@@ -52,10 +53,10 @@ export async function cleanupTempMCPConfig(configPath: string): Promise<void> {
 }
 
 /**
- * Loads the PROMPT.md from an evaluation directory.
+ * Loads an evaluation prompt from its configured source.
  */
 export async function loadPrompt(evalPath: string): Promise<string> {
-  return fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+  return loadEvaluationPrompt(evalPath)
 }
 
 /**

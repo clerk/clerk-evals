@@ -145,7 +145,9 @@ const runIdSuffix = [skillsEnabled ? 'skills' : '', mcpEnabled ? 'mcp' : '']
 const runId = `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`
 const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
-const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
+const skillsCommit =
+  process.env.CLERK_SKILLS_SHA ?? (skillsEnabled ? getGitCommit(skillsPath) : undefined)
+const cliVersion = process.env.CLERK_CLI_VERSION
 
 // Build tasks
 const tasks = filteredEvaluations.map((evaluation) => ({
@@ -191,6 +193,7 @@ saveRun({
   suiteHash,
   harnessCommit,
   skillsCommit,
+  cliVersion,
   mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
 })
 
