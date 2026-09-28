@@ -55,13 +55,19 @@ export const MODELS: ProviderModels = {
     model('openai', 'gpt-5.4-pro', 'GPT-5.4 Pro', '2026-03-05'),
     model('openai', 'gpt-5.5', 'GPT-5.5', '2026-04-24'),
     model('openai', 'gpt-5.5-pro', 'GPT-5.5 Pro', '2026-04-24'),
-    model('openai', 'gpt-5.6-sol', 'GPT-5.6 Sol', '2026-07-09', { currentBest: true }),
+    model('openai', 'gpt-5.6-sol', 'GPT-5.6 Sol', '2026-07-09'),
     model('openai', 'gpt-5.6-terra', 'GPT-5.6 Terra', '2026-07-09'),
     model('openai', 'gpt-5.6-luna', 'GPT-5.6 Luna', '2026-07-09'),
+    model('openai', 'gpt-6-astra', 'GPT-6 Astra', '2026-09-04', { currentBest: true }),
+    model('openai', 'gpt-6-sol', 'GPT-6 Sol', '2026-09-22'),
+    model('openai', 'gpt-6-luna', 'GPT-6 Luna', '2026-09-22'),
   ],
   anthropic: [
     model('anthropic', 'claude-fable-5-1', 'Claude Fable 5.1', '2026-08-31', {
       gatewayName: 'claude-fable-5.1',
+    }),
+    model('anthropic', 'claude-opus-5-5', 'Claude Opus 5.5', '2026-09-22', {
+      gatewayName: 'claude-opus-5.5',
       currentBest: true,
     }),
     model('anthropic', 'claude-fable-5', 'Claude Fable 5', '2026-07-01'),
@@ -106,6 +112,9 @@ export const MODELS: ProviderModels = {
   'x-ai': [
     model('x-ai', 'grok-4.6', 'Grok 4.6', '2026-08-12', {
       gatewayProvider: 'spacexai',
+    }),
+    model('x-ai', 'grok-4.7', 'Grok 4.7', '2026-09-21', {
+      gatewayProvider: 'spacexai',
       currentBest: true,
     }),
     model('x-ai', 'grok-4.5', 'Grok 4.5', '2026-07-08', {
@@ -114,6 +123,8 @@ export const MODELS: ProviderModels = {
   ],
   moonshotai: [model('moonshotai', 'kimi-k3', 'Kimi K3', '2026-07-16')],
   tencent: [model('tencent', 'hy4-preview', 'Tencent Hy4 Preview', '2026-08-28')],
+  deepseek: [model('deepseek', 'deepseek-v4.1-flash', 'DeepSeek V4.1 Flash', '2026-09-08')],
+  zai: [model('zai', 'glm-5.3-flash', 'GLM 5.3 Flash', '2026-08-26')],
 }
 
 export type ModelEligibility = {
@@ -158,4 +169,56 @@ export function getModelsByProvider(
 
 export function getModelInfo(provider: Provider, name: string): ModelInfo | undefined {
   return MODELS[provider]?.find((entry) => entry.name === name)
+}
+
+export type ModelSelection = { ok: true; models: ModelInfo[] } | { ok: false; errors: string[] }
+
+export function selectModels(options: {
+  model?: string
+  models?: string
+  provider?: string
+  includeLegacy?: boolean
+  now?: Date
+}): ModelSelection {
+  if (options.model !== undefined && options.models !== undefined) {
+    return { ok: false, errors: ['Use either --model or --models, not both.'] }
+  }
+
+  if (options.model !== undefined || options.models !== undefined) {
+    const names = options.models === undefined ? [options.model ?? ''] : options.models.split(',')
+    const catalog = new Map(getAllModels().map((entry) => [entry.name.toLowerCase(), entry]))
+    const seen = new Set<string>()
+    const errors: string[] = []
+    const selected: ModelInfo[] = []
+
+    for (const rawName of names) {
+      const name = rawName.trim()
+      const key = name.toLowerCase()
+      if (!name) {
+        errors.push('Model list contains an empty name.')
+      } else if (seen.has(key)) {
+        errors.push(`Duplicate model: ${name}`)
+      } else {
+        seen.add(key)
+        const entry = catalog.get(key)
+        if (entry) selected.push(entry)
+        else errors.push(`Unknown model: ${name}`)
+      }
+    }
+
+    return errors.length ? { ok: false, errors } : { ok: true, models: selected }
+  }
+
+  if (options.provider !== undefined) {
+    const provider = options.provider.toLowerCase() as Provider
+    const models = getModelsByProvider(provider, options)
+    return models.length
+      ? { ok: true, models }
+      : { ok: false, errors: [`No models match provider: ${options.provider}`] }
+  }
+
+  return {
+    ok: true,
+    models: options.includeLegacy ? getAllModels() : getDefaultModels(options),
+  }
 }

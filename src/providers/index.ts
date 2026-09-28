@@ -8,6 +8,8 @@ export type ProviderGoogle = 'google'
 export type ProviderXAI = 'x-ai'
 export type ProviderMoonshotAI = 'moonshotai'
 export type ProviderTencent = 'tencent'
+export type ProviderDeepSeek = 'deepseek'
+export type ProviderZAI = 'zai'
 export type Provider =
   | ProviderOpenAI
   | ProviderAnthropic
@@ -15,6 +17,8 @@ export type Provider =
   | ProviderXAI
   | ProviderMoonshotAI
   | ProviderTencent
+  | ProviderDeepSeek
+  | ProviderZAI
 
 const credential = getGatewayCredential()
 const gateway = createGateway(credential ? { apiKey: credential } : undefined)

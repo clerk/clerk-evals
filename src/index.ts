@@ -6,9 +6,9 @@ import {
   EVALUATIONS,
   getAllModels,
   getDefaultModels,
-  getModelsByProvider,
   loadConfig,
   MODEL_CUTOFF_DAYS,
+  selectModels,
 } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
@@ -37,6 +37,7 @@ const { values } = parseArgs({
     'max-output-tokens': { type: 'string' },
     'max-retries': { type: 'string' },
     model: { type: 'string', short: 'm' },
+    models: { type: 'string' },
     provider: { type: 'string', short: 'p' },
     eval: { type: 'string', short: 'e' },
     'skills-path': { type: 'string' },
@@ -69,6 +70,7 @@ if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0
   process.exit(1)
 }
 const modelFilter = values.model
+const modelsFilter = values.models
 const providerFilter = values.provider
 const evalFilter = values.eval
 const skillsPath = values['skills-path'] || path.join(process.cwd(), '..', 'skills', 'skills')
@@ -84,19 +86,18 @@ if (config) {
 const effectiveFailUnder =
   failUnder ?? (config?.ci?.failUnder ? String(config.ci.failUnder) : undefined)
 
-const models = modelFilter
-  ? getAllModels()
-  : providerFilter
-    ? getModelsByProvider(providerFilter.toLowerCase() as Provider, { includeLegacy })
-    : includeLegacy
-      ? getAllModels()
-      : getDefaultModels()
+const selection = selectModels({
+  model: modelFilter,
+  models: modelsFilter,
+  provider: providerFilter,
+  includeLegacy,
+})
+if (!selection.ok) {
+  for (const error of selection.errors) console.error(error)
+  process.exit(1)
+}
 const evaluations = EVALUATIONS
-
-// Filter models - exact match on name only (case-insensitive, deterministic)
-const filteredModels = modelFilter
-  ? models.filter((m) => m.name.toLowerCase() === modelFilter.toLowerCase())
-  : models
+const filteredModels = selection.models
 
 // Filter evaluations
 const filteredEvaluations = (() => {
@@ -121,12 +122,6 @@ const filteredEvaluations = (() => {
 
   return matches
 })()
-
-if (filteredModels.length === 0) {
-  const filter = modelFilter ? `model="${modelFilter}"` : `provider="${providerFilter}"`
-  console.error(`No models match filter: ${filter}`)
-  process.exit(1)
-}
 
 // Mode detection — reused for runId, labels, output file, reporters
 const modeLabel = (() => {
@@ -187,7 +182,7 @@ const modeDisplay = (() => {
 console.log(
   `\nMode: ${modeDisplay} | ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
 )
-if (!modelFilter && !includeLegacy) {
+if (!modelFilter && !modelsFilter && !providerFilter && !includeLegacy) {
   const excludedCount = getAllModels().length - getDefaultModels().length
   console.log(
     `Model policy: released within ${MODEL_CUTOFF_DAYS} days or marked current best (${excludedCount} legacy models excluded).\n`,

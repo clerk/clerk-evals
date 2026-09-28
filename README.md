@@ -1,6 +1,6 @@
 # clerk-evals
 
-Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 37 tasks across Next.js, React, iOS, and Android. Vercel AI Gateway provides one transport for models from OpenAI, Anthropic, Google, xAI, Moonshot AI, and Tencent.
+Evaluation suites for testing how language models and coding agents write Clerk code. The suite covers 37 tasks across Next.js, React, iOS, and Android. Vercel AI Gateway provides one transport for models from OpenAI, Anthropic, Google, xAI, Moonshot AI, Tencent, DeepSeek, and Z.AI.
 
 ![diagram](./docs/diagram.jpg)
 
@@ -75,6 +75,7 @@ bun start [options]
 | `--mcp`                  | Enable MCP tools (uses mcp.clerk.dev by default)             |
 | `--skills`               | Enable skills tools (loads from `../skills/skills/`)         |
 | `--model "grok-4.6"`     | Select an exact model; explicit selection can use old models |
+| `--models "id1,id2"`     | Select models by native ID in the given order                |
 | `--provider "anthropic"` | Filter by model creator                                      |
 | `--include-legacy`       | Include catalog models that do not meet the default policy   |
 | `--eval "protect"`       | Filter evals by category or path                             |
@@ -101,6 +102,9 @@ MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 
 # Dry run (see what would execute)
 bun start --dry
+
+# One run with seven models and one run ID
+bun start --models "deepseek-v4.1-flash,glm-5.3-flash,claude-opus-5-5,gpt-6-astra,gpt-6-sol,gpt-6-luna,grok-4.7"
 ```
 
 Each task has a five-minute limit by default. Use `--timeout` for one run or set
@@ -123,9 +127,11 @@ bun rebuild:scores "skills-2026-09-03T20-20-09-441Z"
 
 ### Model policy
 
-Routine runs include models released in the last 90 days. A creator's model marked as its current best model remains in routine runs after 90 days. An exact `--model` selection always works for models that remain in the catalog. Use `--include-legacy` to run the complete catalog.
+Routine runs include models released in the last 90 days. A creator's model marked as its current best model remains in routine runs after 90 days. OpenAI's current best is GPT-6 Astra, Anthropic's is Claude Opus 5.5, and xAI's is Grok 4.7. Exact `--model` and `--models` selections can use old catalog models. Use `--include-legacy` to run the complete catalog.
 
-The external model set also tracks strong results from the [Convex LLM leaderboard](https://www.convex.dev/llm-leaderboard). The current additions are Grok 4.6, Grok 4.5, Tencent Hy4 Preview, and Kimi K3. These models ranked 4, 8, 9, and 13 when selected on September 3, 2026.
+The external model set also tracks strong results from the [Convex LLM leaderboard](https://www.convex.dev/llm-leaderboard). Earlier additions were Grok 4.6, Grok 4.5, Tencent Hy4 Preview, and Kimi K3. These models ranked 4, 8, 9, and 13 when selected on September 3, 2026.
+
+To keep all selected models under one run ID in each mode, use `bun start --models`, `bun start:mcp --models`, and `bun start:skills --models`. Use `bun retry:run` with that run ID to retry missing tasks.
 
 ### Batch Runner
 

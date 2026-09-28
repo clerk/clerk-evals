@@ -140,8 +140,12 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-5.6-sol': [4, 20],
   'gpt-5.6-terra': [2, 12],
   'gpt-5.6-luna': [0.2, 1.2],
+  'gpt-6-astra': [10, 50],
+  'gpt-6-sol': [2, 10],
+  'gpt-6-luna': [0.1, 0.5],
   // Anthropic
   'claude-fable-5-1': [10, 50],
+  'claude-opus-5-5': [4, 20],
   'claude-fable-5': [10, 50],
   'claude-opus-5': [5, 25],
   'claude-sonnet-5': [2, 10],
@@ -169,6 +173,9 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'grok-4.5': [2, 6],
   'kimi-k3': [3, 15],
   'hy4-preview': [0.834, 2.501],
+  'grok-4.7': [2, 6],
+  'deepseek-v4.1-flash': [0.3, 1.2],
+  'glm-5.3-flash': [0.15, 0.5],
 }
 
 export function estimateCost(
