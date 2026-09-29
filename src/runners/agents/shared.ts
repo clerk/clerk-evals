@@ -210,7 +210,7 @@ export async function runHiddenVerification(
     await fs.cp(config.testsPath, testsDir, { recursive: true, force: true })
 
     return await new Promise((resolve, reject) => {
-      const proc = spawn(process.execPath, ['test', testsDir], {
+      const proc = spawn(process.execPath, ['test', '.'], {
         cwd: testsDir,
         env: buildVerificationEnvironment(envPath, workDir),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -240,8 +240,9 @@ export async function runHiddenVerification(
         const sanitizedOutput = output
           .replaceAll(testsDir, '<hidden-tests>')
           .replaceAll(workDir, '<workspace>')
+        const noTestsRan = /did not match any test files|no tests found|\b0 tests?\b/i.test(output)
         resolve({
-          passed: !timedOut && code === 0,
+          passed: !timedOut && code === 0 && !noTestsRan,
           output: timedOut
             ? `${sanitizedOutput}\nTimed out after ${DEFAULT_HIDDEN_VERIFICATION_TIMEOUT}ms`
             : sanitizedOutput,

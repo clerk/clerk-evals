@@ -77,7 +77,18 @@ export const EVALUATIONS: Evaluation[] = [
   { framework: 'Next.js', category: 'Webhooks', path: 'evals/webhooks/notifications' },
 
   // Upgrades (1 eval)
-  { framework: 'Next.js', category: 'Upgrades', path: 'evals/upgrades/core-3' },
+  {
+    framework: 'Next.js',
+    category: 'Upgrades',
+    path: 'evals/upgrades/core-3',
+    variant: 'nextjs',
+    agent: {
+      workspacePath: 'fixtures/nextjs',
+      verification: {
+        testsPath: 'agent/hidden-tests',
+      },
+    },
+  },
 
   // Billing (5 evals)
   { framework: 'Next.js', category: 'Billing', path: 'evals/billing/checkout-new' },

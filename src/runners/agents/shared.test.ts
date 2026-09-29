@@ -100,6 +100,7 @@ pathIgnorePatterns = ["**"]`,
     )
 
     expect(result.passed).toBe(true)
+    expect(result.output).toMatch(/4 pass|Ran 4 tests/)
     expect(result.output).not.toContain(workDir)
   })
 
@@ -166,5 +167,20 @@ test('fails', () => expect(false).toBe(true))`,
         process.env.PATH ?? '',
       ),
     ).rejects.toThrow()
+  })
+
+  test('fails verification when the hidden test directory is empty', async () => {
+    const workDir = await createTempWorkDir('agent-grade-empty-workspace')
+    const emptyTests = await createTempWorkDir('agent-grade-empty-tests')
+    workDirs.push(workDir, emptyTests)
+
+    const result = await runHiddenVerification(
+      workDir,
+      { testsPath: emptyTests },
+      process.env.PATH ?? '',
+    )
+
+    expect(result.passed).toBe(false)
+    expect(result.output).toMatch(/did not match any test files|no tests found/i)
   })
 })
