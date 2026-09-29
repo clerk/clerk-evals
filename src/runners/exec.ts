@@ -199,7 +199,9 @@ export default async function exec({
       response.text,
       response.finishReason,
       response.totalUsage,
-    ])
+    ]).catch((error: unknown) => {
+      throw streamError ?? error
+    })
     if (debug) {
       console.error(
         '[DEBUG-eval-timeout] stream-end',
