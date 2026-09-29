@@ -92,10 +92,10 @@ bun start [options]
 bun start --model "grok-4.6" --eval "protect"
 
 # With MCP tools
-bun start --mcp --model "claude-sonnet-5" --eval "protect"
+bun start --mcp --model "claude-sonnet-5-5" --eval "protect"
 
 # With skills
-bun start --skills --model "claude-sonnet-4-5"
+bun start --skills --model "claude-sonnet-5-5"
 
 # Local MCP server
 MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
@@ -103,8 +103,7 @@ MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 # Dry run (see what would execute)
 bun start --dry
 
-# One run with seven models and one run ID
-bun start --models "deepseek-v4.1-flash,glm-5.3-flash,claude-opus-5-5,gpt-6-astra,gpt-6-sol,gpt-6-luna,grok-4.7"
+bun start --models "deepseek-v4.1-flash,glm-5.3-flash,claude-opus-5-5,claude-sonnet-5-5,gpt-6-astra,gpt-6-sol,gpt-6-luna,grok-4.7"
 ```
 
 Each task has a five-minute limit by default. Use `--timeout` for one run or set
@@ -139,7 +138,7 @@ Run all configured models sequentially with timeout and retry:
 
 ```bash
 ./run-evals.sh                              # Default models, baseline + MCP
-./run-evals.sh --models "gpt-5,claude-sonnet-4-5"  # Specific models
+./run-evals.sh --models "gpt-5,claude-sonnet-5-5"  # Specific models
 ./run-evals.sh --include-legacy             # Complete catalog
 ./run-evals.sh --baseline-only              # Skip MCP
 ./run-evals.sh --mcp-only                   # Skip baseline
@@ -181,7 +180,7 @@ Registered agent tasks use an explicit repository fixture. A task can also defin
 ### Usage
 
 ```bash
-bun start:agent --agent claude-code --model claude-sonnet-5 [options]
+bun start:agent --agent claude-code --model claude-sonnet-5-5 [options]
 ```
 
 | Flag            | Description                                      |
@@ -196,8 +195,8 @@ bun start:agent --agent claude-code --model claude-sonnet-5 [options]
 **Shortcuts:**
 
 ```bash
-bun agent:claude --model claude-sonnet-5
-bun agent:claude:mcp --model claude-sonnet-5
+bun agent:claude --model claude-sonnet-5-5
+bun agent:claude:mcp --model claude-sonnet-5-5
 bun agent:codex --model gpt-5.6-sol
 ```
 
@@ -205,10 +204,10 @@ bun agent:codex --model gpt-5.6-sol
 
 ```bash
 # Run all evals with Claude Code
-bun start:agent --agent claude-code --model claude-sonnet-5
+bun start:agent --agent claude-code --model claude-sonnet-5-5
 
 # Run specific eval with debug output
-bun start:agent -a claude-code -m claude-sonnet-5 -e add-auth -d
+bun start:agent -a claude-code -m claude-sonnet-5-5 -e add-auth -d
 
 # Run with MCP tools enabled
 bun start:agent --agent codex --model gpt-5.6-sol --mcp

@@ -32,10 +32,10 @@ bun start
 bun start --eval "auth/protect" --smoke --debug
 
 # Run with MCP tools
-bun start --mcp --model "claude-sonnet-4-5"
+bun start --mcp --model "claude-sonnet-5-5"
 
 # Run with skills
-bun start --skills --model "claude-sonnet-4-5"
+bun start --skills --model "claude-sonnet-5-5"
 
 # Full batch (cutoff-selected models, baseline + MCP, with retry)
 ./run-evals.sh
@@ -55,20 +55,20 @@ Set `VERCEL_AI_GATEWAY_API_KEY` in `.env`.
 
 ```bash
 # Run agent evals with Claude Code
-bun agent:claude --model claude-sonnet-5
-bun agent:claude --model claude-sonnet-5 --eval add-auth --debug
+bun agent:claude --model claude-sonnet-5-5
+bun agent:claude --model claude-sonnet-5-5 --eval add-auth --debug
 
 # Run agent evals with Codex
 bun agent:codex --model gpt-5.6-sol
 bun agent:codex --model gpt-5.6-sol --eval add-auth --debug
 
 # Multi-trial (3 runs per eval, pass@k metrics)
-bun agent:claude --model claude-sonnet-5 --runs 3
+bun agent:claude --model claude-sonnet-5-5 --runs 3
 bun agent:codex --model gpt-5.6-sol --runs 3
 
 # With skills or MCP
-bun agent:claude --model claude-sonnet-5 --skills
-bun agent:claude --model claude-sonnet-5 --skills --mcp
+bun agent:claude --model claude-sonnet-5-5 --skills
+bun agent:claude --model claude-sonnet-5-5 --skills --mcp
 
 # Cross-agent leaderboard export
 bun export:leaderboard

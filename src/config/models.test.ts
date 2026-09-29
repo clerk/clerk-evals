@@ -54,6 +54,15 @@ describe('model cutoff policy', () => {
 
 const newModels = [
   [
+    'anthropic',
+    'claude-sonnet-5-5',
+    'anthropic/claude-sonnet-5.5',
+    '2026-09-28',
+    'Claude Sonnet 5.5',
+    2,
+    10,
+  ],
+  [
     'deepseek',
     'deepseek-v4.1-flash',
     'deepseek/deepseek-v4.1-flash',
@@ -112,6 +121,20 @@ describe('September 2026 model refresh', () => {
   test('Flash additions do not have a current-best exception', () => {
     expect(getModelInfo('deepseek', 'deepseek-v4.1-flash')?.currentBest).toBeUndefined()
     expect(getModelInfo('zai', 'glm-5.3-flash')?.currentBest).toBeUndefined()
+  })
+
+  test('Sonnet 5.5 uses the age cutoff and remains available for explicit selection', () => {
+    const sonnet = getModelInfo('anthropic', 'claude-sonnet-5-5')!
+    const afterCutoff = new Date('2026-12-28T00:00:00.000Z')
+
+    expect(sonnet.currentBest).toBeUndefined()
+    expect(getModelEligibility(sonnet, { now }).reason).toBe('recent')
+    expect(getModelEligibility(sonnet, { now: afterCutoff }).reason).toBe('past-cutoff')
+    expect(getDefaultModels({ now: afterCutoff })).not.toContainEqual(sonnet)
+    expect(selectModels({ model: sonnet.name, now: afterCutoff })).toEqual({
+      ok: true,
+      models: [sonnet],
+    })
   })
 })
 

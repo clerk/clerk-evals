@@ -63,6 +63,9 @@ export const MODELS: ProviderModels = {
     model('openai', 'gpt-6-luna', 'GPT-6 Luna', '2026-09-22'),
   ],
   anthropic: [
+    model('anthropic', 'claude-sonnet-5-5', 'Claude Sonnet 5.5', '2026-09-28', {
+      gatewayName: 'claude-sonnet-5.5',
+    }),
     model('anthropic', 'claude-fable-5-1', 'Claude Fable 5.1', '2026-08-31', {
       gatewayName: 'claude-fable-5.1',
     }),
