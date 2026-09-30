@@ -143,6 +143,7 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gpt-6-astra': [10, 50],
   'gpt-6-sol': [2, 10],
   'gpt-6-luna': [0.1, 0.5],
+  'gpt-6.1-sol': [2, 10],
   // Anthropic
   'claude-sonnet-5-5': [2, 10],
   'claude-fable-5-1': [10, 50],

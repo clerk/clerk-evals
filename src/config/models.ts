@@ -61,6 +61,7 @@ export const MODELS: ProviderModels = {
     model('openai', 'gpt-6-astra', 'GPT-6 Astra', '2026-09-04', { currentBest: true }),
     model('openai', 'gpt-6-sol', 'GPT-6 Sol', '2026-09-22'),
     model('openai', 'gpt-6-luna', 'GPT-6 Luna', '2026-09-22'),
+    model('openai', 'gpt-6.1-sol', 'GPT-6.1 Sol', '2026-09-29'),
   ],
   anthropic: [
     model('anthropic', 'claude-sonnet-5-5', 'Claude Sonnet 5.5', '2026-09-28', {

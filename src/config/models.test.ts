@@ -84,6 +84,7 @@ const newModels = [
   ['openai', 'gpt-6-astra', 'openai/gpt-6-astra', '2026-09-04', 'GPT-6 Astra', 10, 50],
   ['openai', 'gpt-6-sol', 'openai/gpt-6-sol', '2026-09-22', 'GPT-6 Sol', 2, 10],
   ['openai', 'gpt-6-luna', 'openai/gpt-6-luna', '2026-09-22', 'GPT-6 Luna', 0.1, 0.5],
+  ['openai', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', '2026-09-29', 'GPT-6.1 Sol', 2, 10],
   ['x-ai', 'grok-4.7', 'spacexai/grok-4.7', '2026-09-21', 'Grok 4.7', 2, 6],
 ] as const
 

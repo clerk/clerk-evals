@@ -103,7 +103,7 @@ MCP_SERVER_URL_OVERRIDE=http://localhost:8787/mcp bun start --mcp
 # Dry run (see what would execute)
 bun start --dry
 
-bun start --models "deepseek-v4.1-flash,glm-5.3-flash,claude-opus-5-5,claude-sonnet-5-5,gpt-6-astra,gpt-6-sol,gpt-6-luna,grok-4.7"
+bun start --models "deepseek-v4.1-flash,glm-5.3-flash,claude-opus-5-5,claude-sonnet-5-5,gpt-6-astra,gpt-6-sol,gpt-6-luna,gpt-6.1-sol,grok-4.7"
 ```
 
 Each task has a five-minute limit by default. Use `--timeout` for one run or set
