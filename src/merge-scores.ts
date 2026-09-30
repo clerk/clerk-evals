@@ -8,7 +8,7 @@
 import fs from 'node:fs'
 import { EVALUATIONS, MODELS } from '@/src/config'
 import { getEvalKey } from '@/src/eval-identity'
-import type { Score } from '@/src/interfaces'
+import type { Evaluation, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 
 type EnhancedScore = Score & {
@@ -76,6 +76,55 @@ function getScoreEvalKey(score: FileScore): string | undefined {
   return evalDef ? getEvalKey(evalDef) : score.evaluationPath
 }
 
+type PublicationPolicy = {
+  expectedCells: ReadonlySet<string>
+  includes(score: FileScore): boolean
+  evalKey(score: FileScore): string | undefined
+}
+
+function createPublicationPolicy(evaluations: readonly Evaluation[]): PublicationPolicy {
+  const byKey = new Map<string, Evaluation>()
+  const byPath = new Map<string, Evaluation[]>()
+  const excludedBuckets = new Set<string>()
+  const expectedCells = new Set<string>()
+
+  for (const evaluation of evaluations) {
+    const cell = `${evaluation.framework}:${getEvalKey(evaluation)}`
+    const path = `${evaluation.path}:${evaluation.framework}:${evaluation.category}`
+    const bucket = `${evaluation.framework}:${evaluation.category}`
+    byKey.set(cell, evaluation)
+    byPath.set(path, [...(byPath.get(path) ?? []), evaluation])
+    if (evaluation.publishToLlmLeaderboard === false) {
+      excludedBuckets.add(bucket)
+    } else {
+      expectedCells.add(cell)
+    }
+  }
+
+  const definitionFor = (score: FileScore): Evaluation | undefined => {
+    if (score.evalKey) {
+      const exact = byKey.get(`${score.framework}:${score.evalKey}`)
+      if (exact) return exact
+    }
+    if (!score.evaluationPath) return undefined
+    const matches = byPath.get(`${score.evaluationPath}:${score.framework}:${score.category}`)
+    return matches?.length === 1 ? matches[0] : undefined
+  }
+
+  return {
+    expectedCells,
+    includes: (score) => {
+      const definition = definitionFor(score)
+      if (definition) return definition.publishToLlmLeaderboard !== false
+      return !excludedBuckets.has(`${score.framework}:${score.category}`)
+    },
+    evalKey: (score) => {
+      const definition = definitionFor(score)
+      return definition ? getEvalKey(definition) : (score.evalKey ?? score.evaluationPath)
+    },
+  }
+}
+
 function scoreCellKey(score: FileScore): string | undefined {
   const evalKey = getScoreEvalKey(score)
   if (!evalKey) return undefined
@@ -131,20 +180,26 @@ function indexByCell(scores: FileScore[]): Map<string, FileScore> {
 }
 
 export function selectCompleteModels(
-  baseline: FileScore[],
-  mcp: FileScore[],
-  skills: FileScore[],
-  evaluations = EVALUATIONS,
+  baseline: readonly FileScore[],
+  mcp: readonly FileScore[],
+  skills: readonly FileScore[],
+  evaluations: readonly Evaluation[] = EVALUATIONS,
 ): CompleteModelSelection {
-  const expectedCells = new Set(
-    evaluations.map((evaluation) => `${evaluation.framework}:${getEvalKey(evaluation)}`),
-  )
+  const policy = createPublicationPolicy(evaluations)
+  const { expectedCells } = policy
+  if (expectedCells.size === 0) {
+    return { baseline: [], mcp: [], skills: [], includedModels: [], excludedModels: [] }
+  }
+
+  const publishedBaseline = baseline.filter((score) => policy.includes(score))
+  const publishedMcp = mcp.filter((score) => policy.includes(score))
+  const publishedSkills = skills.filter((score) => policy.includes(score))
   const cellsFor = (scores: FileScore[], model: string) =>
     new Set(
       scores
         .filter((score) => score.model === model)
         .map((score) => {
-          const evalKey = getScoreEvalKey(score)
+          const evalKey = policy.evalKey(score)
           return evalKey ? `${score.framework}:${evalKey}` : undefined
         })
         .filter((value): value is string => !!value && expectedCells.has(value)),
@@ -152,12 +207,12 @@ export function selectCompleteModels(
 
   const includedModels: string[] = []
   const excludedModels: CompleteModelSelection['excludedModels'] = []
-  const models = [...new Set(baseline.map((score) => score.model))].sort()
+  const models = [...new Set(publishedBaseline.map((score) => score.model))].sort()
 
   for (const model of models) {
-    const baselineCount = cellsFor(baseline, model).size
-    const mcpCount = cellsFor(mcp, model).size
-    const skillsCount = cellsFor(skills, model).size
+    const baselineCount = cellsFor(publishedBaseline, model).size
+    const mcpCount = cellsFor(publishedMcp, model).size
+    const skillsCount = cellsFor(publishedSkills, model).size
 
     if (
       baselineCount === expectedCells.size &&
@@ -178,9 +233,9 @@ export function selectCompleteModels(
 
   const included = new Set(includedModels)
   return {
-    baseline: baseline.filter((score) => included.has(score.model)),
-    mcp: mcp.filter((score) => included.has(score.model)),
-    skills: skills.filter((score) => included.has(score.model)),
+    baseline: publishedBaseline.filter((score) => included.has(score.model)),
+    mcp: publishedMcp.filter((score) => included.has(score.model)),
+    skills: publishedSkills.filter((score) => included.has(score.model)),
     includedModels,
     excludedModels,
   }

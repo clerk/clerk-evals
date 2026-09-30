@@ -136,6 +136,8 @@ export type Evaluation = {
   /** Variant subdirectory for fixture-based evals (e.g., 'nextjs', 'android') */
   variant?: string
   agent?: AgentEvaluationConfig
+  /** False excludes this eval only from llm-scores.json publication. */
+  publishToLlmLeaderboard?: boolean
 }
 
 /**

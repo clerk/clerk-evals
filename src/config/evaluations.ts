@@ -82,6 +82,7 @@ export const EVALUATIONS: Evaluation[] = [
     category: 'Upgrades',
     path: 'evals/upgrades/core-3',
     variant: 'nextjs',
+    publishToLlmLeaderboard: false,
     agent: {
       workspacePath: 'fixtures/nextjs',
       verification: {
