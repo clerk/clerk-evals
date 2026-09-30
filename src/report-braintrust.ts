@@ -20,7 +20,8 @@ function parseArg(name: string): string | undefined {
   const equalsArg = args.find((arg) => arg.startsWith(`--${name}=`))
   if (equalsArg) return equalsArg.split('=', 2)[1]
   const idx = args.indexOf(`--${name}`)
-  if (idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('-')) return args[idx + 1]
+  const value = idx === -1 ? undefined : args[idx + 1]
+  if (value && !value.startsWith('-')) return value
   return undefined
 }
 

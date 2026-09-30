@@ -2,7 +2,14 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 
 import Tinypool from 'tinypool'
-import { EVALUATIONS, getAllModels, getModelsByProvider, loadConfig } from '@/src/config'
+import {
+  EVALUATIONS,
+  getAllModels,
+  getDefaultModels,
+  loadConfig,
+  MODEL_CUTOFF_DAYS,
+  selectModels,
+} from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
@@ -11,6 +18,7 @@ import type { BraintrustEntry } from '@/src/reporters/braintrust'
 import consoleReporter from '@/src/reporters/console'
 import fileReporter from '@/src/reporters/file'
 import { estimateCost } from '@/src/runners/shared'
+import { formatError } from '@/src/utils/error'
 
 const DEFAULT_MCP_URL = 'https://mcp.clerk.dev/mcp' // Zero-config default
 
@@ -23,8 +31,13 @@ const { values } = parseArgs({
     debug: { type: 'boolean', short: 'd', default: false },
     dry: { type: 'boolean', default: false },
     smoke: { type: 'boolean', default: false },
+    'include-legacy': { type: 'boolean', default: false },
     'fail-under': { type: 'string' },
+    timeout: { type: 'string', short: 't' },
+    'max-output-tokens': { type: 'string' },
+    'max-retries': { type: 'string' },
     model: { type: 'string', short: 'm' },
+    models: { type: 'string' },
     provider: { type: 'string', short: 'p' },
     eval: { type: 'string', short: 'e' },
     'skills-path': { type: 'string' },
@@ -45,8 +58,19 @@ const skillsEnabled = values.skills
 const debugEnabled = values.debug
 const dryRun = values.dry
 const smokeTest = values.smoke
+const includeLegacy = values['include-legacy']
 const failUnder = values['fail-under']
+const timeoutMs = values.timeout ? Number(values.timeout) : undefined
+const maxOutputTokens = values['max-output-tokens']
+  ? Number(values['max-output-tokens'])
+  : undefined
+const maxRetries = values['max-retries'] ? Number(values['max-retries']) : undefined
+if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0)) {
+  console.error(`Max retries must be a non-negative integer, received: ${values['max-retries']}`)
+  process.exit(1)
+}
 const modelFilter = values.model
+const modelsFilter = values.models
 const providerFilter = values.provider
 const evalFilter = values.eval
 const skillsPath = values['skills-path'] || path.join(process.cwd(), '..', 'skills', 'skills')
@@ -62,15 +86,18 @@ if (config) {
 const effectiveFailUnder =
   failUnder ?? (config?.ci?.failUnder ? String(config.ci.failUnder) : undefined)
 
-const models = providerFilter
-  ? getModelsByProvider(providerFilter.toLowerCase() as Provider)
-  : getAllModels()
+const selection = selectModels({
+  model: modelFilter,
+  models: modelsFilter,
+  provider: providerFilter,
+  includeLegacy,
+})
+if (!selection.ok) {
+  for (const error of selection.errors) console.error(error)
+  process.exit(1)
+}
 const evaluations = EVALUATIONS
-
-// Filter models - exact match on name only (case-insensitive, deterministic)
-const filteredModels = modelFilter
-  ? models.filter((m) => m.name.toLowerCase() === modelFilter.toLowerCase())
-  : models
+const filteredModels = selection.models
 
 // Filter evaluations
 const filteredEvaluations = (() => {
@@ -96,14 +123,9 @@ const filteredEvaluations = (() => {
   return matches
 })()
 
-if (filteredModels.length === 0) {
-  const filter = modelFilter ? `model="${modelFilter}"` : `provider="${providerFilter}"`
-  console.error(`No models match filter: ${filter}`)
-  process.exit(1)
-}
-
 // Mode detection — reused for runId, labels, output file, reporters
 const modeLabel = (() => {
+  if (skillsEnabled && mcpEnabled) return 'skills-mcp' as const
   if (skillsEnabled) return 'skills' as const
   if (mcpEnabled) return 'mcp' as const
   return 'baseline' as const
@@ -121,6 +143,7 @@ const MODE_LABEL_SUFFIX: Record<typeof modeLabel, string> = {
   baseline: '',
   mcp: ' (MCP)',
   skills: ' (Skills)',
+  'skills-mcp': ' (Skills + MCP)',
 }
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
 const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
@@ -151,6 +174,7 @@ const tasks = filteredModels.flatMap((model) =>
 
 // Progress output
 const modeDisplay = (() => {
+  if (modeLabel === 'skills-mcp') return `Skills (${skillsPath}) + MCP (${mcpUrl})`
   if (modeLabel === 'skills') return `Skills (${skillsPath})`
   if (modeLabel === 'mcp') return `MCP (${mcpUrl})`
   return 'baseline'
@@ -158,6 +182,12 @@ const modeDisplay = (() => {
 console.log(
   `\nMode: ${modeDisplay} | ${tasks.length} tasks (${filteredModels.length} models x ${filteredEvaluations.length} evals)\n`,
 )
+if (!modelFilter && !modelsFilter && !providerFilter && !includeLegacy) {
+  const excludedCount = getAllModels().length - getDefaultModels().length
+  console.log(
+    `Model policy: released within ${MODEL_CUTOFF_DAYS} days or marked current best (${excludedCount} legacy models excluded).\n`,
+  )
+}
 
 // Dry run: print summary table and exit
 if (dryRun) {
@@ -198,7 +228,8 @@ saveRun({
   suiteHash,
   harnessCommit,
   skillsCommit,
-  mcpServerUrl: modeLabel === 'mcp' ? mcpUrl : undefined,
+  mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
+  transport: 'vercel-ai-gateway',
 })
 
 let completed = 0
@@ -237,20 +268,18 @@ async function runTask(task: (typeof tasksToRun)[number]) {
     provider: task.provider as Provider,
     model: task.model,
     debug: collectDebug,
-    ...(modeLabel === 'mcp' && { mcpServerUrl: mcpUrl }),
-    ...(modeLabel === 'skills' && { skillsPath }),
+    timeoutMs,
+    maxOutputTokens,
+    maxRetries,
+    ...(mcpEnabled && { mcpServerUrl: mcpUrl }),
+    ...(skillsEnabled && { skillsPath }),
   }
 
   try {
     const result: RunnerResult = await pool.run(runnerArgs)
 
     if (!result.ok) {
-      const errorMsg =
-        result.error instanceof Error
-          ? result.error.message
-          : typeof result.error === 'object'
-            ? JSON.stringify(result.error)
-            : String(result.error)
+      const errorMsg = formatError(result.error)
       console.error(
         `\n[error] ${task.label} -> ${task.evaluationPath.split('/').pop()}: ${errorMsg}`,
       )

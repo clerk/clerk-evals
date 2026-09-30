@@ -13,6 +13,14 @@ done < <(
     bun --eval 'import { getAllModels } from "./src/config/models"; console.log(getAllModels().map((m) => m.name).join("\n"))'
 )
 
+DEFAULT_MODELS=()
+while IFS= read -r model; do
+  DEFAULT_MODELS+=("$model")
+done < <(
+  cd "$SCRIPT_DIR" &&
+    bun --eval 'import { getDefaultModels } from "./src/config/models"; console.log(getDefaultModels().map((m) => m.name).join("\n"))'
+)
+
 # Usage
 usage() {
   echo "Usage: $0 [OPTIONS]"
@@ -22,7 +30,8 @@ usage() {
   echo "  --baseline-only            Only run baseline evals (no MCP)"
   echo "  --mcp-only                 Only run MCP evals (no baseline)"
   echo "  --no-export                Skip export step"
-  echo "  --list                     List all available models"
+  echo "  --include-legacy           Include models outside the default cutoff"
+  echo "  --list                     List selected models without running them"
   echo "  --help                     Show this help"
   echo ""
   echo "Examples:"
@@ -37,6 +46,8 @@ FILTER=""
 RUN_BASELINE=true
 RUN_MCP=true
 DO_EXPORT=true
+INCLUDE_LEGACY=false
+LIST_MODELS=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -56,12 +67,13 @@ while [[ $# -gt 0 ]]; do
       DO_EXPORT=false
       shift
       ;;
+    --include-legacy)
+      INCLUDE_LEGACY=true
+      shift
+      ;;
     --list)
-      echo "Available models:"
-      for m in "${ALL_MODELS[@]}"; do
-        echo "  - $m"
-      done
-      exit 0
+      LIST_MODELS=true
+      shift
       ;;
     --help|-h)
       usage
@@ -95,7 +107,19 @@ if [ -n "$FILTER" ]; then
     exit 1
   fi
 else
-  MODELS=("${ALL_MODELS[@]}")
+  if [ "$INCLUDE_LEGACY" = true ]; then
+    MODELS=("${ALL_MODELS[@]}")
+  else
+    MODELS=("${DEFAULT_MODELS[@]}")
+  fi
+fi
+
+if [ "$LIST_MODELS" = true ]; then
+  echo "Selected models:"
+  for m in "${MODELS[@]}"; do
+    echo "  - $m"
+  done
+  exit 0
 fi
 
 cd "$SCRIPT_DIR"
