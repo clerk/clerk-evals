@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 
-export const DEFAULT_CLERK_SETUP_SKILL_PATH = 'skills/core/clerk-setup/SKILL.md'
+export const DEFAULT_CLERK_SETUP_SKILL_PATH = 'skills/clerk-setup/SKILL.md'
 
 let canonicalSetupPrompt: Promise<string> | undefined
 

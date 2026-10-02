@@ -142,7 +142,7 @@ Agent evals spawn CLI tools as child processes. Install them globally before run
 Both API keys must be set in your `.env`.
 
 The `add-auth` eval is the exception to the repository's checked-in `PROMPT.md` convention. It
-fetches `skills/core/clerk-setup/SKILL.md` from an immutable `clerk/skills` revision at runtime so
+fetches `skills/clerk-setup/SKILL.md` from an immutable `clerk/skills` revision at runtime so
 the baseline and Skills columns always evaluate the canonical setup prompt. Set the full source
 commit before running it locally:
 
