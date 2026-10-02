@@ -3,7 +3,7 @@ import * as path from 'node:path'
 
 export const DEFAULT_CLERK_SETUP_SKILL_PATH = 'skills/clerk-setup/SKILL.md'
 
-let canonicalSetupPrompt: Promise<string> | undefined
+const promptCache = new Map<string, Promise<string>>()
 
 export function stripSkillFrontmatter(content: string): string {
   const prompt = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n+/, '')
@@ -19,8 +19,7 @@ function isAddAuthEval(evalPath: string): boolean {
   return path.basename(evalPath) === 'add-auth'
 }
 
-function getSkillsRevision(): string {
-  const revision = process.env.CLERK_SKILLS_SHA
+function getSkillsRevision(revision = process.env.CLERK_SKILLS_SHA): string {
   if (!revision || !/^[0-9a-f]{40}$/.test(revision)) {
     throw new Error('CLERK_SKILLS_SHA must be a full clerk/skills commit SHA for add-auth evals')
   }
@@ -28,21 +27,38 @@ function getSkillsRevision(): string {
   return revision
 }
 
-export async function loadCanonicalSetupPrompt(): Promise<string> {
-  canonicalSetupPrompt ??= (async () => {
-    const revision = getSkillsRevision()
-    const skillPath = process.env.CLERK_SETUP_SKILL_PATH ?? DEFAULT_CLERK_SETUP_SKILL_PATH
+export async function loadCanonicalSetupPrompt(
+  options: {
+    revision?: string
+    skillPath?: string
+    fetchImpl?: (url: string) => Promise<Response>
+  } = {},
+): Promise<string> {
+  const revision = getSkillsRevision(options.revision)
+  const skillPath =
+    options.skillPath ?? process.env.CLERK_SETUP_SKILL_PATH ?? DEFAULT_CLERK_SETUP_SKILL_PATH
+  const key = `${revision}:${skillPath}`
+  const load = async () => {
     const url = `https://raw.githubusercontent.com/clerk/skills/${revision}/${skillPath}`
-    const response = await fetch(url)
+    const response = await (options.fetchImpl ?? fetch)(url)
 
     if (!response.ok) {
       throw new Error(`Unable to fetch canonical clerk-setup skill (${response.status}): ${url}`)
     }
 
     return stripSkillFrontmatter(await response.text())
-  })()
+  }
 
-  return canonicalSetupPrompt
+  if (options.fetchImpl) return load()
+  if (!promptCache.has(key)) {
+    const pending = load().catch((error) => {
+      promptCache.delete(key)
+      throw error
+    })
+    promptCache.set(key, pending)
+  }
+
+  return promptCache.get(key)!
 }
 
 export async function loadEvaluationPrompt(evalPath: string): Promise<string> {

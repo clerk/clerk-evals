@@ -186,6 +186,31 @@ commit before running it locally:
 CLERK_SKILLS_SHA=<full-clerk-skills-sha> bun agent:claude --eval add-auth
 ```
 
+### Automated add-auth comparison
+
+`.github/workflows/add-auth-automation.yml` accepts `clerk_skills_updated` dispatches with
+`client_payload.sha`, `clerk_cli_released` dispatches with `client_payload.version`, and manual
+runs. A CLI release dispatch must arrive after that version is published as `clerk@latest`:
+the canonical prompt explicitly runs `npx -y clerk@latest init`, so evaluating a non-latest
+version would mislabel the result. Manual runs can select a full Skills SHA and the current
+latest CLI version. The sender of a CLI release event must use the documented dispatch type
+and version field; no release sender is created in this repository.
+
+The workflow runs the four add-auth variants twice with the same prompt and Clerk CLI
+version. Baseline receives no installed Clerk skills. The Skills column checks out the exact
+`CLERK_SKILLS_SHA`, verifies the checkout, and makes its `clerk-setup` skill available to the
+agent. Both columns upload scores and source-version metadata. A missing score or setup
+failure fails the automation and alerts `#team-docs` through `DOCS_SLACK_WEBHOOK_URL`; a
+completed Skills score below baseline is instead reported as an eval regression warning.
+
+Artifacts are named by Skills SHA and CLI version. A duplicate dispatch skips only when
+both score artifacts and their comparison already exist; a manual run with `force` can
+repeat the evaluation. There is no mutable “latest result” file, so an older run cannot
+overwrite a newer result. The repository needs `VERCEL_AI_GATEWAY_API_KEY` and
+`DOCS_SLACK_WEBHOOK_URL` Actions secrets before the first live run. This workflow depends on
+`skills/clerk-setup/SKILL.md` existing at the evaluated revision (the flat path from
+`clerk/skills#83`).
+
 ### Usage
 
 ```bash

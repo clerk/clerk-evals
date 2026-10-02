@@ -270,13 +270,16 @@ export async function gradeAgentWorkspace(args: {
   gradersPath?: string
   verification?: ResolvedAgentVerificationConfig
   envPath: string
+  executedCommands?: readonly string[]
 }): Promise<AgentWorkspaceGradingResult> {
   const gradingArtifact = await buildAgentGradingArtifact(args.workDir, args.finalResponse)
   const graderModule = args.gradersPath
     ? ((await import(args.gradersPath)) as { graders: Graders })
     : ((await import(path.join(args.evalPath, 'graders.ts'))) as { graders: Graders })
 
-  const graderResults = await runGraders(graderModule.graders, gradingArtifact)
+  const graderResults = await runGraders(graderModule.graders, gradingArtifact, {
+    executedCommands: args.executedCommands,
+  })
   const hiddenVerification = args.verification
     ? await runHiddenVerification(args.workDir, args.verification, args.envPath)
     : undefined

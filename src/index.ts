@@ -12,6 +12,7 @@ import {
 } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
+import { resolveSourceVersions } from '@/src/source-versions'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
 import type { BraintrustEntry } from '@/src/reporters/braintrust'
@@ -150,9 +151,12 @@ const runIdPrefix = modeLabel === 'baseline' ? '' : `${modeLabel}-`
 const runId = `${runIdPrefix}${new Date().toISOString().replace(/[:.]/g, '-')}`
 const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
-const skillsCommit =
-  process.env.CLERK_SKILLS_SHA ?? (skillsEnabled ? getGitCommit(skillsPath) : undefined)
-const cliVersion = process.env.CLERK_CLI_VERSION
+const { skillsCommit, cliVersion } = resolveSourceVersions({
+  skillsEnabled,
+  skillsPath,
+  requestedSkillsSha: process.env.CLERK_SKILLS_SHA,
+  cliVersion: process.env.CLERK_CLI_VERSION,
+})
 
 const braintrustDebugMap = new Map<string, { debug: RunnerDebugPayload; evaluationPath: string }>()
 

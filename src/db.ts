@@ -222,7 +222,7 @@ export function getRun(runId: string): RunMetadata | undefined {
   const row = db
     .query(
       `SELECT run_id, mode, models_json, eval_keys_json, suite_hash, harness_commit,
-        skills_commit, mcp_server_url, transport, created_at
+        skills_commit, cli_version, mcp_server_url, transport, created_at
        FROM runs WHERE run_id = $run_id`,
     )
     .get({ $run_id: runId }) as Record<string, unknown> | null
@@ -237,6 +237,7 @@ export function getRun(runId: string): RunMetadata | undefined {
     suiteHash: row.suite_hash as string,
     ...(row.harness_commit != null && { harnessCommit: row.harness_commit as string }),
     ...(row.skills_commit != null && { skillsCommit: row.skills_commit as string }),
+    ...(row.cli_version != null && { cliVersion: row.cli_version as string }),
     ...(row.mcp_server_url != null && { mcpServerUrl: row.mcp_server_url as string }),
     ...(row.transport != null && { transport: row.transport as string }),
     createdAt: row.created_at as string,

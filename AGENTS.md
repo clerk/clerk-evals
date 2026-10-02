@@ -79,6 +79,8 @@ bun export:leaderboard --since 2026-03-20
 
 `src/index.ts` wires providers, runners, reporters, and every folder under `src/evals`. Keep each evaluation in its own directory with `PROMPT.md`, `graders.ts`, and any fixtures it needs. Use descriptive, numeric-free slugs like `src/evals/new-eval`. Runner logic lives in `src/runners`, shared provider clients in `src/providers`, scoring helpers in `src/scorers`, and reusable utilities in `src/utils`. Diagrams intended for contributor onboarding belong in `docs/`, while transient artifacts like `scores.json` stay gitignored at the root.
 
+`src/evals/add-auth` is an intentional exception: its prompt comes from the immutable `clerk/skills` commit in `CLERK_SKILLS_SHA`, not a local `PROMPT.md`. `.github/workflows/add-auth-automation.yml` compares agent baseline and exact-SHA Skills runs; do not treat a lower completed score as a workflow failure.
+
 ## Environment Setup & Secrets
 
 This project requires Bun `>=1.3.0`. Install dependencies with `bun install`, then copy `.env.example` to `.env` and populate `VERCEL_AI_GATEWAY_API_KEY`. Avoid checking secrets into version control; reference them through `process.env` only.

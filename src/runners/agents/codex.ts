@@ -83,6 +83,25 @@ export function parseCodexJsonl(raw: string): string {
   return assistantMessages.at(-1) ?? ''
 }
 
+export function parseCodexCommands(raw: string): string[] {
+  const commands: string[] = []
+  for (const line of raw.split('\n')) {
+    try {
+      const event = JSON.parse(line) as CodexJsonEvent
+      if (
+        event.type === 'item.completed' &&
+        event.item?.type === 'command_execution' &&
+        event.item.command
+      ) {
+        commands.push(event.item.command)
+      }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return commands
+}
+
 /**
  * Execute Codex CLI and capture output via JSONL events.
  */
@@ -145,6 +164,7 @@ async function execCodex(
       resolve({
         success: !timedOut && code === 0,
         output: fullOutput,
+        executedCommands: parseCodexCommands(stdout),
         duration,
         exitCode: timedOut ? -1 : (code ?? -1),
         error: timedOut
@@ -162,6 +182,7 @@ async function execCodex(
       resolve({
         success: false,
         output: fullOutput,
+        executedCommands: parseCodexCommands(stdout),
         duration: Date.now() - startTime,
         error: err.message,
         exitCode: -1,
@@ -226,6 +247,9 @@ export default async function exec({
         skillsConfig.sourcePath,
         skillsConfig.evalPath,
       )
+      if (skillsConfig.evalPath === 'evals/add-auth' && !linkedSkills.includes('clerk-setup')) {
+        throw new Error('Skills run did not install clerk-setup from the evaluated checkout')
+      }
       // Copy CLAUDE.md content to AGENTS.md for Codex
       await setupAgentContext(workDir, 'codex')
 
@@ -257,6 +281,7 @@ export default async function exec({
     const grading = await gradeAgentWorkspace({
       workDir,
       finalResponse: result.output,
+      executedCommands: result.executedCommands,
       evalPath,
       gradersPath,
       verification,
