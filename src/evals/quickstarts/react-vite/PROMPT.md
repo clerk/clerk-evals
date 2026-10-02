@@ -6,10 +6,10 @@
 ## **1. OFFICIAL CLERK + REACT (VITE) SETUP**
 
 1. Create a React + Vite project.
-2. Install the Clerk React SDK with `npm install @clerk/clerk-react@latest` (or yarn/pnpm/bun).
+2. Install the Clerk React SDK with `npm install @clerk/react@latest` (or yarn/pnpm/bun).
 3. Set `VITE_CLERK_PUBLISHABLE_KEY` in `.env.local` or `.env`. Note: The `VITE_` prefix is required for Vite to expose environment variables to the client-side code. `.env.local` is preferred for local development secrets.
 4. Wrap the app in `<ClerkProvider publishableKey={...}>` within `main.tsx` or `main.jsx`.
-5. Use Clerk's `<SignedIn>`, `<SignedOut>`, `<SignInButton>`, `<SignUpButton>`, `<UserButton>` in the app.
+5. Use Clerk's `<Show>`, `<SignInButton>`, `<SignUpButton>`, and `<UserButton>` in the app.
 
 ### **Correct, Up-to-Date Quickstart Code Examples**
 
@@ -21,7 +21,7 @@ npm install
 npm run dev
 
 # 2. Install the Clerk React SDK
-npm install @clerk/clerk-react@latest
+npm install @clerk/react@latest
 
 # 3. In .env.local (or .env):
 VITE_CLERK_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
@@ -33,7 +33,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
-import { ClerkProvider } from "@clerk/clerk-react";
+import { ClerkProvider } from "@clerk/react";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 if (!PUBLISHABLE_KEY) {
@@ -52,23 +52,22 @@ createRoot(document.getElementById("root")!).render(
 
 // 5. Example usage of Clerk's prebuilt components in App.tsx
 import {
-  SignedIn,
-  SignedOut,
+  Show,
   SignInButton,
   SignUpButton,
   UserButton,
-} from "@clerk/clerk-react";
+} from "@clerk/react";
 
 export default function App() {
   return (
     <header>
-      <SignedOut>
+      <Show when="signed-out">
         <SignInButton />
         <SignUpButton />
-      </SignedOut>
-      <SignedIn>
+      </Show>
+      <Show when="signed-in">
         <UserButton />
-      </SignedIn>
+      </Show>
     </header>
   );
 }
@@ -83,10 +82,10 @@ export default function App() {
 ### **2.1 – ALWAYS DO THE FOLLOWING**
 
 1. **Show** relevant code examples for each step.
-2. **Use** `@clerk/clerk-react@latest` (not any other Clerk package).
+2. **Use** `@clerk/react@latest`.
 3. **Reference** the environment variable as `VITE_CLERK_PUBLISHABLE_KEY` in `.env.local` or `.env`.
 4. **Wrap** the entire app in `<ClerkProvider>` within `main.tsx` or `main.jsx`.
-5. **Demonstrate** the correct usage of `<SignedIn>`, `<SignedOut>`, `<SignInButton>`, `<SignUpButton>`, `<UserButton>` (or any other current Clerk React component).
+5. **Demonstrate** `<Show when="signed-in">`, `<Show when="signed-out">`, `<SignInButton>`, `<SignUpButton>`, and `<UserButton>`.
 
 ### **2.2 – NEVER DO THE FOLLOWING**
 
@@ -118,8 +117,8 @@ Before returning any Clerk + React (Vite) solution, you **must** verify:
 
 When asked about Clerk + React (Vite) integration, your response **MUST**:
 
-1. Link to Clerk's React Quickstart at https://clerk.com/docs/quickstarts/react
+1. Link to Clerk's React Quickstart at https://clerk.com/docs/react/getting-started/quickstart
 2. Show the current recommended `publishableKey` approach with `.env.local`.
 3. Demonstrate how to wrap with `<ClerkProvider>` in `main.*`.
-4. Illustrate a simple usage example of `<SignedIn>`, `<SignedOut>`, etc.
+4. Illustrate a simple usage example of `<Show>` for signed-in and signed-out states.
 5. Reject or correct any mention of older patterns or environment variable names.

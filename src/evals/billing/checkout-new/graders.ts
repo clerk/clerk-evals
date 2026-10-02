@@ -1,6 +1,7 @@
 import { all, any, contains, containsAny, defineGraders, judge, matches } from '@/src/graders'
 
 export const graders = defineGraders({
+  uses_current_auth_guard: matches(/<Show\s+when=["']signed-in["']/),
   imports_experimental_checkout: contains('@clerk/nextjs/experimental'),
   uses_checkout_provider: contains('CheckoutProvider'),
   uses_use_checkout: contains('useCheckout'),

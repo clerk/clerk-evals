@@ -2,14 +2,13 @@
  * Agent-specific types for CLI-based evaluation runners.
  *
  * Unlike API-based runners that use AI SDK's generateText,
- * agent runners spawn CLI tools (Claude Code, Cursor, etc.)
- * and capture their stdout/stderr.
+ * agent runners spawn CLI tools and capture their final result.
  */
 
 /**
- * Supported agent types - extensible for future agents.
+ * Supported agent types with implemented runners.
  */
-export type AgentType = 'claude-code' | 'codex' | 'cursor'
+export type AgentType = 'claude-code' | 'codex'
 
 /**
  * MCP configuration for agent runners.
@@ -32,6 +31,24 @@ export type AgentSkillsConfig = {
   evalPath: string
 }
 
+export type AgentVerificationConfig = {
+  testsPath: string
+}
+
+export type AgentEvaluationConfig = {
+  workspacePath: string
+  verification?: AgentVerificationConfig
+}
+
+export type ResolvedAgentVerificationConfig = {
+  testsPath: string
+}
+
+export type ResolvedAgentEvaluationConfig = {
+  workspacePath: string
+  verification?: ResolvedAgentVerificationConfig
+}
+
 /**
  * Arguments passed to agent runners.
  */
@@ -52,12 +69,11 @@ export type AgentRunnerArgs = {
   executablePath?: string
   /** PATH environment variable from main process */
   envPath?: string
-  /** Model to pin for the agent CLI (resolved in main process; workers have a trimmed env) */
-  model?: string
-  /** Path to fixtures directory to copy into work dir before execution */
-  fixturesPath?: string
+  model: string
+  workspacePath?: string
   /** Full path to the variant grader file (e.g., .../graders/nextjs.ts) */
   gradersPath?: string
+  verification?: ResolvedAgentVerificationConfig
 }
 
 /**
@@ -101,11 +117,6 @@ export const AGENTS: Record<AgentType, AgentInfo> = {
     type: 'codex',
     label: 'Codex',
     command: 'codex',
-  },
-  cursor: {
-    type: 'cursor',
-    label: 'Cursor',
-    command: 'cursor', // Placeholder - adjust based on actual CLI
   },
 }
 
