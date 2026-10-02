@@ -177,6 +177,40 @@ Set `VERCEL_AI_GATEWAY_API_KEY` in `.env`. The harness maps this key to each CLI
 
 Registered agent tasks use an explicit repository fixture. A task can also define hidden Bun tests. The harness stages those tests outside the repository after the coding agent exits. Test failure is a hard score gate, while normal deterministic graders still provide diagnostic partial credit.
 
+The `add-auth` eval is the exception to the repository's checked-in `PROMPT.md` convention. It
+fetches `skills/clerk-setup/SKILL.md` from an immutable `clerk/skills` revision at runtime so
+the baseline and Skills columns always evaluate the canonical setup prompt. Set the full source
+commit before running it locally:
+
+```bash
+CLERK_SKILLS_SHA=<full-clerk-skills-sha> bun agent:claude --eval add-auth
+```
+
+### Automated add-auth comparison
+
+`.github/workflows/add-auth-automation.yml` accepts `clerk_skills_updated` dispatches with
+`client_payload.sha`, `clerk_cli_released` dispatches with `client_payload.version`, and manual
+runs. A CLI release dispatch must arrive after that version is published as `clerk@latest`:
+the canonical prompt explicitly runs `npx -y clerk@latest init`, so evaluating a non-latest
+version would mislabel the result. Manual runs can select a full Skills SHA and the current
+latest CLI version. The sender of a CLI release event must use the documented dispatch type
+and version field; no release sender is created in this repository.
+
+The workflow runs the four add-auth variants twice with the same prompt and Clerk CLI
+version. Baseline receives no installed Clerk skills. The Skills column checks out the exact
+`CLERK_SKILLS_SHA`, verifies the checkout, and makes its `clerk-setup` skill available to the
+agent. Both columns upload scores and source-version metadata. A missing score or setup
+failure fails the automation and alerts `#team-docs` through `DOCS_SLACK_WEBHOOK_URL`; a
+completed Skills score below baseline is instead reported as an eval regression warning.
+
+Artifacts are named by Skills SHA and CLI version. A duplicate dispatch skips only when
+both score artifacts and their comparison already exist; a manual run with `force` can
+repeat the evaluation. There is no mutable “latest result” file, so an older run cannot
+overwrite a newer result. The repository needs `VERCEL_AI_GATEWAY_API_KEY` and
+`DOCS_SLACK_WEBHOOK_URL` Actions secrets before the first live run. This workflow depends on
+`skills/clerk-setup/SKILL.md` existing at the evaluated revision (the flat path from
+`clerk/skills#83`).
+
 ### Usage
 
 ```bash
@@ -252,7 +286,7 @@ The merge script combines both score files and calculates improvement metrics:
 This project is broken up into a few core pieces:
 
 - [`src/index.ts`](./src/index.ts): This is the main entrypoint of the project. Models, reporters, and the runner are registered here, and all executed. Evaluations are defined in [`src/config/evaluations.ts`](./src/config/evaluations.ts).
-- [`/evals`](./src/evals): Folders that contain a prompt and grading expectations. Runners currently assume that eval folders contain two files: `graders.ts` and `PROMPT.md`.
+- [`/evals`](./src/evals): Folders that contain grading expectations and, except for `add-auth`, a checked-in prompt. The `add-auth` prompt is fetched from the canonical `clerk/skills` revision identified by `CLERK_SKILLS_SHA`.
 - [`/runners`](./src/runners): The primary logic responsible for loading evaluations, calling provider llms, and outputting scores.
 - [`/reporters`](./src/reporters): The primary logic responsible for sending scores somewhere — stdout, a file, etc.
 
@@ -276,7 +310,7 @@ It will load the designated **evaluation**, generate LLM text from the prompt, a
 
 At the moment, **evaluations** are simply folders that contain:
 
-- `PROMPT.md`: the instruction for which we're evaluating the model's output on
+- `PROMPT.md`: the instruction for which we're evaluating the model's output on. The `add-auth` eval instead fetches the canonical `clerk-setup` skill at runtime.
 - `graders.ts`: a module containing grader functions which return `true/false` signalling if the model's output passed or failed. This is essentially our acceptance criteria.
 
 ### Graders

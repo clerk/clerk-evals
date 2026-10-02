@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { loadEvaluationPrompt } from '@/src/eval-prompt'
 import type { Evaluation } from '@/src/interfaces'
 
 export function getEvalKey(evaluation: Pick<Evaluation, 'path' | 'variant'>): string {
@@ -47,8 +48,10 @@ export async function getSuiteHash(
     getEvalKey(a).localeCompare(getEvalKey(b)),
   )) {
     const evalDir = path.join(cwd, 'src', evaluation.path)
-
+    const prompt = await loadEvaluationPrompt(evalDir)
     hash.update(getEvalKey(evaluation))
+    hash.update('\0')
+    hash.update(prompt)
     hash.update('\0')
     for (const [relativePath, content] of await readDirectory(evalDir)) {
       hash.update(relativePath)

@@ -19,6 +19,7 @@ import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
+import { resolveSourceVersions } from '@/src/source-versions'
 import type { AgentRunnerArgs, AgentType, RunnerResult, Score } from '@/src/interfaces'
 import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
 import { summarizeTrials, type TrialResult } from '@/src/metrics/pass-at-k'
@@ -58,6 +59,7 @@ const { values } = parseArgs({
     timeout: { type: 'string', short: 't' },
     runs: { type: 'string', short: 'r' },
     model: { type: 'string', short: 'm' },
+    'require-complete': { type: 'boolean', default: false },
   },
   strict: true,
   allowPositionals: true,
@@ -158,7 +160,12 @@ const runIdSuffix = [skillsEnabled ? 'skills' : '', mcpEnabled ? 'mcp' : '']
 const runId = `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`
 const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
-const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
+const { skillsCommit, cliVersion } = resolveSourceVersions({
+  skillsEnabled,
+  skillsPath,
+  requestedSkillsSha: process.env.CLERK_SKILLS_SHA,
+  cliVersion: process.env.CLERK_CLI_VERSION,
+})
 
 // Build tasks
 const tasks = await Promise.all(
@@ -210,6 +217,7 @@ saveRun({
   suiteHash,
   harnessCommit,
   skillsCommit,
+  cliVersion,
   mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
   transport: getAgentTransport(),
 })
@@ -343,6 +351,11 @@ await Promise.all(
 const outputFile = 'agent-scores.json'
 const dbScores = getResults(runId)
 fileReporter(dbScores, outputFile)
+
+if (values['require-complete'] && dbScores.length !== totalRuns) {
+  console.error(`Automation failed: expected ${totalRuns} scores, received ${dbScores.length}`)
+  process.exitCode = 1
+}
 
 if (debugEnabled) {
   consoleReporter(dbScores)

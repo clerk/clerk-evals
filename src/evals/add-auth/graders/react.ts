@@ -1,6 +1,8 @@
 import { contains, containsAny, defineGraders, judge, matches, not } from '@/src/graders'
+import { setupFlowGraders } from './setup-flow'
 
 export const graders = defineGraders({
+  ...setupFlowGraders,
   clerk_react_package: contains('@clerk/react'),
   clerk_provider_usage: contains('<ClerkProvider'),
   main_file: containsAny(['main.tsx', 'main.jsx']),
