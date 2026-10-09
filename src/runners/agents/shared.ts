@@ -93,6 +93,23 @@ export async function createTempWorkDir(suffix?: string): Promise<string> {
 }
 
 /**
+ * Package caches shared by every agent run. They hold downloaded packages,
+ * never skills or agent config, so sharing them keeps `npx -y clerk@latest`
+ * and installs from refetching on each run without breaking HOME isolation.
+ */
+export const AGENT_PACKAGE_CACHE_DIR = path.join(tmpdir(), 'clerk-evals-package-cache')
+
+/**
+ * Creates an empty HOME for one agent run so globally installed skills,
+ * plugins, and config on the host (~/.claude, ~/.agents, ~/.codex) can't
+ * leak into the run, and anything the agent installs globally stays scoped
+ * to that run.
+ */
+export async function createTempHomeDir(suffix?: string): Promise<string> {
+  return createTempWorkDir(suffix ? `${suffix}-home` : 'home')
+}
+
+/**
  * Cleans up temporary working directory.
  */
 export async function cleanupTempWorkDir(workDir: string): Promise<void> {
@@ -186,13 +203,20 @@ export type AgentWorkspaceGradingResult = {
   hiddenVerification?: HiddenVerificationResult
 }
 
-function buildVerificationEnvironment(envPath: string, workDir: string): NodeJS.ProcessEnv {
+const PASSTHROUGH_ENV_NAMES = ['LANG', 'LC_ALL', 'NO_COLOR', 'SSL_CERT_FILE', 'TERM', 'TMPDIR']
+
+export function buildVerificationEnvironment(
+  envPath: string,
+  workDir: string,
+  homeDir: string,
+): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     CLERK_EVAL_WORKSPACE: workDir,
+    HOME: homeDir,
     NODE_ENV: 'test',
     PATH: envPath,
   }
-  for (const name of ['HOME', 'LANG', 'LC_ALL', 'NO_COLOR', 'SSL_CERT_FILE', 'TERM', 'TMPDIR']) {
+  for (const name of PASSTHROUGH_ENV_NAMES) {
     if (process.env[name]) env[name] = process.env[name]
   }
   return env
@@ -205,6 +229,7 @@ export async function runHiddenVerification(
 ): Promise<HiddenVerificationResult> {
   const startTime = Date.now()
   const testsDir = await createTempWorkDir('hidden-tests')
+  const homeDir = await createTempHomeDir('hidden-tests')
 
   try {
     await fs.cp(config.testsPath, testsDir, { recursive: true, force: true })
@@ -212,7 +237,7 @@ export async function runHiddenVerification(
     return await new Promise((resolve, reject) => {
       const proc = spawn(process.execPath, ['test', '.'], {
         cwd: testsDir,
-        env: buildVerificationEnvironment(envPath, workDir),
+        env: buildVerificationEnvironment(envPath, workDir, homeDir),
         stdio: ['ignore', 'pipe', 'pipe'],
       })
 
@@ -259,6 +284,7 @@ export async function runHiddenVerification(
     })
   } finally {
     await cleanupTempWorkDir(testsDir)
+    await cleanupTempWorkDir(homeDir)
   }
 }
 
@@ -337,14 +363,23 @@ ${args.graderResults.map(([name, p]) => `| ${name} | ${p ? 'PASS' : 'FAIL'} |`).
 `
 }
 
+/**
+ * Builds the agent's environment from an allowlist. HOME is always the run's
+ * temp home, never the host's, so baseline runs see no host skills.
+ */
 export function buildAgentEnvironment(
   agentType: AgentType,
   envPath: string,
+  homeDir: string,
   gatewayCredential = getGatewayCredential(),
 ): NodeJS.ProcessEnv {
-  const commonNames = ['HOME', 'LANG', 'LC_ALL', 'NO_COLOR', 'SSL_CERT_FILE', 'TERM', 'TMPDIR']
-  const env: NodeJS.ProcessEnv = { PATH: envPath }
-  for (const name of commonNames) {
+  const env: NodeJS.ProcessEnv = {
+    BUN_INSTALL_CACHE_DIR: path.join(AGENT_PACKAGE_CACHE_DIR, 'bun'),
+    HOME: homeDir,
+    PATH: envPath,
+    npm_config_cache: path.join(AGENT_PACKAGE_CACHE_DIR, 'npm'),
+  }
+  for (const name of PASSTHROUGH_ENV_NAMES) {
     if (process.env[name]) env[name] = process.env[name]
   }
 
@@ -358,8 +393,17 @@ export function buildAgentEnvironment(
     return env
   }
 
-  const apiKeyName = agentType === 'claude-code' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'
-  if (process.env[apiKeyName]) env[apiKeyName] = process.env[apiKeyName]
+  if (agentType === 'claude-code') {
+    if (process.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+    return env
+  }
+
+  // Without ~/.codex/auth.json, `codex exec` only authenticates from CODEX_API_KEY.
+  const openAIKey = process.env.CODEX_API_KEY ?? process.env.OPENAI_API_KEY
+  if (openAIKey) {
+    env.CODEX_API_KEY = openAIKey
+    env.OPENAI_API_KEY = openAIKey
+  }
   return env
 }
 

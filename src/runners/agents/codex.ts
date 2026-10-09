@@ -21,6 +21,7 @@ import {
   buildAgentTranscript,
   cleanupTempWorkDir,
   copyWorkspace,
+  createTempHomeDir,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
   gradeAgentWorkspace,
@@ -89,6 +90,7 @@ export function parseCodexJsonl(raw: string): string {
 async function execCodex(
   prompt: string,
   workDir: string,
+  homeDir: string,
   timeout: number,
   executablePath: string,
   envPath: string,
@@ -115,7 +117,7 @@ async function execCodex(
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: buildAgentEnvironment('codex', envPath),
+      env: buildAgentEnvironment('codex', envPath, homeDir),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -202,6 +204,7 @@ export default async function exec({
   }
 
   let workDir: string | undefined
+  let homeDir: string | undefined
 
   try {
     // 1. Build prompt
@@ -210,6 +213,7 @@ export default async function exec({
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
     workDir = await createTempWorkDir(evalName)
+    homeDir = await createTempHomeDir(evalName)
 
     // 2b. Copy fixtures into work dir
     if (workspacePath) {
@@ -243,6 +247,7 @@ export default async function exec({
     const result = await execCodex(
       prompt,
       workDir,
+      homeDir,
       timeout,
       executablePath,
       envPath,
@@ -296,11 +301,15 @@ export default async function exec({
     return { ok: false as const, error: errorMessage }
   } finally {
     // Cleanup — skip in debug mode for inspection
-    if (workDir && !debug) {
-      await cleanupTempWorkDir(workDir)
+    if (!debug) {
+      if (workDir) await cleanupTempWorkDir(workDir)
+      if (homeDir) await cleanupTempWorkDir(homeDir)
     }
     if (workDir && debug) {
       console.log(`[debug] Work dir preserved: ${workDir}`)
+    }
+    if (homeDir && debug) {
+      console.log(`[debug] Home dir preserved: ${homeDir}`)
     }
   }
 }
