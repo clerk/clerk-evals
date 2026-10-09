@@ -1,11 +1,9 @@
+import { execSync } from 'node:child_process'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { Evaluation } from '@/src/interfaces'
 
 export const DEFAULT_CLERK_SETUP_SKILL_PATH = 'skills/clerk-setup/SKILL.md'
-
-/** The add-auth prompt revision when CLERK_SKILLS_SHA is unset. Bump it when clerk-setup changes. */
-export const DEFAULT_CLERK_SKILLS_SHA = 'a02dbd2a933b8929525129a6cb9dcf6ed66d0adf'
 
 /**
  * Eval runs are single-turn, so this answers the canonical skill's interactive steps up front.
@@ -29,20 +27,39 @@ export function isAddAuthEval(evalPath: string): boolean {
   return path.basename(evalPath) === 'add-auth'
 }
 
-export function getClerkSkillsSha(): string {
-  return process.env.CLERK_SKILLS_SHA || DEFAULT_CLERK_SKILLS_SHA
+export function readClerkSkillsMain(): string {
+  try {
+    return (
+      execSync('git ls-remote https://github.com/clerk/skills.git refs/heads/main', {
+        encoding: 'utf8',
+        timeout: 15_000,
+      }).split('\t')[0] ?? ''
+    )
+  } catch {
+    throw new Error(
+      'Unable to resolve clerk/skills main; set CLERK_SKILLS_SHA to a full commit SHA',
+    )
+  }
 }
 
-/** The Skills revision a run evaluates: the add-auth prompt's revision, or an explicit request. */
-export function getRequestedSkillsSha(
+/**
+ * Resolves the Skills revision a run evaluates, once, in the parent process. When add-auth runs
+ * without CLERK_SKILLS_SHA, it pins clerk/skills main into the environment so every worker
+ * fetches the same prompt the run records.
+ */
+export function resolveClerkSkillsSha(
   evaluations: readonly Pick<Evaluation, 'path'>[],
+  readMain = readClerkSkillsMain,
 ): string | undefined {
-  return evaluations.some((evaluation) => isAddAuthEval(evaluation.path))
-    ? getClerkSkillsSha()
-    : process.env.CLERK_SKILLS_SHA
+  if (process.env.CLERK_SKILLS_SHA) return process.env.CLERK_SKILLS_SHA
+  if (!evaluations.some((evaluation) => isAddAuthEval(evaluation.path))) return undefined
+
+  const sha = getSkillsRevision(readMain())
+  process.env.CLERK_SKILLS_SHA = sha
+  return sha
 }
 
-function getSkillsRevision(revision = getClerkSkillsSha()): string {
+function getSkillsRevision(revision = process.env.CLERK_SKILLS_SHA): string {
   if (!revision || !/^[0-9a-f]{40}$/.test(revision)) {
     throw new Error('CLERK_SKILLS_SHA must be a full clerk/skills commit SHA for add-auth evals')
   }

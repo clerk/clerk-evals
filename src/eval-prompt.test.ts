@@ -5,15 +5,15 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import {
   ADD_AUTH_EVAL_CONTEXT,
   buildAddAuthPrompt,
-  DEFAULT_CLERK_SKILLS_SHA,
-  getRequestedSkillsSha,
   loadCanonicalSetupPrompt,
   loadEvaluationPrompt,
+  resolveClerkSkillsSha,
   stripSkillFrontmatter,
 } from './eval-prompt'
 
 const tempDirs: string[] = []
 const originalSha = process.env.CLERK_SKILLS_SHA
+const sharedSha = (): string | undefined => process.env.CLERK_SKILLS_SHA
 afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
   if (originalSha === undefined) delete process.env.CLERK_SKILLS_SHA
@@ -56,14 +56,30 @@ describe('canonical add-auth prompt', () => {
     ).rejects.toThrow('full clerk/skills commit SHA')
   })
 
-  test('pins add-auth runs to the default revision unless CLERK_SKILLS_SHA overrides it', () => {
+  test('resolves clerk/skills main once for add-auth runs and shares it through the environment', () => {
     delete process.env.CLERK_SKILLS_SHA
-    expect(DEFAULT_CLERK_SKILLS_SHA).toMatch(/^[0-9a-f]{40}$/)
-    expect(getRequestedSkillsSha([{ path: 'evals/add-auth' }])).toBe(DEFAULT_CLERK_SKILLS_SHA)
-    expect(getRequestedSkillsSha([{ path: 'evals/organizations' }])).toBeUndefined()
+    const main = 'c'.repeat(40)
+    expect(resolveClerkSkillsSha([{ path: 'evals/add-auth' }], () => main)).toBe(main)
+    expect(sharedSha()).toBe(main)
+  })
 
+  test('honors CLERK_SKILLS_SHA and leaves runs without add-auth alone', () => {
+    const readMain = () => {
+      throw new Error('should not resolve main')
+    }
     process.env.CLERK_SKILLS_SHA = 'b'.repeat(40)
-    expect(getRequestedSkillsSha([{ path: 'evals/add-auth' }])).toBe('b'.repeat(40))
+    expect(resolveClerkSkillsSha([{ path: 'evals/add-auth' }], readMain)).toBe('b'.repeat(40))
+
+    delete process.env.CLERK_SKILLS_SHA
+    expect(resolveClerkSkillsSha([{ path: 'evals/organizations' }], readMain)).toBeUndefined()
+    expect(sharedSha()).toBeUndefined()
+  })
+
+  test('rejects an unresolvable main revision', () => {
+    delete process.env.CLERK_SKILLS_SHA
+    expect(() => resolveClerkSkillsSha([{ path: 'evals/add-auth' }], () => '')).toThrow(
+      'full clerk/skills commit SHA',
+    )
   })
 
   test('answers the interactive steps before the unchanged canonical body', () => {

@@ -19,7 +19,7 @@ import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
-import { getRequestedSkillsSha } from '@/src/eval-prompt'
+import { resolveClerkSkillsSha } from '@/src/eval-prompt'
 import { resolveSourceVersions } from '@/src/source-versions'
 import type { AgentRunnerArgs, AgentType, RunnerResult, Score } from '@/src/interfaces'
 import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
@@ -146,9 +146,13 @@ const filteredEvaluations = (() => {
 // Create pool with agent runner
 // Note: Using fewer workers for CLI agents due to overhead
 const runnerPath = `./runners/agents/${agentType}.ts`
+// Resolve before the pool forks workers, which only see the environment passed below.
+const requestedSkillsSha = resolveClerkSkillsSha(filteredEvaluations)
 const pool = new Tinypool({
   runtime: 'child_process',
   filename: new URL(runnerPath, import.meta.url).href,
+  // Child-process workers don't inherit the parent's environment.
+  env: process.env as Record<string, string>,
   isolateWorkers: true,
   idleTimeout: 60000, // Longer idle timeout for CLI agents
   maxThreads: 4, // Fewer workers - CLI agents are heavier
@@ -164,7 +168,7 @@ const harnessCommit = getGitCommit()
 const { skillsCommit, cliVersion } = resolveSourceVersions({
   skillsEnabled,
   skillsPath,
-  requestedSkillsSha: getRequestedSkillsSha(filteredEvaluations),
+  requestedSkillsSha,
   cliVersion: process.env.CLERK_CLI_VERSION,
 })
 

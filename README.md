@@ -179,15 +179,14 @@ Registered agent tasks use an explicit repository fixture. A task can also defin
 
 The `add-auth` eval is the exception to the repository's checked-in `PROMPT.md` convention. It
 fetches `skills/clerk-setup/SKILL.md` from an immutable `clerk/skills` revision at runtime so
-the baseline and Skills columns always evaluate the canonical setup prompt. Runs use the commit
-pinned in `DEFAULT_CLERK_SKILLS_SHA` (`src/eval-prompt.ts`). Bump the pin when `clerk-setup`
-changes, or override it for one run:
+the baseline and Skills columns always evaluate the canonical setup prompt. Runs resolve
+`clerk/skills` `main` once at startup and record that commit, or evaluate a specific commit:
 
 ```bash
 CLERK_SKILLS_SHA=<full-clerk-skills-sha> bun agent:claude --eval add-auth
 ```
 
-With `--skills`, the Skills checkout must be at that same commit.
+With `--skills`, the Skills checkout must be at the evaluated commit.
 
 Eval runs are single-turn, so the harness puts a short context before the skill body: the user
 approved the setup checklist but declined installing Clerk's agent skills, and the agent
@@ -293,7 +292,7 @@ The merge script combines both score files and calculates improvement metrics:
 This project is broken up into a few core pieces:
 
 - [`src/index.ts`](./src/index.ts): This is the main entrypoint of the project. Models, reporters, and the runner are registered here, and all executed. Evaluations are defined in [`src/config/evaluations.ts`](./src/config/evaluations.ts).
-- [`/evals`](./src/evals): Folders that contain grading expectations and, except for `add-auth`, a checked-in prompt. The `add-auth` prompt is fetched from the canonical `clerk/skills` revision pinned in `DEFAULT_CLERK_SKILLS_SHA` or set by `CLERK_SKILLS_SHA`.
+- [`/evals`](./src/evals): Folders that contain grading expectations and, except for `add-auth`, a checked-in prompt. The `add-auth` prompt is fetched from the canonical `clerk/skills` revision set by `CLERK_SKILLS_SHA`, or `clerk/skills` `main` when it's unset.
 - [`/runners`](./src/runners): The primary logic responsible for loading evaluations, calling provider llms, and outputting scores.
 - [`/reporters`](./src/reporters): The primary logic responsible for sending scores somewhere — stdout, a file, etc.
 
