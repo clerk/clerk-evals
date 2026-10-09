@@ -195,12 +195,11 @@ shouldn't wait for replies or leave a dev server running. The skill body itself 
 ### Automated add-auth comparison
 
 `.github/workflows/add-auth-automation.yml` accepts `clerk_skills_updated` dispatches with
-`client_payload.sha`, `clerk_cli_released` dispatches with `client_payload.version`, and manual
-runs. A CLI release dispatch must arrive after that version is published as `clerk@latest`:
-the canonical prompt explicitly runs `npx -y clerk@latest init`, so evaluating a non-latest
-version would mislabel the result. Manual runs can select a full Skills SHA and the current
-latest CLI version. The sender of a CLI release event must use the documented dispatch type
-and version field; no release sender is created in this repository.
+`client_payload.sha` and manual runs. Manual runs can select a full Skills SHA and the current
+latest CLI version. The canonical prompt runs `npx -y clerk@latest init`, so a requested CLI
+version that isn't `clerk@latest` fails instead of mislabeling the result. CLI releases don't
+trigger the workflow yet; add a `clerk_cli_released` trigger in the same change that adds its
+sender to `clerk/cli`.
 
 The workflow runs the four add-auth variants twice with the same prompt and Clerk CLI
 version. Baseline receives no installed Clerk skills. The Skills column checks out the exact
@@ -209,10 +208,22 @@ agent. Both columns upload scores and source-version metadata. A missing score o
 failure fails the automation and alerts `#team-docs` through `DOCS_SLACK_WEBHOOK_URL`; a
 completed Skills score below baseline is instead reported as an eval regression warning.
 
-Artifacts are named by Skills SHA and CLI version. A duplicate dispatch skips only when
-both score artifacts and their comparison already exist; a manual run with `force` can
-repeat the evaluation. There is no mutable “latest result” file, so an older run cannot
-overwrite a newer result. The repository needs `VERCEL_AI_GATEWAY_API_KEY` and
+Artifacts are named by Skills SHA and CLI version, and baseline artifacts also carry the
+Claude Code version. Each run installs the latest Claude Code version, pinned for both
+columns. Before evaluating, the workflow diffs the incoming Skills SHA against the last
+evaluated one:
+
+- If no skill the add-auth Skills run loads changed (the `evals/add-auth` entry in
+  `src/config/skills.ts`), the run skips. Edits to unrelated skills don't change the score.
+- If `skills/clerk-setup/` is unchanged and a stored baseline used the same Clerk CLI, Claude
+  Code version, and harness commit, the run reuses that baseline and evaluates only the Skills
+  column. The comparison records which run and Skills SHA each column came from.
+- Otherwise, or when the history is missing or unclear, both columns run.
+
+A revision that already has Skills scores and a comparison skips; a manual run with `force`
+always runs both columns. There is no mutable “latest result” file, so an older run cannot
+overwrite a newer result. Artifacts expire after 90 days, after which the next run starts
+fresh. The repository needs `VERCEL_AI_GATEWAY_API_KEY` and
 `DOCS_SLACK_WEBHOOK_URL` Actions secrets before the first live run. This workflow depends on
 `skills/clerk-setup/SKILL.md` existing at the evaluated revision (the flat path from
 `clerk/skills#83`).

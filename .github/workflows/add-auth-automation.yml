@@ -2,7 +2,7 @@ name: Add-auth setup prompt eval
 
 on:
   repository_dispatch:
-    types: [clerk_skills_updated, clerk_cli_released]
+    types: [clerk_skills_updated]
   workflow_dispatch:
     inputs:
       skills_sha:
@@ -25,7 +25,7 @@ permissions:
 
 # Serialize the same incoming revision while retaining immutable, versioned artifacts.
 concurrency:
-  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}-${{ github.event.client_payload.version || inputs.cli_version || 'latest' }}
+  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}
   cancel-in-progress: false
   queue: max
 
@@ -35,15 +35,23 @@ jobs:
     outputs:
       sha: ${{ steps.sources.outputs.sha }}
       cli: ${{ steps.sources.outputs.cli }}
-      skip: ${{ steps.sources.outputs.skip }}
+      agent: ${{ steps.sources.outputs.agent }}
+      skip: ${{ steps.plan.outputs.skip }}
+      columns: ${{ steps.plan.outputs.columns }}
+      baseline_run_id: ${{ steps.plan.outputs.baseline_run_id }}
+      baseline_name: ${{ steps.plan.outputs.baseline_name }}
     steps:
-      - name: Resolve immutable source versions and duplicate work
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.0'
+      - name: Resolve immutable source versions
         id: sources
         env:
-          GH_TOKEN: ${{ github.token }}
           SKILLS_INPUT: ${{ github.event.client_payload.sha || inputs.skills_sha }}
-          CLI_INPUT: ${{ github.event.client_payload.version || inputs.cli_version }}
-          FORCE: ${{ inputs.force }}
+          CLI_INPUT: ${{ inputs.cli_version }}
         run: |
           set -euo pipefail
           sha="${SKILLS_INPUT:-$(git ls-remote https://github.com/clerk/skills.git refs/heads/main | cut -f1)}"
@@ -56,20 +64,25 @@ jobs:
             echo "Requested Clerk CLI $CLI_INPUT is not npm latest ($cli); the canonical prompt uses clerk@latest" >&2
             exit 1
           fi
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "cli=$cli" >> "$GITHUB_OUTPUT"
-          baseline="add-auth-baseline-$sha-$cli"
-          skills="add-auth-skills-$sha-$cli"
-          comparison="add-auth-comparison-$sha-$cli"
-          baseline_exists="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$baseline&per_page=1" --jq '[.artifacts[] | select(.expired == false)] | length')"
-          skills_exists="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$skills&per_page=1" --jq '[.artifacts[] | select(.expired == false)] | length')"
-          comparison_exists="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$comparison&per_page=1" --jq '[.artifacts[] | select(.expired == false)] | length')"
-          if [[ "$FORCE" != 'true' && "$baseline_exists" != '0' && "$skills_exists" != '0' && "$comparison_exists" != '0' ]]; then
-            echo 'skip=true' >> "$GITHUB_OUTPUT"
-            echo "Both columns already exist for $sha / $cli; use manual force to rerun"
-          else
-            echo 'skip=false' >> "$GITHUB_OUTPUT"
-          fi
+          # Both columns install this exact Claude Code version, so a reused baseline stays comparable.
+          agent="$(npm view @anthropic-ai/claude-code version)"
+          {
+            echo "sha=$sha"
+            echo "cli=$cli"
+            echo "agent=$agent"
+          } >> "$GITHUB_OUTPUT"
+      - name: Skip unchanged skills and reuse an unchanged baseline
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKILLS_SHA: ${{ steps.sources.outputs.sha }}
+          CLI_VERSION: ${{ steps.sources.outputs.cli }}
+          AGENT_VERSION: ${{ steps.sources.outputs.agent }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun src/automation/plan-add-auth.ts
 
   evaluate:
     needs: prepare
@@ -77,12 +90,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        column: [baseline, skills]
+        column: ${{ fromJSON(needs.prepare.outputs.columns) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
       CLERK_SKILLS_SHA: ${{ needs.prepare.outputs.sha }}
       CLERK_CLI_VERSION: ${{ needs.prepare.outputs.cli }}
+      CLAUDE_CODE_VERSION: ${{ needs.prepare.outputs.agent }}
       VERCEL_AI_GATEWAY_API_KEY: ${{ secrets.VERCEL_AI_GATEWAY_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +111,7 @@ jobs:
       - name: Install locked harness dependencies and coding agent
         run: |
           bun install --frozen-lockfile
-          npm install --global @anthropic-ai/claude-code
+          npm install --global "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
       - name: Check out the exact evaluated Skills revision
         if: matrix.column == 'skills'
         uses: actions/checkout@v4
@@ -134,12 +148,13 @@ jobs:
           COLUMN: ${{ matrix.column }}
         run: |
           agent_version="$(claude --version 2>/dev/null || echo unknown)"
-          jq -n --arg column "$COLUMN" --arg skills_sha "$CLERK_SKILLS_SHA" --arg cli_version "$CLERK_CLI_VERSION" --arg harness_sha "$GITHUB_SHA" --arg model 'claude-sonnet-5-5' --arg agent_version "$agent_version" \
-            '{column: $column, skills_sha: $skills_sha, cli_version: $cli_version, harness_sha: $harness_sha, model: $model, agent_version: $agent_version}' > source-versions.json
+          jq -n --arg column "$COLUMN" --arg skills_sha "$CLERK_SKILLS_SHA" --arg cli_version "$CLERK_CLI_VERSION" --arg harness_sha "$GITHUB_SHA" --arg model 'claude-sonnet-5-5' --arg agent_version "$agent_version" --arg run_id "$GITHUB_RUN_ID" \
+            '{column: $column, skills_sha: $skills_sha, cli_version: $cli_version, harness_sha: $harness_sha, model: $model, agent_version: $agent_version, run_id: $run_id}' > source-versions.json
       - name: Upload scores and source versions
         uses: actions/upload-artifact@v4
         with:
-          name: add-auth-${{ matrix.column }}-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
+          # Baseline names carry the agent version so a later run can tell whether it's reusable.
+          name: add-auth-${{ matrix.column }}-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}${{ matrix.column == 'baseline' && format('-cc{0}', needs.prepare.outputs.agent) || '' }}
           path: |
             agent-scores.json
             source-versions.json
@@ -165,16 +180,26 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.0'
-      - uses: actions/download-artifact@v4
+      - name: Download this run's baseline
+        if: needs.prepare.outputs.baseline_run_id == ''
+        uses: actions/download-artifact@v4
         with:
-          name: add-auth-baseline-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
+          name: add-auth-baseline-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}-cc${{ needs.prepare.outputs.agent }}
+          path: baseline
+      - name: Download the reused baseline
+        if: needs.prepare.outputs.baseline_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.prepare.outputs.baseline_name }}
+          run-id: ${{ needs.prepare.outputs.baseline_run_id }}
+          github-token: ${{ github.token }}
           path: baseline
       - uses: actions/download-artifact@v4
         with:
           name: add-auth-skills-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
           path: skills
       - name: Classify completed eval or regression
-        run: bun src/automation/compare-add-auth.ts baseline/agent-scores.json skills/agent-scores.json comparison.json
+        run: bun src/automation/compare-add-auth.ts baseline skills comparison.json
       - uses: actions/upload-artifact@v4
         with:
           name: add-auth-comparison-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}

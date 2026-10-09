@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import type { Score } from '@/src/interfaces'
 
 export type Comparison = {
@@ -8,6 +9,8 @@ export type Comparison = {
   delta: number
   cells: number
 }
+
+type SourceRecord = { skills_sha?: string; run_id?: string }
 
 export function compareAddAuth(baseline: Score[], skills: Score[]): Comparison {
   const byKey = (scores: Score[]) => new Map(scores.map((score) => [score.evalKey, score.value]))
@@ -35,17 +38,28 @@ export function compareAddAuth(baseline: Score[], skills: Score[]): Comparison {
 }
 
 if (import.meta.main) {
-  const [baselinePath, skillsPath, outputPath] = process.argv.slice(2)
-  if (!baselinePath || !skillsPath || !outputPath) {
-    throw new Error('Usage: bun compare-add-auth.ts <baseline.json> <skills.json> <output.json>')
+  const [baselineDir, skillsDir, outputPath] = process.argv.slice(2)
+  if (!baselineDir || !skillsDir || !outputPath) {
+    throw new Error('Usage: bun compare-add-auth.ts <baseline-dir> <skills-dir> <output.json>')
   }
-  const baseline = JSON.parse(await readFile(baselinePath, 'utf8')) as Score[]
-  const skills = JSON.parse(await readFile(skillsPath, 'utf8')) as Score[]
-  const comparison = compareAddAuth(baseline, skills)
-  await writeFile(outputPath, JSON.stringify(comparison, null, 2))
-  console.log(JSON.stringify(comparison))
+  const readJson = async (dir: string, file: string) =>
+    JSON.parse(await readFile(path.join(dir, file), 'utf8')) as unknown
+  const comparison = compareAddAuth(
+    (await readJson(baselineDir, 'agent-scores.json')) as Score[],
+    (await readJson(skillsDir, 'agent-scores.json')) as Score[],
+  )
+  // Source versions show which run and Skills SHA each column came from, including a reused baseline.
+  const baselineSource = (await readJson(baselineDir, 'source-versions.json')) as SourceRecord
+  const skillsSource = (await readJson(skillsDir, 'source-versions.json')) as SourceRecord
+  const record = { ...comparison, baseline: baselineSource, skills: skillsSource }
+  await writeFile(outputPath, JSON.stringify(record, null, 2))
+  console.log(JSON.stringify(record))
   if (process.env.GITHUB_STEP_SUMMARY) {
-    const summary = `## Add-auth eval: ${comparison.status}\n\nBaseline: ${(comparison.baselineMean * 100).toFixed(1)}%; Skills: ${(comparison.skillsMean * 100).toFixed(1)}%; delta: ${(comparison.delta * 100).toFixed(1)} points.\n\nA lower Skills score is an eval regression, not an automation failure. Inspect the uploaded scores before acting.\n`
+    const reused =
+      baselineSource.run_id !== skillsSource.run_id
+        ? `Baseline reused from ${baselineSource.skills_sha} (run ${baselineSource.run_id}).\n\n`
+        : ''
+    const summary = `## Add-auth eval: ${comparison.status}\n\nBaseline: ${(comparison.baselineMean * 100).toFixed(1)}%; Skills: ${(comparison.skillsMean * 100).toFixed(1)}%; delta: ${(comparison.delta * 100).toFixed(1)} points.\n\n${reused}A lower Skills score is an eval regression, not an automation failure. Inspect the uploaded scores before acting.\n`
     await writeFile(process.env.GITHUB_STEP_SUMMARY, summary, { flag: 'a' })
   }
   if (comparison.status === 'regression') {
