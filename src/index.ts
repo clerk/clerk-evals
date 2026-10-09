@@ -12,6 +12,7 @@ import {
 } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
+import { getRequestedSkillsSha } from '@/src/eval-prompt'
 import { resolveSourceVersions } from '@/src/source-versions'
 import type { ExecArgs, RunnerDebugPayload, RunnerResult, Score } from '@/src/interfaces'
 import type { Provider } from '@/src/providers'
@@ -154,7 +155,7 @@ const harnessCommit = getGitCommit()
 const { skillsCommit, cliVersion } = resolveSourceVersions({
   skillsEnabled,
   skillsPath,
-  requestedSkillsSha: process.env.CLERK_SKILLS_SHA,
+  requestedSkillsSha: getRequestedSkillsSha(filteredEvaluations),
   cliVersion: process.env.CLERK_CLI_VERSION,
 })
 

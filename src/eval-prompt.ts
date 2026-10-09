@@ -1,7 +1,11 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import type { Evaluation } from '@/src/interfaces'
 
 export const DEFAULT_CLERK_SETUP_SKILL_PATH = 'skills/clerk-setup/SKILL.md'
+
+/** The add-auth prompt revision when CLERK_SKILLS_SHA is unset. Bump it when clerk-setup changes. */
+export const DEFAULT_CLERK_SKILLS_SHA = 'a02dbd2a933b8929525129a6cb9dcf6ed66d0adf'
 
 const promptCache = new Map<string, Promise<string>>()
 
@@ -15,11 +19,24 @@ export function stripSkillFrontmatter(content: string): string {
   return prompt
 }
 
-function isAddAuthEval(evalPath: string): boolean {
+export function isAddAuthEval(evalPath: string): boolean {
   return path.basename(evalPath) === 'add-auth'
 }
 
-function getSkillsRevision(revision = process.env.CLERK_SKILLS_SHA): string {
+export function getClerkSkillsSha(): string {
+  return process.env.CLERK_SKILLS_SHA || DEFAULT_CLERK_SKILLS_SHA
+}
+
+/** The Skills revision a run evaluates: the add-auth prompt's revision, or an explicit request. */
+export function getRequestedSkillsSha(
+  evaluations: readonly Pick<Evaluation, 'path'>[],
+): string | undefined {
+  return evaluations.some((evaluation) => isAddAuthEval(evaluation.path))
+    ? getClerkSkillsSha()
+    : process.env.CLERK_SKILLS_SHA
+}
+
+function getSkillsRevision(revision = getClerkSkillsSha()): string {
   if (!revision || !/^[0-9a-f]{40}$/.test(revision)) {
     throw new Error('CLERK_SKILLS_SHA must be a full clerk/skills commit SHA for add-auth evals')
   }

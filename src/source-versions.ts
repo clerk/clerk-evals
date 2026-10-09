@@ -24,7 +24,7 @@ export function resolveSourceVersions(args: {
   }
   if (skillsEnabled && requestedSkillsSha && checkoutSha !== requestedSkillsSha) {
     throw new Error(
-      `Skills checkout ${checkoutSha} does not match CLERK_SKILLS_SHA ${requestedSkillsSha}`,
+      `Skills checkout ${checkoutSha} does not match the evaluated revision ${requestedSkillsSha}. Set CLERK_SKILLS_SHA to the checkout's commit or check out ${requestedSkillsSha}.`,
     )
   }
 

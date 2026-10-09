@@ -3,14 +3,19 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
+  DEFAULT_CLERK_SKILLS_SHA,
+  getRequestedSkillsSha,
   loadCanonicalSetupPrompt,
   loadEvaluationPrompt,
   stripSkillFrontmatter,
 } from './eval-prompt'
 
 const tempDirs: string[] = []
+const originalSha = process.env.CLERK_SKILLS_SHA
 afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+  if (originalSha === undefined) delete process.env.CLERK_SKILLS_SHA
+  else process.env.CLERK_SKILLS_SHA = originalSha
 })
 
 describe('canonical add-auth prompt', () => {
@@ -47,6 +52,16 @@ describe('canonical add-auth prompt', () => {
     expect(
       loadCanonicalSetupPrompt({ revision: 'main', fetchImpl: async () => new Response('') }),
     ).rejects.toThrow('full clerk/skills commit SHA')
+  })
+
+  test('pins add-auth runs to the default revision unless CLERK_SKILLS_SHA overrides it', () => {
+    delete process.env.CLERK_SKILLS_SHA
+    expect(DEFAULT_CLERK_SKILLS_SHA).toMatch(/^[0-9a-f]{40}$/)
+    expect(getRequestedSkillsSha([{ path: 'evals/add-auth' }])).toBe(DEFAULT_CLERK_SKILLS_SHA)
+    expect(getRequestedSkillsSha([{ path: 'evals/organizations' }])).toBeUndefined()
+
+    process.env.CLERK_SKILLS_SHA = 'b'.repeat(40)
+    expect(getRequestedSkillsSha([{ path: 'evals/add-auth' }])).toBe('b'.repeat(40))
   })
 
   test('keeps ordinary eval prompts local', async () => {
