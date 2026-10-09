@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
+  ADD_AUTH_EVAL_CONTEXT,
+  buildAddAuthPrompt,
   DEFAULT_CLERK_SKILLS_SHA,
   getRequestedSkillsSha,
   loadCanonicalSetupPrompt,
@@ -62,6 +64,12 @@ describe('canonical add-auth prompt', () => {
 
     process.env.CLERK_SKILLS_SHA = 'b'.repeat(40)
     expect(getRequestedSkillsSha([{ path: 'evals/add-auth' }])).toBe('b'.repeat(40))
+  })
+
+  test('answers the interactive steps before the unchanged canonical body', () => {
+    const prompt = buildAddAuthPrompt('# Set up Clerk\n')
+    expect(prompt.startsWith(ADD_AUTH_EVAL_CONTEXT)).toBe(true)
+    expect(prompt.endsWith('# Set up Clerk\n')).toBe(true)
   })
 
   test('keeps ordinary eval prompts local', async () => {

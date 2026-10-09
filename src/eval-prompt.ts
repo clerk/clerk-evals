@@ -7,6 +7,12 @@ export const DEFAULT_CLERK_SETUP_SKILL_PATH = 'skills/clerk-setup/SKILL.md'
 /** The add-auth prompt revision when CLERK_SKILLS_SHA is unset. Bump it when clerk-setup changes. */
 export const DEFAULT_CLERK_SKILLS_SHA = 'a02dbd2a933b8929525129a6cb9dcf6ed66d0adf'
 
+/**
+ * Eval runs are single-turn, so this answers the canonical skill's interactive steps up front.
+ * Declining the skills install keeps the baseline column free of Clerk skills.
+ */
+export const ADD_AUTH_EVAL_CONTEXT = `The user approved your setup checklist but declined installing Clerk's agent skills. This session is non-interactive: skip any step that waits for the user's reply, and stop anything you start, such as a dev server, before you finish.`
+
 const promptCache = new Map<string, Promise<string>>()
 
 export function stripSkillFrontmatter(content: string): string {
@@ -78,9 +84,13 @@ export async function loadCanonicalSetupPrompt(
   return promptCache.get(key)!
 }
 
+export function buildAddAuthPrompt(canonicalPrompt: string): string {
+  return `${ADD_AUTH_EVAL_CONTEXT}\n\n---\n\n${canonicalPrompt}`
+}
+
 export async function loadEvaluationPrompt(evalPath: string): Promise<string> {
   if (isAddAuthEval(evalPath)) {
-    return loadCanonicalSetupPrompt()
+    return buildAddAuthPrompt(await loadCanonicalSetupPrompt())
   }
 
   return fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')

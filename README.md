@@ -189,6 +189,10 @@ CLERK_SKILLS_SHA=<full-clerk-skills-sha> bun agent:claude --eval add-auth
 
 With `--skills`, the Skills checkout must be at that same commit.
 
+Eval runs are single-turn, so the harness puts a short context before the skill body: the user
+approved the setup checklist but declined installing Clerk's agent skills, and the agent
+shouldn't wait for replies or leave a dev server running. The skill body itself is unchanged.
+
 ### Automated add-auth comparison
 
 `.github/workflows/add-auth-automation.yml` accepts `clerk_skills_updated` dispatches with
