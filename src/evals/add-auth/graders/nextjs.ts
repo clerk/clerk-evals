@@ -1,7 +1,9 @@
 import { contains, defineGraders, judge, matches } from '@/src/graders'
 import { authUIChecks, llmChecks } from '@/src/graders/catalog'
+import { setupFlowGraders } from './setup-flow'
 
 export const graders = defineGraders({
+  ...setupFlowGraders,
   // The fixture pins next@15 → the CLI scaffolds middleware.ts (proxy.ts is Next 16+).
   // If the fixture's Next version bumps, update this check.
   middleware_file: contains('middleware.ts'),

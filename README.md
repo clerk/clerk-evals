@@ -177,6 +177,57 @@ Set `VERCEL_AI_GATEWAY_API_KEY` in `.env`. The harness maps this key to each CLI
 
 Registered agent tasks use an explicit repository fixture. A task can also define hidden Bun tests. The harness stages those tests outside the repository after the coding agent exits. Test failure is a hard score gate, while normal deterministic graders still provide diagnostic partial credit.
 
+The `add-auth` eval is the exception to the repository's checked-in `PROMPT.md` convention. It
+fetches `skills/clerk-setup/SKILL.md` from an immutable `clerk/skills` revision at runtime so
+the baseline and Skills columns always evaluate the canonical setup prompt. Runs resolve
+`clerk/skills` `main` once at startup and record that commit, or evaluate a specific commit:
+
+```bash
+CLERK_SKILLS_SHA=<full-clerk-skills-sha> bun agent:claude --eval add-auth
+```
+
+With `--skills`, the Skills checkout must be at the evaluated commit.
+
+Eval runs are single-turn, so the harness puts a short context before the skill body: the user
+approved the setup checklist but declined installing Clerk's agent skills, and the agent
+shouldn't wait for replies or leave a dev server running. The skill body itself is unchanged.
+
+### Automated add-auth comparison
+
+`.github/workflows/add-auth-automation.yml` accepts `clerk_skills_updated` dispatches with
+`client_payload.sha` and manual runs. Manual runs can select a full Skills SHA and the current
+latest CLI version. The canonical prompt runs `npx -y clerk@latest init`, so a requested CLI
+version that isn't `clerk@latest` fails instead of mislabeling the result. CLI releases don't
+trigger the workflow yet; add a `clerk_cli_released` trigger in the same change that adds its
+sender to `clerk/cli`.
+
+The workflow runs the four add-auth variants twice with the same prompt and Clerk CLI
+version. Baseline receives no installed Clerk skills. The Skills column checks out the exact
+`CLERK_SKILLS_SHA`, verifies the checkout, and makes its `clerk-setup` skill available to the
+agent. Both columns upload scores and source-version metadata. A missing score or setup
+failure fails the automation and alerts `#team-docs` through `DOCS_SLACK_WEBHOOK_URL`; a
+completed Skills score below baseline is instead reported as an eval regression warning.
+
+Artifacts are named by Skills SHA and CLI version, and baseline artifacts also carry the
+Claude Code version. Each run installs the latest Claude Code version, pinned for both
+columns. Before evaluating, the workflow diffs the incoming Skills SHA against the last
+evaluated one:
+
+- If no skill the add-auth Skills run loads changed (the `evals/add-auth` entry in
+  `src/config/skills.ts`), the run skips. Edits to unrelated skills don't change the score.
+- If `skills/clerk-setup/` is unchanged and a stored baseline used the same Clerk CLI, Claude
+  Code version, and harness commit, the run reuses that baseline and evaluates only the Skills
+  column. The comparison records which run and Skills SHA each column came from.
+- Otherwise, or when the history is missing or unclear, both columns run.
+
+A revision that already has Skills scores and a comparison skips; a manual run with `force`
+always runs both columns. There is no mutable “latest result” file, so an older run cannot
+overwrite a newer result. Artifacts expire after 90 days, after which the next run starts
+fresh. The repository needs `VERCEL_AI_GATEWAY_API_KEY` and
+`DOCS_SLACK_WEBHOOK_URL` Actions secrets before the first live run. This workflow depends on
+`skills/clerk-setup/SKILL.md` existing at the evaluated revision (the flat path from
+`clerk/skills#83`).
+
 ### Usage
 
 ```bash
@@ -252,7 +303,7 @@ The merge script combines both score files and calculates improvement metrics:
 This project is broken up into a few core pieces:
 
 - [`src/index.ts`](./src/index.ts): This is the main entrypoint of the project. Models, reporters, and the runner are registered here, and all executed. Evaluations are defined in [`src/config/evaluations.ts`](./src/config/evaluations.ts).
-- [`/evals`](./src/evals): Folders that contain a prompt and grading expectations. Runners currently assume that eval folders contain two files: `graders.ts` and `PROMPT.md`.
+- [`/evals`](./src/evals): Folders that contain grading expectations and, except for `add-auth`, a checked-in prompt. The `add-auth` prompt is fetched from the canonical `clerk/skills` revision set by `CLERK_SKILLS_SHA`, or `clerk/skills` `main` when it's unset.
 - [`/runners`](./src/runners): The primary logic responsible for loading evaluations, calling provider llms, and outputting scores.
 - [`/reporters`](./src/reporters): The primary logic responsible for sending scores somewhere — stdout, a file, etc.
 
@@ -276,7 +327,7 @@ It will load the designated **evaluation**, generate LLM text from the prompt, a
 
 At the moment, **evaluations** are simply folders that contain:
 
-- `PROMPT.md`: the instruction for which we're evaluating the model's output on
+- `PROMPT.md`: the instruction for which we're evaluating the model's output on. The `add-auth` eval instead fetches the canonical `clerk-setup` skill at runtime.
 - `graders.ts`: a module containing grader functions which return `true/false` signalling if the model's output passed or failed. This is essentially our acceptance criteria.
 
 ### Graders

@@ -1,0 +1,224 @@
+name: Add-auth setup prompt eval
+
+on:
+  repository_dispatch:
+    types: [clerk_skills_updated]
+  workflow_dispatch:
+    inputs:
+      skills_sha:
+        description: Full clerk/skills commit SHA (defaults to current main)
+        required: false
+        type: string
+      cli_version:
+        description: Clerk CLI version (must currently be the npm latest version)
+        required: false
+        type: string
+      force:
+        description: Run again even if both versioned score artifacts already exist
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+# Serialize the same incoming revision while retaining immutable, versioned artifacts.
+concurrency:
+  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sources.outputs.sha }}
+      cli: ${{ steps.sources.outputs.cli }}
+      agent: ${{ steps.sources.outputs.agent }}
+      skip: ${{ steps.plan.outputs.skip }}
+      columns: ${{ steps.plan.outputs.columns }}
+      baseline_run_id: ${{ steps.plan.outputs.baseline_run_id }}
+      baseline_name: ${{ steps.plan.outputs.baseline_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.0'
+      - name: Resolve immutable source versions
+        id: sources
+        env:
+          SKILLS_INPUT: ${{ github.event.client_payload.sha || inputs.skills_sha }}
+          CLI_INPUT: ${{ inputs.cli_version }}
+        run: |
+          set -euo pipefail
+          sha="${SKILLS_INPUT:-$(git ls-remote https://github.com/clerk/skills.git refs/heads/main | cut -f1)}"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'Expected a full clerk/skills commit SHA' >&2
+            exit 1
+          fi
+          cli="$(npm view clerk version)"
+          if [[ -n "$CLI_INPUT" && "$CLI_INPUT" != "$cli" ]]; then
+            echo "Requested Clerk CLI $CLI_INPUT is not npm latest ($cli); the canonical prompt uses clerk@latest" >&2
+            exit 1
+          fi
+          # Both columns install this exact Claude Code version, so a reused baseline stays comparable.
+          agent="$(npm view @anthropic-ai/claude-code version)"
+          {
+            echo "sha=$sha"
+            echo "cli=$cli"
+            echo "agent=$agent"
+          } >> "$GITHUB_OUTPUT"
+      - name: Skip unchanged skills and reuse an unchanged baseline
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKILLS_SHA: ${{ steps.sources.outputs.sha }}
+          CLI_VERSION: ${{ steps.sources.outputs.cli }}
+          AGENT_VERSION: ${{ steps.sources.outputs.agent }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun src/automation/plan-add-auth.ts
+
+  evaluate:
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        column: ${{ fromJSON(needs.prepare.outputs.columns) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CLERK_SKILLS_SHA: ${{ needs.prepare.outputs.sha }}
+      CLERK_CLI_VERSION: ${{ needs.prepare.outputs.cli }}
+      CLAUDE_CODE_VERSION: ${{ needs.prepare.outputs.agent }}
+      VERCEL_AI_GATEWAY_API_KEY: ${{ secrets.VERCEL_AI_GATEWAY_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.0'
+      - name: Install locked harness dependencies and coding agent
+        run: |
+          bun install --frozen-lockfile
+          npm install --global "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+      - name: Check out the exact evaluated Skills revision
+        if: matrix.column == 'skills'
+        uses: actions/checkout@v4
+        with:
+          repository: clerk/skills
+          ref: ${{ needs.prepare.outputs.sha }}
+          path: clerk-skills
+          persist-credentials: false
+      - name: Verify Skills checkout and CLI version
+        env:
+          COLUMN: ${{ matrix.column }}
+        run: |
+          set -euo pipefail
+          if [[ "$COLUMN" == 'skills' ]]; then
+            test "$(git -C clerk-skills rev-parse HEAD)" = "$CLERK_SKILLS_SHA"
+            test -f clerk-skills/skills/clerk-setup/SKILL.md
+          fi
+          test "$(npm view clerk version)" = "$CLERK_CLI_VERSION"
+          test -n "$VERCEL_AI_GATEWAY_API_KEY"
+      - name: Run all add-auth variants
+        env:
+          COLUMN: ${{ matrix.column }}
+        run: |
+          set -euo pipefail
+          if [[ "$COLUMN" == 'skills' ]]; then
+            bun agent:claude --eval add-auth --model claude-sonnet-5-5 --skills --skills-path "$GITHUB_WORKSPACE/clerk-skills/skills" --require-complete
+          else
+            bun agent:claude --eval add-auth --model claude-sonnet-5-5 --require-complete
+          fi
+          test "$(npm view clerk version)" = "$CLERK_CLI_VERSION"
+      - name: Record evaluated source versions
+        if: always()
+        env:
+          COLUMN: ${{ matrix.column }}
+        run: |
+          agent_version="$(claude --version 2>/dev/null || echo unknown)"
+          jq -n --arg column "$COLUMN" --arg skills_sha "$CLERK_SKILLS_SHA" --arg cli_version "$CLERK_CLI_VERSION" --arg harness_sha "$GITHUB_SHA" --arg model 'claude-sonnet-5-5' --arg agent_version "$agent_version" --arg run_id "$GITHUB_RUN_ID" \
+            '{column: $column, skills_sha: $skills_sha, cli_version: $cli_version, harness_sha: $harness_sha, model: $model, agent_version: $agent_version, run_id: $run_id}' > source-versions.json
+      - name: Upload scores and source versions
+        uses: actions/upload-artifact@v4
+        with:
+          # Baseline names carry the agent version so a later run can tell whether it's reusable.
+          name: add-auth-${{ matrix.column }}-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}${{ matrix.column == 'baseline' && format('-cc{0}', needs.prepare.outputs.agent) || '' }}
+          path: |
+            agent-scores.json
+            source-versions.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: add-auth-failed-${{ matrix.column }}-${{ github.run_id }}
+          path: source-versions.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  compare:
+    needs: [prepare, evaluate]
+    if: needs.evaluate.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.0'
+      - name: Download this run's baseline
+        if: needs.prepare.outputs.baseline_run_id == ''
+        uses: actions/download-artifact@v4
+        with:
+          name: add-auth-baseline-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}-cc${{ needs.prepare.outputs.agent }}
+          path: baseline
+      - name: Download the reused baseline
+        if: needs.prepare.outputs.baseline_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.prepare.outputs.baseline_name }}
+          run-id: ${{ needs.prepare.outputs.baseline_run_id }}
+          github-token: ${{ github.token }}
+          path: baseline
+      - uses: actions/download-artifact@v4
+        with:
+          name: add-auth-skills-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
+          path: skills
+      - name: Classify completed eval or regression
+        run: bun src/automation/compare-add-auth.ts baseline skills comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: add-auth-comparison-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
+          path: comparison.json
+          retention-days: 90
+
+  notify-automation-failure:
+    needs: [prepare, evaluate, compare]
+    if: always() && (needs.prepare.result == 'failure' || needs.evaluate.result == 'failure' || needs.evaluate.result == 'cancelled' || needs.compare.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alert eval automation owner
+        env:
+          WEBHOOK_URL: ${{ secrets.DOCS_SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [[ -z "$WEBHOOK_URL" ]]; then
+            echo '::error::DOCS_SLACK_WEBHOOK_URL is not configured; automation failure could not be sent to #team-docs'
+            exit 1
+          fi
+          payload="$(jq -n --arg url "$RUN_URL" '{text: "Add-auth eval automation failed or did not complete. Investigate: " + $url}')"
+          curl --fail --silent --show-error --max-time 15 -X POST -H 'Content-type: application/json' --data "$payload" "$WEBHOOK_URL"
