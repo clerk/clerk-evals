@@ -149,9 +149,6 @@ const pool = new Tinypool({
   isolateWorkers: true,
   idleTimeout: 60000, // Longer idle timeout for CLI agents
   maxThreads: 4, // Fewer workers - CLI agents are heavier
-  // child_process workers otherwise start with an empty env and can't see
-  // credentials. Runners still pass agents only an allowlisted env.
-  env: process.env as Record<string, string>,
 })
 
 const mcpUrl = process.env.MCP_SERVER_URL_OVERRIDE || DEFAULT_MCP_URL
