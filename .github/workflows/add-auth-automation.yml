@@ -133,8 +133,9 @@ jobs:
         env:
           COLUMN: ${{ matrix.column }}
         run: |
-          jq -n --arg column "$COLUMN" --arg skills_sha "$CLERK_SKILLS_SHA" --arg cli_version "$CLERK_CLI_VERSION" --arg harness_sha "$GITHUB_SHA" --arg model 'claude-sonnet-5-5' \
-            '{column: $column, skills_sha: $skills_sha, cli_version: $cli_version, harness_sha: $harness_sha, model: $model}' > source-versions.json
+          agent_version="$(claude --version 2>/dev/null || echo unknown)"
+          jq -n --arg column "$COLUMN" --arg skills_sha "$CLERK_SKILLS_SHA" --arg cli_version "$CLERK_CLI_VERSION" --arg harness_sha "$GITHUB_SHA" --arg model 'claude-sonnet-5-5' --arg agent_version "$agent_version" \
+            '{column: $column, skills_sha: $skills_sha, cli_version: $cli_version, harness_sha: $harness_sha, model: $model, agent_version: $agent_version}' > source-versions.json
       - name: Upload scores and source versions
         uses: actions/upload-artifact@v4
         with:

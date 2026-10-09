@@ -1,8 +1,9 @@
 import { contains, containsAny, defineGraders, judge, matches, not } from '@/src/graders'
-import { setupFlowGraders } from './setup-flow'
+import { ranClerkInit } from './init-command'
 
 export const graders = defineGraders({
-  ...setupFlowGraders,
+  // Plain React has no accountless keys, so skip the claim-flow judge from setup-flow.ts.
+  runs_clerk_init: ranClerkInit,
   clerk_react_package: contains('@clerk/react'),
   clerk_provider_usage: contains('<ClerkProvider'),
   main_file: containsAny(['main.tsx', 'main.jsx']),
