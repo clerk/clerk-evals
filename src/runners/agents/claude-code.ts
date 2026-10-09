@@ -23,6 +23,7 @@ import {
   cleanupTempWorkDir,
   copyWorkspace,
   createTempMCPConfig,
+  createTempHomeDir,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
   gradeAgentWorkspace,
@@ -76,6 +77,7 @@ export function parseStreamJson(raw: string): string {
 async function execClaude(
   prompt: string,
   workDir: string,
+  homeDir: string,
   timeout: number,
   executablePath: string,
   envPath: string,
@@ -107,7 +109,7 @@ async function execClaude(
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: buildAgentEnvironment('claude-code', envPath),
+      env: buildAgentEnvironment('claude-code', envPath, homeDir),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -193,6 +195,7 @@ export default async function exec({
   }
 
   let workDir: string | undefined
+  let homeDir: string | undefined
   let mcpConfigPath: string | undefined
 
   try {
@@ -202,6 +205,7 @@ export default async function exec({
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
     workDir = await createTempWorkDir(evalName)
+    homeDir = await createTempHomeDir(evalName)
 
     // 2b. Copy fixtures into work dir (before MCP/skills setup)
     if (workspacePath) {
@@ -245,6 +249,7 @@ export default async function exec({
     const result = await execClaude(
       prompt,
       workDir,
+      homeDir,
       timeout,
       executablePath,
       envPath,
@@ -302,11 +307,15 @@ export default async function exec({
     if (mcpConfigPath) {
       await cleanupTempMCPConfig(mcpConfigPath)
     }
-    if (workDir && !debug) {
-      await cleanupTempWorkDir(workDir)
+    if (!debug) {
+      if (workDir) await cleanupTempWorkDir(workDir)
+      if (homeDir) await cleanupTempWorkDir(homeDir)
     }
     if (workDir && debug) {
       console.log(`[debug] Work dir preserved: ${workDir}`)
+    }
+    if (homeDir && debug) {
+      console.log(`[debug] Home dir preserved: ${homeDir}`)
     }
   }
 }
