@@ -5,6 +5,7 @@ import { getGatewayCredential } from '@/src/gateway'
 export type ProviderOpenAI = 'openai'
 export type ProviderAnthropic = 'anthropic'
 export type ProviderGoogle = 'google'
+export type ProviderMeta = 'meta'
 export type ProviderXAI = 'x-ai'
 export type ProviderMoonshotAI = 'moonshotai'
 export type ProviderTencent = 'tencent'
@@ -14,6 +15,7 @@ export type Provider =
   | ProviderOpenAI
   | ProviderAnthropic
   | ProviderGoogle
+  | ProviderMeta
   | ProviderXAI
   | ProviderMoonshotAI
   | ProviderTencent

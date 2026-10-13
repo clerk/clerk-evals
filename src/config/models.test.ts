@@ -139,6 +139,24 @@ describe('September 2026 model refresh', () => {
   })
 })
 
+describe('Muse Wonder', () => {
+  test('uses the verified Vercel Gateway route, release date, and pricing', () => {
+    const museWonder = getModelInfo('meta', 'muse-wonder-1.0')!
+    const now = new Date('2026-10-12T00:00:00.000Z')
+
+    expect(museWonder).toMatchObject({
+      provider: 'meta',
+      name: 'muse-wonder-1.0',
+      gatewayId: 'meta/muse-wonder-1.0',
+      label: 'Muse Wonder',
+      releasedAt: '2026-10-12',
+    })
+    expect(getDefaultModels({ now })).toContainEqual(museWonder)
+    expect(estimateCost(museWonder.name, { promptTokens: 1_000_000, completionTokens: 0 })).toBe(4)
+    expect(estimateCost(museWonder.name, { promptTokens: 0, completionTokens: 1_000_000 })).toBe(20)
+  })
+})
+
 describe('model selection', () => {
   test('keeps case-insensitive explicit names in caller order', () => {
     const result = selectModels({ models: 'GROK-4.7, gpt-6-luna,DeepSeek-V4.1-Flash' })

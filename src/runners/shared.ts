@@ -170,6 +170,8 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gemini-2.5-flash': [0.3, 2.5],
   'gemini-2.5-flash-lite': [0.1, 0.4],
   'gemini-3-pro-preview': [2, 12],
+  // Meta
+  'muse-wonder-1.0': [4, 20],
   // Convex leaderboard leaders selected for the default run set
   'grok-4.6': [2, 6],
   'grok-4.5': [2, 6],
