@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createSkillsClaudeMd } from '@/src/config/skills'
+import { loadEvaluationPrompt } from '@/src/eval-prompt'
 import {
   getGatewayCredential,
   VERCEL_AI_GATEWAY_KEY_ENV,
@@ -70,10 +71,10 @@ export async function cleanupTempMCPConfig(configPath: string): Promise<void> {
 }
 
 /**
- * Loads the PROMPT.md from an evaluation directory.
+ * Loads an evaluation prompt from its configured source.
  */
 export async function loadPrompt(evalPath: string): Promise<string> {
-  return fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+  return loadEvaluationPrompt(evalPath)
 }
 
 /**
@@ -269,13 +270,16 @@ export async function gradeAgentWorkspace(args: {
   gradersPath?: string
   verification?: ResolvedAgentVerificationConfig
   envPath: string
+  executedCommands?: readonly string[]
 }): Promise<AgentWorkspaceGradingResult> {
   const gradingArtifact = await buildAgentGradingArtifact(args.workDir, args.finalResponse)
   const graderModule = args.gradersPath
     ? ((await import(args.gradersPath)) as { graders: Graders })
     : ((await import(path.join(args.evalPath, 'graders.ts'))) as { graders: Graders })
 
-  const graderResults = await runGraders(graderModule.graders, gradingArtifact)
+  const graderResults = await runGraders(graderModule.graders, gradingArtifact, {
+    executedCommands: args.executedCommands,
+  })
   const hiddenVerification = args.verification
     ? await runHiddenVerification(args.workDir, args.verification, args.envPath)
     : undefined

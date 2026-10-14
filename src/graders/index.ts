@@ -2,7 +2,8 @@ import { type LLMJudgeConfig, makeScorer } from '@/src/scorers/llm'
 
 export { getFileContent } from './files'
 
-export type Grader = (input: string) => Promise<boolean>
+export type GraderContext = { executedCommands?: readonly string[] }
+export type Grader = (input: string, context?: GraderContext) => Promise<boolean>
 export type Graders = Record<string, Grader>
 
 type ContainsOptions = {

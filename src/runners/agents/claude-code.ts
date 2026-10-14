@@ -37,6 +37,8 @@ type StreamJsonMessage = {
       type: string
       text?: string
       name?: string
+      id?: string
+      tool_use_id?: string
       input?: Record<string, unknown>
       content?: string
     }>
@@ -68,6 +70,35 @@ export function parseStreamJson(raw: string): string {
   }
 
   return assistantMessages.at(-1) ?? ''
+}
+
+export function parseClaudeCommands(raw: string): string[] {
+  const commands: string[] = []
+  const pending = new Map<string, string>()
+  for (const line of raw.split('\n')) {
+    try {
+      const event = JSON.parse(line) as StreamJsonMessage
+      for (const block of event.message?.content ?? []) {
+        if (
+          event.type === 'assistant' &&
+          block.type === 'tool_use' &&
+          block.name === 'Bash' &&
+          block.id &&
+          typeof block.input?.command === 'string'
+        ) {
+          pending.set(block.id, block.input.command)
+        }
+        if (event.type === 'user' && block.type === 'tool_result' && block.tool_use_id) {
+          const command = pending.get(block.tool_use_id)
+          if (command) commands.push(command)
+          pending.delete(block.tool_use_id)
+        }
+      }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return commands
 }
 
 /**
@@ -137,6 +168,7 @@ async function execClaude(
       resolve({
         success: !timedOut && code === 0,
         output: fullOutput,
+        executedCommands: parseClaudeCommands(stdout),
         duration,
         exitCode: timedOut ? -1 : (code ?? -1),
         error: timedOut
@@ -154,6 +186,7 @@ async function execClaude(
       resolve({
         success: false,
         output: fullOutput,
+        executedCommands: parseClaudeCommands(stdout),
         duration: Date.now() - startTime,
         error: err.message,
         exitCode: -1,
@@ -220,6 +253,9 @@ export default async function exec({
         skillsConfig.sourcePath,
         skillsConfig.evalPath,
       )
+      if (skillsConfig.evalPath === 'evals/add-auth' && !linkedSkills.includes('clerk-setup')) {
+        throw new Error('Skills run did not install clerk-setup from the evaluated checkout')
+      }
       if (debug && linkedSkills.length > 0) {
         console.log(
           `[skills] Loaded skills for ${skillsConfig.evalPath}: ${linkedSkills.join(', ')}`,
@@ -259,6 +295,7 @@ export default async function exec({
     const grading = await gradeAgentWorkspace({
       workDir,
       finalResponse: result.output,
+      executedCommands: result.executedCommands,
       evalPath,
       gradersPath,
       verification,
