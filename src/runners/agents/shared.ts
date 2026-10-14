@@ -80,8 +80,8 @@ export async function loadPrompt(evalPath: string): Promise<string> {
 /**
  * Builds the full prompt for an agent from the eval prompt.
  */
-export async function buildAgentPrompt(evalPath: string): Promise<string> {
-  const evalPrompt = await loadPrompt(evalPath)
+export async function buildAgentPrompt(evalPath: string, promptOverride?: string): Promise<string> {
+  const evalPrompt = promptOverride ?? (await loadPrompt(evalPath))
   return `Do not ask clarifying questions. Complete the task with the information provided.\n\n---\n\n${evalPrompt}`
 }
 
@@ -136,7 +136,8 @@ export async function snapshotWorkDir(workDir: string): Promise<string> {
 
     for (const entry of entries) {
       if (files.length >= MAX_SNAPSHOT_FILES || totalBytes >= MAX_SNAPSHOT_BYTES) return
-      if (SNAPSHOT_EXCLUSIONS.has(entry.name) || entry.name.startsWith('.env')) continue
+      // Agent CLIs may write credentials or global skills into hidden home directories.
+      if (SNAPSHOT_EXCLUSIONS.has(entry.name) || entry.name.startsWith('.')) continue
 
       const absolutePath = path.join(directory, entry.name)
       const relativePath = path.join(relativeDir, entry.name)
@@ -345,11 +346,18 @@ export function buildAgentEnvironment(
   agentType: AgentType,
   envPath: string,
   gatewayCredential = getGatewayCredential(),
+  isolatedHome?: string,
 ): NodeJS.ProcessEnv {
   const commonNames = ['HOME', 'LANG', 'LC_ALL', 'NO_COLOR', 'SSL_CERT_FILE', 'TERM', 'TMPDIR']
   const env: NodeJS.ProcessEnv = { PATH: envPath }
   for (const name of commonNames) {
     if (process.env[name]) env[name] = process.env[name]
+  }
+  if (isolatedHome) {
+    env.HOME = isolatedHome
+    env.XDG_CONFIG_HOME = path.join(isolatedHome, '.config')
+    env.XDG_CACHE_HOME = path.join(isolatedHome, '.cache')
+    env.npm_config_cache = path.join(isolatedHome, '.npm-cache')
   }
 
   if (gatewayCredential) {

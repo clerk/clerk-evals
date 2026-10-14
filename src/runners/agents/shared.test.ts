@@ -2,6 +2,7 @@ import { mkdir, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
+  buildAgentPrompt,
   buildAgentEnvironment,
   cleanupTempWorkDir,
   createTempWorkDir,
@@ -18,6 +19,11 @@ afterEach(async () => {
 })
 
 describe('agent workspace isolation', () => {
+  test('uses an experiment prompt override without loading the default eval prompt', async () => {
+    const prompt = await buildAgentPrompt('/does-not-exist', 'Pinned prompt A')
+    expect(prompt).toContain('Pinned prompt A')
+  })
+
   test('creates workspaces outside the evaluation repository', async () => {
     const workDir = await createTempWorkDir('isolation')
     workDirs.push(workDir)
@@ -30,6 +36,8 @@ describe('agent workspace isolation', () => {
     await mkdir(path.join(workDir, 'src'))
     await writeFile(path.join(workDir, 'src', 'app.tsx'), '<Show when="signed-in" />')
     await writeFile(path.join(workDir, '.env.local'), 'CLERK_SECRET_KEY=secret')
+    await mkdir(path.join(workDir, '.codex'))
+    await writeFile(path.join(workDir, '.codex', 'auth.json'), 'private agent credential')
     await symlink(path.join(workDir, '.env.local'), path.join(workDir, 'linked-secret'))
     await writeFile(path.join(workDir, 'AGENTS.md'), 'hidden harness instructions')
 
@@ -37,6 +45,7 @@ describe('agent workspace isolation', () => {
     expect(snapshot).toContain('src/app.tsx')
     expect(snapshot).toContain('<Show when="signed-in" />')
     expect(snapshot).not.toContain('CLERK_SECRET_KEY')
+    expect(snapshot).not.toContain('private agent credential')
     expect(snapshot).not.toContain('linked-secret')
     expect(snapshot).not.toContain('hidden harness instructions')
   })
@@ -63,6 +72,13 @@ describe('agent gateway configuration', () => {
 
   test('keeps native Codex arguments when no gateway is configured', () => {
     expect(getCodexGatewayArgs('gpt-5.6-luna', false)).toEqual(['--model', 'gpt-5.6-luna'])
+  })
+
+  test('confines agent CLI home and cache to a disposable workspace when requested', () => {
+    const env = buildAgentEnvironment('codex', '/bin', 'gateway-secret', '/tmp/eval-workspace')
+    expect(env.HOME).toBe('/tmp/eval-workspace')
+    expect(env.XDG_CONFIG_HOME).toBe('/tmp/eval-workspace/.config')
+    expect(env.npm_config_cache).toBe('/tmp/eval-workspace/.npm-cache')
   })
 })
 

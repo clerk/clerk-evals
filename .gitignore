@@ -44,4 +44,6 @@ mcp-comparison-*.json
 mcp-comparison-*.md
 
 agent-scores.json
+nextjs-prompt-ab-results.json
+nextjs-prompt-ab-results.json.tmp
 .agent-temp/

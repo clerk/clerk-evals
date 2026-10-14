@@ -112,6 +112,7 @@ async function execClaude(
   envPath: string,
   model: string,
   mcpConfigPath?: string,
+  isolatedHome?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
@@ -138,7 +139,7 @@ async function execClaude(
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: buildAgentEnvironment('claude-code', envPath),
+      env: buildAgentEnvironment('claude-code', envPath, undefined, isolatedHome),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -207,6 +208,8 @@ async function execClaude(
  */
 export default async function exec({
   evalPath,
+  promptOverride,
+  isolatedHome = false,
   debug = false,
   mcpConfig,
   skillsConfig,
@@ -230,7 +233,7 @@ export default async function exec({
 
   try {
     // 1. Build prompt
-    const prompt = await buildAgentPrompt(evalPath)
+    const prompt = await buildAgentPrompt(evalPath, promptOverride)
 
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
@@ -286,6 +289,7 @@ export default async function exec({
       envPath,
       model,
       mcpConfigPath,
+      isolatedHome ? workDir : undefined,
     )
 
     if (!result.success) {
@@ -305,6 +309,7 @@ export default async function exec({
     // 6. Return result
     return OK({
       score: grading.score,
+      graderResults: grading.graderResults,
       durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
       debug: debug
         ? {
