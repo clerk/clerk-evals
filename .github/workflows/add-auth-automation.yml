@@ -2,7 +2,7 @@ name: Add-auth setup prompt eval
 
 on:
   repository_dispatch:
-    types: [clerk_skills_updated]
+    types: [clerk_skills_updated, clerk_cli_released]
   workflow_dispatch:
     inputs:
       skills_sha:
@@ -25,7 +25,7 @@ permissions:
 
 # Serialize the same incoming revision while retaining immutable, versioned artifacts.
 concurrency:
-  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}
+  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}-${{ github.event.client_payload.version || inputs.cli_version || 'latest' }}
   cancel-in-progress: false
   queue: max
 
@@ -51,7 +51,8 @@ jobs:
         id: sources
         env:
           SKILLS_INPUT: ${{ github.event.client_payload.sha || inputs.skills_sha }}
-          CLI_INPUT: ${{ inputs.cli_version }}
+          CLI_INPUT: ${{ github.event.client_payload.version || inputs.cli_version }}
+          CLI_RELEASE: ${{ github.event.action == 'clerk_cli_released' }}
         run: |
           set -euo pipefail
           sha="${SKILLS_INPUT:-$(git ls-remote https://github.com/clerk/skills.git refs/heads/main | cut -f1)}"
@@ -59,7 +60,17 @@ jobs:
             echo 'Expected a full clerk/skills commit SHA' >&2
             exit 1
           fi
-          cli="$(npm view clerk version)"
+          if [[ "$CLI_RELEASE" == 'true' && -z "$CLI_INPUT" ]]; then
+            echo 'CLI release dispatch must include a version' >&2
+            exit 1
+          fi
+          for attempt in {1..12}; do
+            cli="$(npm view clerk@latest version --prefer-online)"
+            if [[ -z "$CLI_INPUT" || "$CLI_INPUT" == "$cli" ]]; then break; fi
+            if [[ "$CLI_RELEASE" != 'true' || "$attempt" == '12' ]]; then break; fi
+            echo "Waiting for released Clerk CLI $CLI_INPUT to become npm latest (currently $cli; $attempt/12)"
+            sleep 15
+          done
           if [[ -n "$CLI_INPUT" && "$CLI_INPUT" != "$cli" ]]; then
             echo "Requested Clerk CLI $CLI_INPUT is not npm latest ($cli); the canonical prompt uses clerk@latest" >&2
             exit 1
@@ -79,6 +90,7 @@ jobs:
           CLI_VERSION: ${{ steps.sources.outputs.cli }}
           AGENT_VERSION: ${{ steps.sources.outputs.agent }}
           FORCE: ${{ inputs.force }}
+          CLI_RELEASE: ${{ github.event.action == 'clerk_cli_released' }}
         run: |
           set -euo pipefail
           bun install --frozen-lockfile

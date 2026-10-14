@@ -13,8 +13,10 @@ export type PlanInput = {
   cli: string
   agent: string
   harnessSha: string
-  /** Manual force, and a future CLI-release trigger, always run both columns. */
+  /** Manual force always reruns both columns, including completed revisions. */
   runBoth: boolean
+  /** A newly released CLI needs a fresh baseline and Skills comparison. */
+  cliRelease?: boolean
   artifacts: readonly Artifact[]
   compare: (base: string, head: string) => Promise<SkillsDiff>
   skillDirs?: readonly string[]
@@ -58,6 +60,8 @@ export async function planAddAuthRun(input: PlanInput): Promise<Plan> {
   ) {
     return { skip: true, reason: `${sha} / ${cli} is already evaluated; use manual force to rerun` }
   }
+
+  if (input.cliRelease) return both(`Stable Clerk CLI ${cli} was released`)
 
   const last = newest(artifacts, /^add-auth-comparison-[0-9a-f]{40}-/)
   const [, lastSha, lastCli] = last?.name.match(/^add-auth-comparison-([0-9a-f]{40})-(.+)$/) ?? []
@@ -138,6 +142,7 @@ if (import.meta.main) {
     agent: process.env.AGENT_VERSION ?? '',
     harnessSha: GITHUB_SHA ?? '',
     runBoth: process.env.FORCE === 'true',
+    cliRelease: process.env.CLI_RELEASE === 'true',
     artifacts,
     compare: async (base, head) => {
       const { status, files = [] } = await api<{ status: string; files?: { filename: string }[] }>(
@@ -164,6 +169,9 @@ if (import.meta.main) {
     )
   }
   if (GITHUB_STEP_SUMMARY) {
-    await appendFile(GITHUB_STEP_SUMMARY, `## Add-auth eval plan\n\n${plan.reason}\n`)
+    await appendFile(
+      GITHUB_STEP_SUMMARY,
+      `## Add-auth eval plan\n\n- Skills SHA: \`${process.env.SKILLS_SHA}\`\n- Clerk CLI: \`${process.env.CLI_VERSION}\`\n- Claude Code: \`${process.env.AGENT_VERSION}\`\n- Decision: ${plan.reason}\n`,
+    )
   }
 }
