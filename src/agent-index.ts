@@ -19,6 +19,8 @@ import { classifyFailure } from '@/src/classifiers/failure'
 import { EVALUATIONS } from '@/src/config'
 import { getResults, initDB, saveError, saveResult, saveRun } from '@/src/db'
 import { getEvalKey, getGitCommit, getSuiteHash } from '@/src/eval-identity'
+import { resolveClerkSkillsSha } from '@/src/eval-prompt'
+import { resolveSourceVersions } from '@/src/source-versions'
 import type { AgentRunnerArgs, AgentType, RunnerResult, Score } from '@/src/interfaces'
 import { AGENTS, getAgentInfo, getAllAgentTypes } from '@/src/interfaces/agent'
 import { summarizeTrials, type TrialResult } from '@/src/metrics/pass-at-k'
@@ -58,6 +60,7 @@ const { values } = parseArgs({
     timeout: { type: 'string', short: 't' },
     runs: { type: 'string', short: 'r' },
     model: { type: 'string', short: 'm' },
+    'require-complete': { type: 'boolean', default: false },
   },
   strict: true,
   allowPositionals: true,
@@ -143,9 +146,13 @@ const filteredEvaluations = (() => {
 // Create pool with agent runner
 // Note: Using fewer workers for CLI agents due to overhead
 const runnerPath = `./runners/agents/${agentType}.ts`
+// Resolve before the pool forks workers, which only see the environment passed below.
+const requestedSkillsSha = resolveClerkSkillsSha(filteredEvaluations)
 const pool = new Tinypool({
   runtime: 'child_process',
   filename: new URL(runnerPath, import.meta.url).href,
+  // Child-process workers don't inherit the parent's environment.
+  env: process.env as Record<string, string>,
   isolateWorkers: true,
   idleTimeout: 60000, // Longer idle timeout for CLI agents
   maxThreads: 4, // Fewer workers - CLI agents are heavier
@@ -158,7 +165,12 @@ const runIdSuffix = [skillsEnabled ? 'skills' : '', mcpEnabled ? 'mcp' : '']
 const runId = `agent-${agentType}${runIdSuffix ? `-${runIdSuffix}` : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`
 const suiteHash = await getSuiteHash(filteredEvaluations)
 const harnessCommit = getGitCommit()
-const skillsCommit = skillsEnabled ? getGitCommit(skillsPath) : undefined
+const { skillsCommit, cliVersion } = resolveSourceVersions({
+  skillsEnabled,
+  skillsPath,
+  requestedSkillsSha,
+  cliVersion: process.env.CLERK_CLI_VERSION,
+})
 
 // Build tasks
 const tasks = await Promise.all(
@@ -210,6 +222,7 @@ saveRun({
   suiteHash,
   harnessCommit,
   skillsCommit,
+  cliVersion,
   mcpServerUrl: mcpEnabled ? mcpUrl : undefined,
   transport: getAgentTransport(),
 })
@@ -343,6 +356,11 @@ await Promise.all(
 const outputFile = 'agent-scores.json'
 const dbScores = getResults(runId)
 fileReporter(dbScores, outputFile)
+
+if (values['require-complete'] && dbScores.length !== totalRuns) {
+  console.error(`Automation failed: expected ${totalRuns} scores, received ${dbScores.length}`)
+  process.exitCode = 1
+}
 
 if (debugEnabled) {
   consoleReporter(dbScores)

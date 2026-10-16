@@ -3,7 +3,8 @@
  */
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import type { Graders } from '@/src/graders'
+import { loadEvaluationPrompt } from '@/src/eval-prompt'
+import type { GraderContext, Graders } from '@/src/graders'
 import type { Provider } from '@/src/providers'
 import { getModel } from '@/src/providers'
 
@@ -54,10 +55,10 @@ async function loadFixtureContext(evalPath: string, variant: string): Promise<st
 }
 
 /**
- * Loads the PROMPT.md file from an evaluation directory.
+ * Loads an evaluation prompt from its configured source.
  */
 export async function loadPrompt(evalPath: string, variant?: string): Promise<string> {
-  const prompt = await fs.readFile(path.join(evalPath, 'PROMPT.md'), 'utf8')
+  const prompt = await loadEvaluationPrompt(evalPath)
   if (!variant) return prompt
 
   const fixtureContext = await loadFixtureContext(evalPath, variant)
@@ -83,10 +84,14 @@ export async function loadGraders(evalPath: string, variant?: string): Promise<G
  * Runs all graders against a response and returns results as [name, passed] tuples.
  * Optionally accepts a workDir for filesystem graders bound via bindFilesystemGraders.
  */
-export async function runGraders(graders: Graders, response: string): Promise<[string, boolean][]> {
+export async function runGraders(
+  graders: Graders,
+  response: string,
+  context?: GraderContext,
+): Promise<[string, boolean][]> {
   const results: [string, boolean][] = []
   for (const [key, grader] of Object.entries(graders)) {
-    const passed = await grader(response)
+    const passed = await grader(response, context)
     results.push([key, passed])
   }
   return results

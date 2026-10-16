@@ -84,6 +84,8 @@ export type AgentExecResult = {
   success: boolean
   /** Combined stdout/stderr output */
   output: string
+  /** Commands observed in the agent's structured tool events, never inferred from prose. */
+  executedCommands?: string[]
   /** Execution duration in milliseconds */
   duration: number
   /** Error message if failed */
