@@ -23,9 +23,10 @@ permissions:
   contents: read
   actions: read
 
-# Serialize the same incoming revision while retaining immutable, versioned artifacts.
+# Serialize all add-auth runs. Different event types can resolve to the same Skills SHA and
+# CLI version, so each run checks for existing artifacts after the preceding run finishes.
 concurrency:
-  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}-${{ github.event.client_payload.version || inputs.cli_version || 'latest' }}
+  group: add-auth-evals
   cancel-in-progress: false
   queue: max
 
