@@ -33,6 +33,7 @@ concurrency:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       sha: ${{ steps.sources.outputs.sha }}
       cli: ${{ steps.sources.outputs.cli }}
@@ -65,12 +66,18 @@ jobs:
             echo 'CLI release dispatch must include a version' >&2
             exit 1
           fi
-          for attempt in {1..12}; do
-            cli="$(npm view clerk@latest version --prefer-online)"
-            if [[ -z "$CLI_INPUT" || "$CLI_INPUT" == "$cli" ]]; then break; fi
-            if [[ "$CLI_RELEASE" != 'true' || "$attempt" == '12' ]]; then break; fi
-            echo "Waiting for released Clerk CLI $CLI_INPUT to become npm latest (currently $cli; $attempt/12)"
-            sleep 15
+          deadline=$((SECONDS + 600))
+          while true; do
+            # Only a CLI release can wait for npm latest; other runs need a valid version now.
+            if ! cli="$(npm view clerk@latest version --prefer-online)"; then
+              if [[ -z "$CLI_INPUT" || "$CLI_RELEASE" != 'true' ]]; then exit 1; fi
+              cli='npm lookup failed'
+            fi
+            if [[ -z "$CLI_INPUT" || "$CLI_INPUT" == "$cli" || "$CLI_RELEASE" != 'true' ]]; then break; fi
+            remaining=$((deadline - SECONDS))
+            if (( remaining <= 0 )); then break; fi
+            echo "Waiting for released Clerk CLI $CLI_INPUT to become npm latest (currently $cli)"
+            sleep "$((remaining < 15 ? remaining : 15))"
           done
           if [[ -n "$CLI_INPUT" && "$CLI_INPUT" != "$cli" ]]; then
             echo "Requested Clerk CLI $CLI_INPUT is not npm latest ($cli); the canonical prompt uses clerk@latest" >&2
