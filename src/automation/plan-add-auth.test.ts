@@ -96,15 +96,15 @@ describe('add-auth run plan', () => {
     expect(await plan({ artifacts: evaluated(next) })).toMatchObject({ skip: true })
   })
 
-  test('runs both columns for a new stable CLI release', async () => {
-    expect(await plan({ cliRelease: true, artifacts: evaluated(old) })).toMatchObject({
+  test('runs both columns for a new CLI version', async () => {
+    expect(await plan({ cli: '1.1.0', artifacts: evaluated(old) })).toMatchObject({
       skip: false,
       columns: ['baseline', 'skills'],
     })
   })
 
-  test('skips a repeated CLI release after the same source versions were evaluated', async () => {
-    expect(await plan({ cliRelease: true, artifacts: evaluated(next) })).toMatchObject({
+  test('skips a repeated CLI version after the same source versions were evaluated', async () => {
+    expect(await plan({ artifacts: evaluated(next) })).toMatchObject({
       skip: true,
     })
   })
