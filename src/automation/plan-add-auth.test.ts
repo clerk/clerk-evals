@@ -95,4 +95,17 @@ describe('add-auth run plan', () => {
   test('skips a revision that is already evaluated', async () => {
     expect(await plan({ artifacts: evaluated(next) })).toMatchObject({ skip: true })
   })
+
+  test('runs both columns for a new CLI version', async () => {
+    expect(await plan({ cli: '1.1.0', artifacts: evaluated(old) })).toMatchObject({
+      skip: false,
+      columns: ['baseline', 'skills'],
+    })
+  })
+
+  test('skips a repeated CLI version after the same source versions were evaluated', async () => {
+    expect(await plan({ artifacts: evaluated(next) })).toMatchObject({
+      skip: true,
+    })
+  })
 })

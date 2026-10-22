@@ -2,7 +2,7 @@ name: Add-auth setup prompt eval
 
 on:
   repository_dispatch:
-    types: [clerk_skills_updated]
+    types: [clerk_skills_updated, clerk_cli_released]
   workflow_dispatch:
     inputs:
       skills_sha:
@@ -23,20 +23,22 @@ permissions:
   contents: read
   actions: read
 
-# Serialize the same incoming revision while retaining immutable, versioned artifacts.
+# Serialize all add-auth runs. Different event types can resolve to the same Skills SHA and
+# CLI version, so each run checks for existing artifacts after the preceding run finishes.
 concurrency:
-  group: add-auth-${{ github.event.client_payload.sha || inputs.skills_sha || 'current' }}
+  group: add-auth-evals
   cancel-in-progress: false
   queue: max
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       sha: ${{ steps.sources.outputs.sha }}
       cli: ${{ steps.sources.outputs.cli }}
       agent: ${{ steps.sources.outputs.agent }}
-      skip: ${{ steps.plan.outputs.skip }}
+      skip: ${{ steps.sources.outputs.superseded == 'true' && 'true' || steps.plan.outputs.skip }}
       columns: ${{ steps.plan.outputs.columns }}
       baseline_run_id: ${{ steps.plan.outputs.baseline_run_id }}
       baseline_name: ${{ steps.plan.outputs.baseline_name }}
@@ -51,7 +53,8 @@ jobs:
         id: sources
         env:
           SKILLS_INPUT: ${{ github.event.client_payload.sha || inputs.skills_sha }}
-          CLI_INPUT: ${{ inputs.cli_version }}
+          CLI_INPUT: ${{ github.event.client_payload.version || inputs.cli_version }}
+          CLI_RELEASE: ${{ github.event.action == 'clerk_cli_released' }}
         run: |
           set -euo pipefail
           sha="${SKILLS_INPUT:-$(git ls-remote https://github.com/clerk/skills.git refs/heads/main | cut -f1)}"
@@ -59,7 +62,33 @@ jobs:
             echo 'Expected a full clerk/skills commit SHA' >&2
             exit 1
           fi
-          cli="$(npm view clerk version)"
+          if [[ "$CLI_RELEASE" == 'true' && -z "$CLI_INPUT" ]]; then
+            echo 'CLI release dispatch must include a version' >&2
+            exit 1
+          fi
+          if [[ -n "$CLI_INPUT" && ! "$CLI_INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Expected a stable Clerk CLI version like 1.2.3' >&2
+            exit 1
+          fi
+          deadline=$((SECONDS + 600))
+          while true; do
+            # Only a CLI release can wait for npm latest; other runs need a valid version now.
+            if ! cli="$(npm view clerk@latest version --prefer-online)"; then
+              if [[ -z "$CLI_INPUT" || "$CLI_RELEASE" != 'true' ]]; then exit 1; fi
+              cli='npm lookup failed'
+            fi
+            if [[ "$CLI_RELEASE" == 'true' && "$cli" != 'npm lookup failed' && "$cli" != "$CLI_INPUT" ]] &&
+              [[ "$(printf '%s\n%s\n' "$CLI_INPUT" "$cli" | sort -V | tail -n 1)" == "$cli" ]]; then
+              echo "Skipping clerk@$CLI_INPUT: npm latest is already clerk@$cli"
+              echo 'superseded=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [[ -z "$CLI_INPUT" || "$CLI_INPUT" == "$cli" || "$CLI_RELEASE" != 'true' ]]; then break; fi
+            remaining=$((deadline - SECONDS))
+            if (( remaining <= 0 )); then break; fi
+            echo "Waiting for released Clerk CLI $CLI_INPUT to become npm latest (currently $cli)"
+            sleep "$((remaining < 15 ? remaining : 15))"
+          done
           if [[ -n "$CLI_INPUT" && "$CLI_INPUT" != "$cli" ]]; then
             echo "Requested Clerk CLI $CLI_INPUT is not npm latest ($cli); the canonical prompt uses clerk@latest" >&2
             exit 1
@@ -73,6 +102,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
       - name: Skip unchanged skills and reuse an unchanged baseline
         id: plan
+        if: steps.sources.outputs.superseded != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SKILLS_SHA: ${{ steps.sources.outputs.sha }}
@@ -97,6 +127,7 @@ jobs:
       CLERK_SKILLS_SHA: ${{ needs.prepare.outputs.sha }}
       CLERK_CLI_VERSION: ${{ needs.prepare.outputs.cli }}
       CLAUDE_CODE_VERSION: ${{ needs.prepare.outputs.agent }}
+      CLI_RELEASE: ${{ github.event.action == 'clerk_cli_released' }}
       VERCEL_AI_GATEWAY_API_KEY: ${{ secrets.VERCEL_AI_GATEWAY_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -121,6 +152,7 @@ jobs:
           path: clerk-skills
           persist-credentials: false
       - name: Verify Skills checkout and CLI version
+        id: verify
         env:
           COLUMN: ${{ matrix.column }}
         run: |
@@ -129,9 +161,21 @@ jobs:
             test "$(git -C clerk-skills rev-parse HEAD)" = "$CLERK_SKILLS_SHA"
             test -f clerk-skills/skills/clerk-setup/SKILL.md
           fi
-          test "$(npm view clerk version)" = "$CLERK_CLI_VERSION"
+          current="$(npm view clerk@latest version --prefer-online)"
+          if [[ "$current" != "$CLERK_CLI_VERSION" ]]; then
+            if [[ "$CLI_RELEASE" == 'true' ]] &&
+              [[ "$(printf '%s\n%s\n' "$CLERK_CLI_VERSION" "$current" | sort -V | tail -n 1)" == "$current" ]]; then
+              echo "Skipping clerk@$CLERK_CLI_VERSION: npm latest is already clerk@$current"
+              echo 'superseded=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Expected clerk@$CLERK_CLI_VERSION as npm latest, got clerk@$current" >&2
+            exit 1
+          fi
           test -n "$VERCEL_AI_GATEWAY_API_KEY"
       - name: Run all add-auth variants
+        id: run
+        if: steps.verify.outputs.superseded != 'true'
         env:
           COLUMN: ${{ matrix.column }}
         run: |
@@ -141,7 +185,17 @@ jobs:
           else
             bun agent:claude --eval add-auth --model claude-sonnet-5-5 --require-complete
           fi
-          test "$(npm view clerk version)" = "$CLERK_CLI_VERSION"
+          current="$(npm view clerk@latest version --prefer-online)"
+          if [[ "$current" != "$CLERK_CLI_VERSION" ]]; then
+            if [[ "$CLI_RELEASE" == 'true' ]] &&
+              [[ "$(printf '%s\n%s\n' "$CLERK_CLI_VERSION" "$current" | sort -V | tail -n 1)" == "$current" ]]; then
+              echo "Discarding clerk@$CLERK_CLI_VERSION scores: npm latest is now clerk@$current"
+              echo 'superseded=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Expected clerk@$CLERK_CLI_VERSION as npm latest, got clerk@$current" >&2
+            exit 1
+          fi
       - name: Record evaluated source versions
         if: always()
         env:
@@ -151,6 +205,7 @@ jobs:
           jq -n --arg column "$COLUMN" --arg skills_sha "$CLERK_SKILLS_SHA" --arg cli_version "$CLERK_CLI_VERSION" --arg harness_sha "$GITHUB_SHA" --arg model 'claude-sonnet-5-5' --arg agent_version "$agent_version" --arg run_id "$GITHUB_RUN_ID" \
             '{column: $column, skills_sha: $skills_sha, cli_version: $cli_version, harness_sha: $harness_sha, model: $model, agent_version: $agent_version, run_id: $run_id}' > source-versions.json
       - name: Upload scores and source versions
+        if: success() && steps.verify.outputs.superseded != 'true' && steps.run.outputs.superseded != 'true'
         uses: actions/upload-artifact@v4
         with:
           # Baseline names carry the agent version so a later run can tell whether it's reusable.
@@ -174,20 +229,38 @@ jobs:
     if: needs.evaluate.result == 'success'
     runs-on: ubuntu-latest
     steps:
+      - name: Skip comparison for a superseded CLI release
+        id: latest
+        if: github.event.action == 'clerk_cli_released'
+        env:
+          CLI_VERSION: ${{ needs.prepare.outputs.cli }}
+        run: |
+          set -euo pipefail
+          current="$(npm view clerk@latest version --prefer-online)"
+          if [[ "$current" == "$CLI_VERSION" ]]; then exit 0; fi
+          if [[ "$(printf '%s\n%s\n' "$CLI_VERSION" "$current" | sort -V | tail -n 1)" == "$current" ]]; then
+            echo "Skipping clerk@$CLI_VERSION comparison: npm latest is now clerk@$current"
+            echo 'superseded=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Expected clerk@$CLI_VERSION as npm latest, got clerk@$current" >&2
+          exit 1
       - uses: actions/checkout@v4
+        if: steps.latest.outputs.superseded != 'true'
         with:
           persist-credentials: false
       - uses: oven-sh/setup-bun@v2
+        if: steps.latest.outputs.superseded != 'true'
         with:
           bun-version: '1.3.0'
       - name: Download this run's baseline
-        if: needs.prepare.outputs.baseline_run_id == ''
+        if: steps.latest.outputs.superseded != 'true' && needs.prepare.outputs.baseline_run_id == ''
         uses: actions/download-artifact@v4
         with:
           name: add-auth-baseline-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}-cc${{ needs.prepare.outputs.agent }}
           path: baseline
       - name: Download the reused baseline
-        if: needs.prepare.outputs.baseline_run_id != ''
+        if: steps.latest.outputs.superseded != 'true' && needs.prepare.outputs.baseline_run_id != ''
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.prepare.outputs.baseline_name }}
@@ -195,12 +268,15 @@ jobs:
           github-token: ${{ github.token }}
           path: baseline
       - uses: actions/download-artifact@v4
+        if: steps.latest.outputs.superseded != 'true'
         with:
           name: add-auth-skills-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
           path: skills
       - name: Classify completed eval or regression
+        if: steps.latest.outputs.superseded != 'true'
         run: bun src/automation/compare-add-auth.ts baseline skills comparison.json
       - uses: actions/upload-artifact@v4
+        if: steps.latest.outputs.superseded != 'true'
         with:
           name: add-auth-comparison-${{ needs.prepare.outputs.sha }}-${{ needs.prepare.outputs.cli }}
           path: comparison.json
