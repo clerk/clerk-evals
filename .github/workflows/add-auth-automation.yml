@@ -80,6 +80,7 @@ jobs:
             if [[ "$CLI_RELEASE" == 'true' && "$cli" != 'npm lookup failed' && "$cli" != "$CLI_INPUT" ]] &&
               [[ "$(printf '%s\n%s\n' "$CLI_INPUT" "$cli" | sort -V | tail -n 1)" == "$cli" ]]; then
               echo "Skipping clerk@$CLI_INPUT: npm latest is already clerk@$cli"
+              printf '## Add-auth eval plan\n\n- Decision: Skipped clerk@%s; npm latest is already clerk@%s\n' "$CLI_INPUT" "$cli" >> "$GITHUB_STEP_SUMMARY"
               echo 'superseded=true' >> "$GITHUB_OUTPUT"
               exit 0
             fi
