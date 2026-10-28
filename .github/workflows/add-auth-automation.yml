@@ -77,8 +77,8 @@ jobs:
               if [[ -z "$CLI_INPUT" || "$CLI_RELEASE" != 'true' ]]; then exit 1; fi
               cli='npm lookup failed'
             fi
-            if [[ "$CLI_RELEASE" == 'true' && "$cli" != 'npm lookup failed' && "$cli" != "$CLI_INPUT" ]] &&
-              [[ "$(printf '%s\n%s\n' "$CLI_INPUT" "$cli" | sort -V | tail -n 1)" == "$cli" ]]; then
+            if [[ "$CLI_RELEASE" == 'true' && "$cli" != 'npm lookup failed' ]] &&
+              [[ "$(bash src/automation/cli-release-status.sh "$CLI_INPUT" "$cli")" == 'superseded' ]]; then
               echo "Skipping clerk@$CLI_INPUT: npm latest is already clerk@$cli"
               printf '## Add-auth eval plan\n\n- Decision: Skipped clerk@%s; npm latest is already clerk@%s\n' "$CLI_INPUT" "$cli" >> "$GITHUB_STEP_SUMMARY"
               echo 'superseded=true' >> "$GITHUB_OUTPUT"
@@ -165,7 +165,7 @@ jobs:
           current="$(npm view clerk@latest version --prefer-online)"
           if [[ "$current" != "$CLERK_CLI_VERSION" ]]; then
             if [[ "$CLI_RELEASE" == 'true' ]] &&
-              [[ "$(printf '%s\n%s\n' "$CLERK_CLI_VERSION" "$current" | sort -V | tail -n 1)" == "$current" ]]; then
+              [[ "$(bash src/automation/cli-release-status.sh "$CLERK_CLI_VERSION" "$current")" == 'superseded' ]]; then
               echo "Skipping clerk@$CLERK_CLI_VERSION: npm latest is already clerk@$current"
               echo 'superseded=true' >> "$GITHUB_OUTPUT"
               exit 0
@@ -181,15 +181,16 @@ jobs:
           COLUMN: ${{ matrix.column }}
         run: |
           set -euo pipefail
+          status=0
           if [[ "$COLUMN" == 'skills' ]]; then
-            bun agent:claude --eval add-auth --model claude-sonnet-5-5 --skills --skills-path "$GITHUB_WORKSPACE/clerk-skills/skills" --require-complete
+            bun agent:claude --eval add-auth --model claude-sonnet-5-5 --skills --skills-path "$GITHUB_WORKSPACE/clerk-skills/skills" --require-complete || status=$?
           else
-            bun agent:claude --eval add-auth --model claude-sonnet-5-5 --require-complete
+            bun agent:claude --eval add-auth --model claude-sonnet-5-5 --require-complete || status=$?
           fi
           current="$(npm view clerk@latest version --prefer-online)"
           if [[ "$current" != "$CLERK_CLI_VERSION" ]]; then
             if [[ "$CLI_RELEASE" == 'true' ]] &&
-              [[ "$(printf '%s\n%s\n' "$CLERK_CLI_VERSION" "$current" | sort -V | tail -n 1)" == "$current" ]]; then
+              [[ "$(bash src/automation/cli-release-status.sh "$CLERK_CLI_VERSION" "$current")" == 'superseded' ]]; then
               echo "Discarding clerk@$CLERK_CLI_VERSION scores: npm latest is now clerk@$current"
               echo 'superseded=true' >> "$GITHUB_OUTPUT"
               exit 0
@@ -197,6 +198,7 @@ jobs:
             echo "Expected clerk@$CLERK_CLI_VERSION as npm latest, got clerk@$current" >&2
             exit 1
           fi
+          exit "$status"
       - name: Record evaluated source versions
         if: always()
         env:
@@ -230,6 +232,9 @@ jobs:
     if: needs.evaluate.result == 'success'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Skip comparison for a superseded CLI release
         id: latest
         if: github.event.action == 'clerk_cli_released'
@@ -239,17 +244,13 @@ jobs:
           set -euo pipefail
           current="$(npm view clerk@latest version --prefer-online)"
           if [[ "$current" == "$CLI_VERSION" ]]; then exit 0; fi
-          if [[ "$(printf '%s\n%s\n' "$CLI_VERSION" "$current" | sort -V | tail -n 1)" == "$current" ]]; then
+          if [[ "$(bash src/automation/cli-release-status.sh "$CLI_VERSION" "$current")" == 'superseded' ]]; then
             echo "Skipping clerk@$CLI_VERSION comparison: npm latest is now clerk@$current"
             echo 'superseded=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "Expected clerk@$CLI_VERSION as npm latest, got clerk@$current" >&2
           exit 1
-      - uses: actions/checkout@v4
-        if: steps.latest.outputs.superseded != 'true'
-        with:
-          persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         if: steps.latest.outputs.superseded != 'true'
         with:
