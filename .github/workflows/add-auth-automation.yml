@@ -220,5 +220,5 @@ jobs:
             echo '::error::DOCS_SLACK_WEBHOOK_URL is not configured; automation failure could not be sent to #team-docs'
             exit 1
           fi
-          payload="$(jq -n --arg url "$RUN_URL" '{text: "Add-auth eval automation failed or did not complete. Investigate: " + $url}')"
+          payload="$(jq -n --arg url "$RUN_URL" '{text: ("Add-auth eval automation failed or did not complete. Investigate: " + $url)}')"
           curl --fail --silent --show-error --max-time 15 -X POST -H 'Content-type: application/json' --data "$payload" "$WEBHOOK_URL"
