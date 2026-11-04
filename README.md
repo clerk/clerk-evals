@@ -195,11 +195,11 @@ shouldn't wait for replies or leave a dev server running. The skill body itself 
 ### Automated add-auth comparison
 
 `.github/workflows/add-auth-automation.yml` accepts `clerk_skills_updated` dispatches with
-`client_payload.sha` and manual runs. Manual runs can select a full Skills SHA and the current
-latest CLI version. The canonical prompt runs `npx -y clerk@latest init`, so a requested CLI
-version that isn't `clerk@latest` fails instead of mislabeling the result. CLI releases don't
-trigger the workflow yet; add a `clerk_cli_released` trigger in the same change that adds its
-sender to `clerk/cli`.
+`client_payload.sha`, `clerk_cli_released` dispatches with `client_payload.version`, and manual
+runs. Manual runs can select a full Skills SHA and the current latest CLI version. The canonical
+prompt runs `npx -y clerk@latest init`, so a requested CLI version that isn't `clerk@latest` fails
+instead of mislabeling the result. A CLI release waits up to 10 minutes for its version to become
+`clerk@latest`; if a newer stable release has already superseded it, the older run skips quietly.
 
 The workflow runs the four add-auth variants twice with the same prompt and Clerk CLI
 version. Baseline receives no installed Clerk skills. The Skills column checks out the exact
