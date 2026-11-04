@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { cellKey, loadPromptPair, planCells, summarizeCells } from './experiment'
+import {
+  NEXTJS_QUICKSTART_HINT,
+  cellKey,
+  loadPromptPair,
+  planCells,
+  summarizeCells,
+} from './experiment'
 
 describe('Next.js prompt A/B plan', () => {
   test('creates 60 balanced cells for five trials per agent and fixture', () => {
@@ -31,6 +37,9 @@ describe('Next.js prompt A/B plan', () => {
       'clerk-docs/prompts/cli-setup.md',
     ])
     expect(prompts.dedicated.content).toBe('# Prompt')
+    expect(prompts.shared.content).toBe(`# Prompt\n\n${NEXTJS_QUICKSTART_HINT}`)
+    expect(prompts.shared.content).toContain('init --framework next')
+    expect(prompts.shared.sha256).not.toBe(prompts.dedicated.sha256)
     expect(prompts.dedicated.sha256).toMatch(/^[0-9a-f]{64}$/)
   })
 

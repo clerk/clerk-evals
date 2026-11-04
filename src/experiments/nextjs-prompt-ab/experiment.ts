@@ -7,6 +7,14 @@ export const DOCS_PROMPT_PATHS = {
   shared: 'clerk-docs/prompts/cli-setup.md',
 } as const
 
+// Match frameworkHint('next') in clerk/clerk/src/lib/prompt-framework.ts.
+// Confirm this wording against the selected Docs revision before a full run.
+export const NEXTJS_QUICKSTART_HINT = [
+  'This prompt was copied from the Next.js quickstart.',
+  'In an empty directory, use Next.js instead of asking which framework to use: `npx -y clerk@latest init --framework next`.',
+  "In an existing project, trust `init`'s framework detection. If it detects a different framework, follow the project and mention the mismatch.",
+].join(' ')
+
 export type Arm = keyof typeof DOCS_PROMPT_PATHS
 export type Fixture = 'next15' | 'next16' | 'empty'
 export const FIXTURES: readonly Fixture[] = ['next15', 'next16', 'empty']
@@ -58,7 +66,8 @@ export function loadPromptPair(
 ): Record<Arm, { content: string; sha256: string }> {
   assertFullSha(docsSha)
   const entries = ARMS.map((arm) => {
-    const content = readFile(docsRepo, docsSha, DOCS_PROMPT_PATHS[arm]).trim()
+    const source = readFile(docsRepo, docsSha, DOCS_PROMPT_PATHS[arm]).trim()
+    const content = arm === 'shared' ? `${source}\n\n${NEXTJS_QUICKSTART_HINT}` : source
     if (!content) throw new Error(`${arm} prompt at ${docsSha} is empty`)
     return [arm, { content, sha256: createHash('sha256').update(content).digest('hex') }] as const
   })
