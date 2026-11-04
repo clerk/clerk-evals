@@ -3,4 +3,4 @@
 minimumReleaseAge = 172800
 
 [test]
-pathIgnorePatterns = ["src/evals/**/agent/hidden-tests/**"]
+pathIgnorePatterns = ["src/evals/**/agent/hidden-tests/**", "src/experiments/**/hidden-tests/**"]

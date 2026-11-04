@@ -113,6 +113,7 @@ async function execCodex(
   envPath: string,
   model: string,
   mcpServerUrl?: string,
+  isolatedHome?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
@@ -134,7 +135,7 @@ async function execCodex(
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: buildAgentEnvironment('codex', envPath),
+      env: buildAgentEnvironment('codex', envPath, undefined, isolatedHome),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -204,6 +205,8 @@ async function execCodex(
  */
 export default async function exec({
   evalPath,
+  promptOverride,
+  isolatedHome = false,
   debug = false,
   skillsConfig,
   mcpConfig,
@@ -226,7 +229,7 @@ export default async function exec({
 
   try {
     // 1. Build prompt
-    const prompt = await buildAgentPrompt(evalPath)
+    const prompt = await buildAgentPrompt(evalPath, promptOverride)
 
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
@@ -272,6 +275,7 @@ export default async function exec({
       envPath,
       model,
       mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
+      isolatedHome ? workDir : undefined,
     )
 
     if (!result.success) {
@@ -291,6 +295,7 @@ export default async function exec({
     // 6. Return result
     return OK({
       score: grading.score,
+      graderResults: grading.graderResults,
       durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
       debug: debug
         ? {

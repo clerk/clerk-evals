@@ -57,6 +57,10 @@ export type AgentRunnerArgs = {
   agent: AgentType
   /** Path to the evaluation directory */
   evalPath: string
+  /** Exact prompt supplied by a controlled experiment instead of the eval's default source. */
+  promptOverride?: string
+  /** Keep CLI config and any global skill installs inside the disposable workspace. */
+  isolatedHome?: boolean
   /** Enable debug output */
   debug?: boolean
   /** MCP configuration (optional) */
