@@ -241,8 +241,13 @@ export default async function exec({
       await copyWorkspace(workDir, workspacePath)
     }
 
-    // 2c. Codex requires a git repo to run
-    execSync('git init -q', { cwd: workDir, stdio: 'ignore' })
+    // 2c. Codex requires a git repo to run. Use the agent's env so host git
+    // config (templates, hooks, default branch) can't shape the workspace.
+    execSync('git init -q', {
+      cwd: workDir,
+      env: buildAgentEnvironment('codex', envPath, homeDir),
+      stdio: 'ignore',
+    })
 
     // 3. Setup skills if enabled + agent-specific context file
     if (skillsConfig?.enabled) {
