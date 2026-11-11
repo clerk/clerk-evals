@@ -81,7 +81,7 @@ bun export:leaderboard --since 2026-03-20
 
 `src/evals/add-auth` is an intentional exception: its prompt comes from the immutable `clerk/skills` commit set by `CLERK_SKILLS_SHA` (or `clerk/skills` `main`, resolved once per run when it's unset), not a local `PROMPT.md`. `.github/workflows/add-auth-automation.yml` compares agent baseline and exact-SHA Skills runs; do not treat a lower completed score as a workflow failure.
 
-`src/experiments/nextjs-prompt-ab` is a separate, manual experiment for DOCS-12247. It compares the dedicated Next.js and shared Docs prompt files from one pinned `clerk/clerk` commit; it does not use the add-auth baseline/Skills workflow. Agent runs use disposable workspaces and homes. The runner preserves accountless app claim files in a restricted, git-ignored directory for manual cleanup; `--keep-workspaces` retains workspaces for the optional `browser-check/` Playwright flow. Never run its model-backed trials merely to verify a code change; use its tests and `--dry-run` first.
+`src/experiments/nextjs-prompt-ab` is a separate, manual experiment. It compares the dedicated Next.js and shared Docs prompt files from one pinned `clerk/clerk` commit; it does not use the add-auth baseline/Skills workflow. Agent runs use disposable workspaces and homes. The runner preserves accountless app claim files in a restricted, git-ignored directory for manual cleanup; `--keep-workspaces` retains workspaces for the optional `browser-check/` Playwright flow. Never run its model-backed trials merely to verify a code change; use its tests and `--dry-run` first.
 
 ## Environment Setup & Secrets
 
