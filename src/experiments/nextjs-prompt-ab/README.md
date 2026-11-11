@@ -1,4 +1,4 @@
-# Next.js setup prompt A/B experiment (DOCS-12247)
+# Next.js setup prompt A/B experiment
 
 ## Design
 
