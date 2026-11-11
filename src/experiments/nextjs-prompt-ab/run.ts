@@ -221,7 +221,10 @@ for (const cell of cells) {
           .map((entry) => path.join(workDir, entry.name)),
       ]
       const keylessFiles = candidateProjects
-        .map((project) => path.join(project, '.clerk/keyless.json'))
+        .flatMap((project) => [
+          path.join(project, '.clerk/keyless.json'),
+          path.join(project, '.clerk/.tmp/keyless.json'),
+        ])
         .filter(existsSync)
       if (keylessFiles.length) {
         await mkdir(claimsDirectory, { recursive: true, mode: 0o700 })
