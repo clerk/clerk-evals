@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 delete process.env.CLERK_PUBLISHABLE_KEY
 delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 delete process.env.CLERK_SECRET_KEY
+delete process.env.CLERK_TESTING_TOKEN
 process.loadEnvFile('.env.local')
 
 export default defineConfig({
