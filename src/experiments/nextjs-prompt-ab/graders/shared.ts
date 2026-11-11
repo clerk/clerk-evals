@@ -1,10 +1,13 @@
-import { defineGraders, getFileContent, type Grader, type GraderContext } from '@/src/graders'
+import { defineGraders, type Grader, type GraderContext } from '@/src/graders'
+import { getProjectFile } from '../project-root'
 
 const initPattern =
   /\b(?:npx\s+(?:-y\s+)?|pnpm\s+dlx\s+|bunx\s+|yarn\s+dlx\s+)clerk@latest\s+init\b/
 const loginPattern = /\bclerk(?:@latest)?\s+auth\s+login\b/
 const globalInstallPattern =
   /\b(?:npm\s+(?:install|i|add)|pnpm\s+(?:add|install)|bun\s+(?:add|install))\s+(?:-g|--global)\s+clerk(?:@\S+)?\b/
+const unrequestedAccountCommandPattern =
+  /\b(?:clerk|clerk@latest)\s+(?:auth\s+login|enable\s+orgs|open|deploy)\b/
 
 function commands(context?: GraderContext): readonly string[] {
   return context?.executedCommands ?? []
@@ -23,11 +26,14 @@ const noLoginBeforeInit: Grader = async (_artifact, context) => {
 const noGlobalCliInstall: Grader = async (_artifact, context) =>
   !commands(context).some((command) => globalInstallPattern.test(command))
 
+const noUnrequestedAccountCommands: Grader = async (_artifact, context) =>
+  !commands(context).some((command) => unrequestedAccountCommandPattern.test(command))
+
 export function nextjsGraders(version: 15 | 16 | 'empty') {
   const middlewarePath = version === 15 ? 'middleware.ts' : 'proxy.ts'
   const layoutHasProvider: Grader = async (artifact) => {
     const layout =
-      getFileContent(artifact, 'app/layout.tsx') ?? getFileContent(artifact, 'src/app/layout.tsx')
+      getProjectFile(artifact, 'app/layout.tsx') ?? getProjectFile(artifact, 'src/app/layout.tsx')
     return Boolean(
       layout &&
       /<body\b[^>]*>[\s\S]*<ClerkProvider\b[\s\S]*<\/ClerkProvider>[\s\S]*<\/body>/.test(layout),
@@ -44,7 +50,7 @@ export function nextjsGraders(version: 15 | 16 | 'empty') {
   }
   const middlewareUsesClerk: Grader = async (artifact) => {
     const middleware =
-      getFileContent(artifact, middlewarePath) ?? getFileContent(artifact, `src/${middlewarePath}`)
+      getProjectFile(artifact, middlewarePath) ?? getProjectFile(artifact, `src/${middlewarePath}`)
     return Boolean(
       middleware &&
       /from ['"]@clerk\/nextjs\/server['"]/.test(middleware) &&
@@ -52,7 +58,7 @@ export function nextjsGraders(version: 15 | 16 | 'empty') {
     )
   }
   const frameworkMatchesFixture: Grader = async (artifact) => {
-    const packageJson = getFileContent(artifact, 'package.json')
+    const packageJson = getProjectFile(artifact, 'package.json')
     if (!packageJson) return false
     try {
       const parsed = JSON.parse(packageJson) as { dependencies?: Record<string, string> }
@@ -73,6 +79,7 @@ export function nextjsGraders(version: 15 | 16 | 'empty') {
     ran_clerk_init: ranInit,
     no_login_before_init: noLoginBeforeInit,
     no_global_clerk_cli_install: noGlobalCliInstall,
+    no_unrequested_account_commands: noUnrequestedAccountCommands,
     appropriate_init_flags: initFlags,
     correct_next_version: frameworkMatchesFixture,
     correct_middleware_file: middlewareUsesClerk,

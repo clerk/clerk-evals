@@ -63,6 +63,8 @@ export type AgentRunnerArgs = {
   isolatedHome?: boolean
   /** Enable debug output */
   debug?: boolean
+  /** Return a transcript without preserving the workspace or logging debug output. */
+  captureTranscript?: boolean
   /** MCP configuration (optional) */
   mcpConfig?: AgentMCPConfig
   /** Skills configuration (optional) */
@@ -78,6 +80,10 @@ export type AgentRunnerArgs = {
   /** Full path to the variant grader file (e.g., .../graders/nextjs.ts) */
   gradersPath?: string
   verification?: ResolvedAgentVerificationConfig
+  /** Inspect and export experiment evidence before the disposable workspace is deleted. */
+  onWorkspaceReady?: (workDir: string, executedCommands: readonly string[]) => Promise<void>
+  /** Keep the workspace for manual browser checks. */
+  preserveWorkspace?: boolean
 }
 
 /**
@@ -96,6 +102,7 @@ export type AgentExecResult = {
   error?: string
   /** Exit code from the CLI */
   exitCode?: number
+  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number }
 }
 
 /**

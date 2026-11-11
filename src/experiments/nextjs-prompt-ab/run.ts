@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises'
+import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { requireGatewayCredential } from '@/src/gateway'
@@ -17,6 +18,7 @@ import {
   type CellResult,
   type Fixture,
 } from './experiment'
+import { resolveProjectRoot } from './project-root'
 
 type ExperimentRecord = {
   schemaVersion: 1
@@ -28,6 +30,8 @@ type ExperimentRecord = {
   runsPerCell: number
   startedAt: string
   results: CellResult[]
+  /** All claim files ever captured, including attempts later replaced by --resume. */
+  claimFiles?: string[]
 }
 
 const { values } = parseArgs({
@@ -42,6 +46,7 @@ const { values } = parseArgs({
     resume: { type: 'boolean', default: false },
     'dry-run': { type: 'boolean', default: false },
     'acknowledge-app-creation': { type: 'boolean', default: false },
+    'keep-workspaces': { type: 'boolean', default: false },
   },
   strict: true,
   allowPositionals: true,
@@ -55,7 +60,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function promptFor(arm: Arm, fixture: Fixture, prompt: string): string {
+function promptFor(fixture: Fixture, prompt: string): string {
   const fixtureContext =
     fixture === 'empty'
       ? 'This directory is empty. The user chose Next.js and npm for the new application.'
@@ -63,7 +68,7 @@ function promptFor(arm: Arm, fixture: Fixture, prompt: string): string {
   return [
     'The user has approved the setup checklist. This is a non-interactive evaluation: do not wait for another reply. Stop any dev server before finishing.',
     fixtureContext,
-    `The following is the ${arm === 'dedicated' ? 'dedicated Next.js' : 'shared'} Clerk setup prompt:`,
+    'The following is the Clerk setup prompt:',
     prompt,
   ].join('\n\n---\n\n')
 }
@@ -131,6 +136,7 @@ const expected: ExperimentRecord = {
   runsPerCell: runs,
   startedAt: new Date().toISOString(),
   results: [],
+  claimFiles: [],
 }
 
 console.log(`Pinned Docs: ${docsSha}`)
@@ -160,6 +166,8 @@ const completedKeys = new Set(
 
 const experimentPath = path.join(process.cwd(), 'src/experiments/nextjs-prompt-ab')
 const evalPath = path.join(process.cwd(), 'src/evals/add-auth')
+const claimsDirectory = path.resolve('nextjs-prompt-ab-claims')
+const transcriptsDirectory = path.resolve('nextjs-prompt-ab-transcripts')
 const runners = {
   'claude-code': (await import('@/src/runners/agents/claude-code')).default,
   codex: (await import('@/src/runners/agents/codex')).default,
@@ -187,10 +195,13 @@ for (const cell of cells) {
       : cell.fixture === 'next16'
         ? path.join(experimentPath, 'fixtures/next16')
         : undefined
+  const claimFiles: string[] = []
+  let preservedWorkspace: string | undefined
+  let transcriptFile: string | undefined
   const args: AgentRunnerArgs = {
     agent: cell.agent,
     evalPath,
-    promptOverride: promptFor(cell.arm, cell.fixture, prompts[cell.arm].content),
+    promptOverride: promptFor(cell.fixture, prompts[cell.arm].content),
     isolatedHome: true,
     model: agentModels[cell.agent],
     executablePath: commandOutput('which', [cell.agent === 'claude-code' ? 'claude' : 'codex']),
@@ -198,6 +209,46 @@ for (const cell of cells) {
     workspacePath,
     gradersPath: path.join(experimentPath, 'graders', `${cell.fixture}.ts`),
     verification: { testsPath: path.join(experimentPath, 'hidden-tests') },
+    preserveWorkspace: values['keep-workspaces'],
+    captureTranscript: true,
+    onWorkspaceReady: async (workDir, executedCommands) => {
+      if (values['keep-workspaces']) preservedWorkspace = workDir
+      const ranInit = executedCommands.some((command) => /\bclerk@latest\s+init\b/.test(command))
+      const candidateProjects = [
+        workDir,
+        ...readdirSync(workDir, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => path.join(workDir, entry.name)),
+      ]
+      const keylessFiles = candidateProjects
+        .map((project) => path.join(project, '.clerk/keyless.json'))
+        .filter(existsSync)
+      if (keylessFiles.length) {
+        await mkdir(claimsDirectory, { recursive: true, mode: 0o700 })
+        const claimDirectory = await mkdtemp(
+          path.join(claimsDirectory, `${cellKey(cell).replaceAll(':', '-')}-`),
+        )
+        await chmod(claimDirectory, 0o700)
+        for (const [index, keyless] of keylessFiles.entries()) {
+          const claimFile = path.join(claimDirectory, `keyless-${index + 1}.json`)
+          await copyFile(keyless, claimFile)
+          await chmod(claimFile, 0o600)
+          claimFiles.push(claimFile)
+        }
+      }
+      if (cell.fixture === 'empty' && !ranInit) return
+      const project = resolveProjectRoot(workDir)
+      const keyless = path.join(project, '.clerk/keyless.json')
+      if (ranInit) {
+        // Clerk CLI writes the breadcrumb only after writeKeysToEnvFile succeeds.
+        // Use that ordering to detect provisioning failure without reading key values.
+        if (!existsSync(keyless) || !existsSync(path.join(project, '.env.local'))) {
+          throw new Error(
+            'Clerk init ran but accountless app evidence is missing; treat as infrastructure error',
+          )
+        }
+      }
+    },
   }
 
   console.log(`[start] ${cellKey(cell)}`)
@@ -208,6 +259,15 @@ for (const cell of cells) {
   } catch (error) {
     result = { ok: false, error: errorMessage(error) }
   }
+  if (result.ok && result.value.debug?.transcript) {
+    await mkdir(transcriptsDirectory, { recursive: true, mode: 0o700 })
+    const transcriptDirectory = await mkdtemp(
+      path.join(transcriptsDirectory, `${cellKey(cell).replaceAll(':', '-')}-`),
+    )
+    await chmod(transcriptDirectory, 0o700)
+    transcriptFile = path.join(transcriptDirectory, 'transcript.md')
+    await writeFile(transcriptFile, result.value.debug.transcript, { mode: 0o600 })
+  }
   const entry: CellResult = result.ok
     ? {
         ...cell,
@@ -215,15 +275,22 @@ for (const cell of cells) {
         score: result.value.score,
         graders: Object.fromEntries(result.value.graderResults ?? []),
         durationMs: Date.now() - started,
+        claimFiles,
+        workspace: preservedWorkspace,
+        tokens: result.value.tokens,
+        transcriptFile,
       }
     : {
         ...cell,
         status: 'error',
         error: errorMessage(result.error),
         durationMs: Date.now() - started,
+        claimFiles,
+        workspace: preservedWorkspace,
       }
   record.results = record.results.filter((result) => cellKey(result) !== cellKey(cell))
   record.results.push(entry)
+  record.claimFiles = [...new Set([...(record.claimFiles ?? []), ...claimFiles])]
   await save(output, record)
   console.log(
     `[done] ${cellKey(cell)}: ${entry.status}${entry.score === undefined ? '' : ` ${entry.score.toFixed(2)}`}`,

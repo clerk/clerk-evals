@@ -56,6 +56,21 @@ type CodexJsonEvent = {
   }
 }
 
+export function parseCodexUsage(raw: string): AgentExecResult['tokens'] {
+  for (const line of raw.split('\n').reverse()) {
+    try {
+      const event = JSON.parse(line) as CodexJsonEvent
+      if (event.type !== 'turn.completed' || !event.usage) continue
+      const promptTokens = event.usage.input_tokens
+      const completionTokens = event.usage.output_tokens
+      return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return undefined
+}
+
 /**
  * Parse Codex JSONL output and return the final agent message.
  */
@@ -168,6 +183,7 @@ async function execCodex(
         executedCommands: parseCodexCommands(stdout),
         duration,
         exitCode: timedOut ? -1 : (code ?? -1),
+        tokens: parseCodexUsage(stdout),
         error: timedOut
           ? `Timeout after ${timeout}ms`
           : code !== 0
@@ -187,6 +203,7 @@ async function execCodex(
         duration: Date.now() - startTime,
         error: err.message,
         exitCode: -1,
+        tokens: parseCodexUsage(stdout),
       })
     })
   })
@@ -208,6 +225,7 @@ export default async function exec({
   promptOverride,
   isolatedHome = false,
   debug = false,
+  captureTranscript = false,
   skillsConfig,
   mcpConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
@@ -217,6 +235,8 @@ export default async function exec({
   workspacePath,
   gradersPath,
   verification,
+  onWorkspaceReady,
+  preserveWorkspace = false,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -278,6 +298,8 @@ export default async function exec({
       isolatedHome ? workDir : undefined,
     )
 
+    await onWorkspaceReady?.(workDir, result.executedCommands ?? [])
+
     if (!result.success) {
       return { ok: false as const, error: result.error || 'Codex execution failed' }
     }
@@ -297,40 +319,42 @@ export default async function exec({
       score: grading.score,
       graderResults: grading.graderResults,
       durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
-      debug: debug
-        ? {
-            prompt,
-            response: grading.gradingArtifact,
-            graders: grading.graderResults,
-            transcript: buildAgentTranscript({
-              agentLabel: 'Codex',
+      tokens: result.tokens,
+      debug:
+        debug || captureTranscript
+          ? {
               prompt,
-              result,
-              graderResults: grading.graderResults,
-              gradingArtifact: grading.gradingArtifact,
-              hiddenVerification: grading.hiddenVerification,
-              score: grading.score,
-            }),
-            hiddenVerification: grading.hiddenVerification
-              ? {
-                  passed: grading.hiddenVerification.passed,
-                  durationMs: grading.hiddenVerification.durationMs,
-                  exitCode: grading.hiddenVerification.exitCode,
-                }
-              : undefined,
-          }
-        : undefined,
+              response: grading.gradingArtifact,
+              graders: grading.graderResults,
+              transcript: buildAgentTranscript({
+                agentLabel: 'Codex',
+                prompt,
+                result,
+                graderResults: grading.graderResults,
+                gradingArtifact: grading.gradingArtifact,
+                hiddenVerification: grading.hiddenVerification,
+                score: grading.score,
+              }),
+              hiddenVerification: grading.hiddenVerification
+                ? {
+                    passed: grading.hiddenVerification.passed,
+                    durationMs: grading.hiddenVerification.durationMs,
+                    exitCode: grading.hiddenVerification.exitCode,
+                  }
+                : undefined,
+            }
+          : undefined,
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     return { ok: false as const, error: errorMessage }
   } finally {
     // Cleanup — skip in debug mode for inspection
-    if (workDir && !debug) {
+    if (workDir && !debug && !preserveWorkspace) {
       await cleanupTempWorkDir(workDir)
     }
-    if (workDir && debug) {
-      console.log(`[debug] Work dir preserved: ${workDir}`)
+    if (workDir && (debug || preserveWorkspace)) {
+      console.log(`[workspace] Preserved: ${workDir}`)
     }
   }
 }

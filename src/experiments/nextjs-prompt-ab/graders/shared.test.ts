@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { nextjsGraders } from './shared'
+import { getProjectFile } from '../project-root'
 
 const artifact = [
   '## Final response',
@@ -31,6 +32,16 @@ describe('Next.js prompt A/B graders', () => {
     expect(await nextjsGraders(15).correct_middleware_file(artifact)).toBe(false)
   })
 
+  test('scores files in the single scaffolded subdirectory', async () => {
+    const nested = artifact.replaceAll('### ', '### my-clerk-next-app/')
+    expect(getProjectFile(nested, 'package.json')).toContain('next')
+    const graders = nextjsGraders('empty')
+    const context = { executedCommands: ['npx -y clerk@latest init --framework next'] }
+    for (const grader of Object.values(graders)) {
+      expect(await grader(nested, context)).toBe(true)
+    }
+  })
+
   test('requires framework next for an empty directory and rejects unrequested flags in existing apps', async () => {
     const empty = nextjsGraders('empty')
     expect(
@@ -60,6 +71,12 @@ describe('Next.js prompt A/B graders', () => {
     }
     expect(await graders.no_login_before_init('', context)).toBe(false)
     expect(await graders.no_global_clerk_cli_install('', context)).toBe(false)
+    expect(await graders.no_unrequested_account_commands('', context)).toBe(false)
+    expect(
+      await graders.no_unrequested_account_commands('', {
+        executedCommands: ['npx -y clerk@latest init', 'npx -y clerk@latest deploy'],
+      }),
+    ).toBe(false)
   })
 
   test('accepts the package runners listed by the dedicated prompt', async () => {

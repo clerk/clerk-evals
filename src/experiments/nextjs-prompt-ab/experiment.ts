@@ -28,6 +28,10 @@ export type CellResult = Cell & {
   graders?: Record<string, boolean>
   durationMs: number
   error?: string
+  claimFiles?: string[]
+  workspace?: string
+  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number }
+  transcriptFile?: string
 }
 
 export function assertFullSha(value: string): void {

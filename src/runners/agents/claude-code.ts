@@ -31,6 +31,12 @@ import {
 
 type StreamJsonMessage = {
   type: string
+  usage?: {
+    input_tokens?: number
+    output_tokens?: number
+    cache_creation_input_tokens?: number
+    cache_read_input_tokens?: number
+  }
   message?: {
     role: string
     content: Array<{
@@ -43,6 +49,24 @@ type StreamJsonMessage = {
       content?: string
     }>
   }
+}
+
+export function parseClaudeUsage(raw: string): AgentExecResult['tokens'] {
+  for (const line of raw.split('\n').reverse()) {
+    try {
+      const event = JSON.parse(line) as StreamJsonMessage
+      if (event.type !== 'result' || !event.usage) continue
+      const promptTokens =
+        (event.usage.input_tokens ?? 0) +
+        (event.usage.cache_creation_input_tokens ?? 0) +
+        (event.usage.cache_read_input_tokens ?? 0)
+      const completionTokens = event.usage.output_tokens ?? 0
+      return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return undefined
 }
 
 /**
@@ -172,6 +196,7 @@ async function execClaude(
         executedCommands: parseClaudeCommands(stdout),
         duration,
         exitCode: timedOut ? -1 : (code ?? -1),
+        tokens: parseClaudeUsage(stdout),
         error: timedOut
           ? `Timeout after ${timeout}ms`
           : code !== 0
@@ -191,6 +216,7 @@ async function execClaude(
         duration: Date.now() - startTime,
         error: err.message,
         exitCode: -1,
+        tokens: parseClaudeUsage(stdout),
       })
     })
   })
@@ -211,6 +237,7 @@ export default async function exec({
   promptOverride,
   isolatedHome = false,
   debug = false,
+  captureTranscript = false,
   mcpConfig,
   skillsConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
@@ -220,6 +247,8 @@ export default async function exec({
   workspacePath,
   gradersPath,
   verification,
+  onWorkspaceReady,
+  preserveWorkspace = false,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -292,6 +321,8 @@ export default async function exec({
       isolatedHome ? workDir : undefined,
     )
 
+    await onWorkspaceReady?.(workDir, result.executedCommands ?? [])
+
     if (!result.success) {
       return { ok: false as const, error: result.error || 'Claude Code execution failed' }
     }
@@ -311,29 +342,31 @@ export default async function exec({
       score: grading.score,
       graderResults: grading.graderResults,
       durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
-      debug: debug
-        ? {
-            prompt,
-            response: grading.gradingArtifact,
-            graders: grading.graderResults,
-            transcript: buildAgentTranscript({
-              agentLabel: 'Claude Code',
+      tokens: result.tokens,
+      debug:
+        debug || captureTranscript
+          ? {
               prompt,
-              result,
-              graderResults: grading.graderResults,
-              gradingArtifact: grading.gradingArtifact,
-              hiddenVerification: grading.hiddenVerification,
-              score: grading.score,
-            }),
-            hiddenVerification: grading.hiddenVerification
-              ? {
-                  passed: grading.hiddenVerification.passed,
-                  durationMs: grading.hiddenVerification.durationMs,
-                  exitCode: grading.hiddenVerification.exitCode,
-                }
-              : undefined,
-          }
-        : undefined,
+              response: grading.gradingArtifact,
+              graders: grading.graderResults,
+              transcript: buildAgentTranscript({
+                agentLabel: 'Claude Code',
+                prompt,
+                result,
+                graderResults: grading.graderResults,
+                gradingArtifact: grading.gradingArtifact,
+                hiddenVerification: grading.hiddenVerification,
+                score: grading.score,
+              }),
+              hiddenVerification: grading.hiddenVerification
+                ? {
+                    passed: grading.hiddenVerification.passed,
+                    durationMs: grading.hiddenVerification.durationMs,
+                    exitCode: grading.hiddenVerification.exitCode,
+                  }
+                : undefined,
+            }
+          : undefined,
     })
   } catch (error) {
     // Return error as string for cross-process serialization
@@ -344,11 +377,11 @@ export default async function exec({
     if (mcpConfigPath) {
       await cleanupTempMCPConfig(mcpConfigPath)
     }
-    if (workDir && !debug) {
+    if (workDir && !debug && !preserveWorkspace) {
       await cleanupTempWorkDir(workDir)
     }
-    if (workDir && debug) {
-      console.log(`[debug] Work dir preserved: ${workDir}`)
+    if (workDir && (debug || preserveWorkspace)) {
+      console.log(`[workspace] Preserved: ${workDir}`)
     }
   }
 }

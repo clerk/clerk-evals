@@ -1,8 +1,27 @@
 import { describe, expect, test } from 'bun:test'
-import { parseClaudeCommands, parseStreamJson } from './claude-code'
-import { parseCodexCommands, parseCodexJsonl } from './codex'
+import { parseClaudeCommands, parseClaudeUsage, parseStreamJson } from './claude-code'
+import { parseCodexCommands, parseCodexJsonl, parseCodexUsage } from './codex'
 
 describe('agent event parsers', () => {
+  test('records token usage from terminal agent events', () => {
+    expect(
+      parseClaudeUsage(
+        JSON.stringify({
+          type: 'result',
+          usage: { input_tokens: 120, output_tokens: 30 },
+        }),
+      ),
+    ).toEqual({ promptTokens: 120, completionTokens: 30, totalTokens: 150 })
+    expect(
+      parseCodexUsage(
+        JSON.stringify({
+          type: 'turn.completed',
+          usage: { input_tokens: 200, output_tokens: 40 },
+        }),
+      ),
+    ).toEqual({ promptTokens: 200, completionTokens: 40, totalTokens: 240 })
+  })
+
   test('Claude grading uses only the final assistant message', () => {
     const output = [
       JSON.stringify({
