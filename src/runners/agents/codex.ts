@@ -21,6 +21,7 @@ import {
   buildAgentTranscript,
   cleanupTempWorkDir,
   copyWorkspace,
+  createTempHomeDir,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
   gradeAgentWorkspace,
@@ -123,12 +124,12 @@ export function parseCodexCommands(raw: string): string[] {
 async function execCodex(
   prompt: string,
   workDir: string,
+  homeDir: string,
   timeout: number,
   executablePath: string,
   envPath: string,
   model: string,
   mcpServerUrl?: string,
-  isolatedHome?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
@@ -150,7 +151,7 @@ async function execCodex(
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: buildAgentEnvironment('codex', envPath, undefined, isolatedHome),
+      env: buildAgentEnvironment('codex', envPath, homeDir),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -223,7 +224,6 @@ async function execCodex(
 export default async function exec({
   evalPath,
   promptOverride,
-  isolatedHome = false,
   debug = false,
   captureTranscript = false,
   skillsConfig,
@@ -246,6 +246,7 @@ export default async function exec({
   }
 
   let workDir: string | undefined
+  let homeDir: string | undefined
 
   try {
     // 1. Build prompt
@@ -254,14 +255,20 @@ export default async function exec({
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
     workDir = await createTempWorkDir(evalName)
+    homeDir = await createTempHomeDir(evalName)
 
     // 2b. Copy fixtures into work dir
     if (workspacePath) {
       await copyWorkspace(workDir, workspacePath)
     }
 
-    // 2c. Codex requires a git repo to run
-    execSync('git init -q', { cwd: workDir, stdio: 'ignore' })
+    // 2c. Codex requires a git repo to run. Use the agent's env so host git
+    // config (templates, hooks, default branch) can't shape the workspace.
+    execSync('git init -q', {
+      cwd: workDir,
+      env: buildAgentEnvironment('codex', envPath, homeDir),
+      stdio: 'ignore',
+    })
 
     // 3. Setup skills if enabled + agent-specific context file
     if (skillsConfig?.enabled) {
@@ -290,12 +297,12 @@ export default async function exec({
     const result = await execCodex(
       prompt,
       workDir,
+      homeDir,
       timeout,
       executablePath,
       envPath,
       model,
       mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
-      isolatedHome ? workDir : undefined,
     )
 
     await onWorkspaceReady?.(workDir, result.executedCommands ?? [])
@@ -350,11 +357,13 @@ export default async function exec({
     return { ok: false as const, error: errorMessage }
   } finally {
     // Cleanup — skip in debug mode for inspection
-    if (workDir && !debug && !preserveWorkspace) {
-      await cleanupTempWorkDir(workDir)
-    }
+    if (workDir && !debug && !preserveWorkspace) await cleanupTempWorkDir(workDir)
+    if (homeDir && !debug) await cleanupTempWorkDir(homeDir)
     if (workDir && (debug || preserveWorkspace)) {
       console.log(`[workspace] Preserved: ${workDir}`)
+    }
+    if (homeDir && debug) {
+      console.log(`[debug] Home dir preserved: ${homeDir}`)
     }
   }
 }

@@ -202,7 +202,6 @@ for (const cell of cells) {
     agent: cell.agent,
     evalPath,
     promptOverride: promptFor(cell.fixture, prompts[cell.arm].content),
-    isolatedHome: true,
     model: agentModels[cell.agent],
     executablePath: commandOutput('which', [cell.agent === 'claude-code' ? 'claude' : 'codex']),
     envPath: process.env.PATH ?? '',

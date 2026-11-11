@@ -23,6 +23,7 @@ import {
   cleanupTempWorkDir,
   copyWorkspace,
   createTempMCPConfig,
+  createTempHomeDir,
   createTempWorkDir,
   DEFAULT_AGENT_TIMEOUT,
   gradeAgentWorkspace,
@@ -131,12 +132,12 @@ export function parseClaudeCommands(raw: string): string[] {
 async function execClaude(
   prompt: string,
   workDir: string,
+  homeDir: string,
   timeout: number,
   executablePath: string,
   envPath: string,
   model: string,
   mcpConfigPath?: string,
-  isolatedHome?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
 
@@ -163,7 +164,7 @@ async function execClaude(
 
     const proc = spawn(executablePath, args, {
       cwd: workDir,
-      env: buildAgentEnvironment('claude-code', envPath, undefined, isolatedHome),
+      env: buildAgentEnvironment('claude-code', envPath, homeDir),
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -235,7 +236,6 @@ async function execClaude(
 export default async function exec({
   evalPath,
   promptOverride,
-  isolatedHome = false,
   debug = false,
   captureTranscript = false,
   mcpConfig,
@@ -258,6 +258,7 @@ export default async function exec({
   }
 
   let workDir: string | undefined
+  let homeDir: string | undefined
   let mcpConfigPath: string | undefined
 
   try {
@@ -267,6 +268,7 @@ export default async function exec({
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
     workDir = await createTempWorkDir(evalName)
+    homeDir = await createTempHomeDir(evalName)
 
     // 2b. Copy fixtures into work dir (before MCP/skills setup)
     if (workspacePath) {
@@ -313,12 +315,12 @@ export default async function exec({
     const result = await execClaude(
       prompt,
       workDir,
+      homeDir,
       timeout,
       executablePath,
       envPath,
       model,
       mcpConfigPath,
-      isolatedHome ? workDir : undefined,
     )
 
     await onWorkspaceReady?.(workDir, result.executedCommands ?? [])
@@ -377,11 +379,13 @@ export default async function exec({
     if (mcpConfigPath) {
       await cleanupTempMCPConfig(mcpConfigPath)
     }
-    if (workDir && !debug && !preserveWorkspace) {
-      await cleanupTempWorkDir(workDir)
-    }
+    if (workDir && !debug && !preserveWorkspace) await cleanupTempWorkDir(workDir)
+    if (homeDir && !debug) await cleanupTempWorkDir(homeDir)
     if (workDir && (debug || preserveWorkspace)) {
       console.log(`[workspace] Preserved: ${workDir}`)
+    }
+    if (homeDir && debug) {
+      console.log(`[debug] Home dir preserved: ${homeDir}`)
     }
   }
 }

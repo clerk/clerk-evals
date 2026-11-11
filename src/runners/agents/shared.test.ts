@@ -2,9 +2,12 @@ import { mkdir, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
+  AGENT_PACKAGE_CACHE_DIR,
   buildAgentPrompt,
   buildAgentEnvironment,
+  buildVerificationEnvironment,
   cleanupTempWorkDir,
+  createTempHomeDir,
   createTempWorkDir,
   gradeAgentWorkspace,
   getCodexGatewayArgs,
@@ -13,9 +16,21 @@ import {
 } from './shared'
 
 const workDirs: string[] = []
+const savedEnv: Record<string, string | undefined> = {}
+
+function setEnv(name: string, value: string | undefined) {
+  if (!(name in savedEnv)) savedEnv[name] = process.env[name]
+  if (value === undefined) delete process.env[name]
+  else process.env[name] = value
+}
 
 afterEach(async () => {
   await Promise.all(workDirs.splice(0).map(cleanupTempWorkDir))
+  for (const [name, value] of Object.entries(savedEnv)) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+    delete savedEnv[name]
+  }
 })
 
 describe('agent workspace isolation', () => {
@@ -51,9 +66,85 @@ describe('agent workspace isolation', () => {
   })
 })
 
+describe('agent home isolation', () => {
+  test('creates a fresh home outside the real HOME and the repository', async () => {
+    const homeDir = await createTempHomeDir('isolation')
+    workDirs.push(homeDir)
+    expect(homeDir).not.toBe(process.env.HOME)
+    expect(homeDir.startsWith(process.cwd())).toBe(false)
+  })
+
+  test.each(['claude-code', 'codex'] as const)(
+    'runs %s with the temp home instead of the real HOME',
+    (agentType) => {
+      setEnv('HOME', '/Users/real-user')
+      const env = buildAgentEnvironment(agentType, '/bin', '/tmp/agent-home', 'gateway-secret')
+
+      expect(env.HOME).toBe('/tmp/agent-home')
+      expect(env.PATH).toBe('/bin')
+    },
+  )
+
+  test('shares package caches outside the temp home', () => {
+    const first = buildAgentEnvironment('claude-code', '/bin', '/tmp/home-a', 'gateway-secret')
+    const second = buildAgentEnvironment('codex', '/bin', '/tmp/home-b', 'gateway-secret')
+
+    expect(first.npm_config_cache).toBe(path.join(AGENT_PACKAGE_CACHE_DIR, 'npm'))
+    expect(first.BUN_INSTALL_CACHE_DIR).toBe(path.join(AGENT_PACKAGE_CACHE_DIR, 'bun'))
+    expect(second.npm_config_cache).toBe(first.npm_config_cache)
+    expect(second.BUN_INSTALL_CACHE_DIR).toBe(first.BUN_INSTALL_CACHE_DIR)
+  })
+
+  test('does not forward host agent config locations', () => {
+    setEnv('CLAUDE_CONFIG_DIR', '/Users/real-user/.claude')
+    setEnv('CODEX_HOME', '/Users/real-user/.codex')
+    setEnv('XDG_CONFIG_HOME', '/Users/real-user/.config')
+    const env = buildAgentEnvironment('codex', '/bin', '/tmp/agent-home', 'gateway-secret')
+
+    expect(env.CLAUDE_CONFIG_DIR).toBeUndefined()
+    expect(env.CODEX_HOME).toBeUndefined()
+    expect(env.XDG_CONFIG_HOME).toBeUndefined()
+  })
+
+  test('runs hidden verification with the given home', () => {
+    setEnv('HOME', '/Users/real-user')
+    const env = buildVerificationEnvironment('/bin', '/tmp/workspace', '/tmp/verify-home')
+
+    expect(env.HOME).toBe('/tmp/verify-home')
+    expect(env.CLERK_EVAL_WORKSPACE).toBe('/tmp/workspace')
+  })
+})
+
+describe('agent direct API keys', () => {
+  function clearGatewayEnv() {
+    for (const name of ['VERCEL_AI_GATEWAY_API_KEY', 'AI_GATEWAY_API_KEY', 'VERCEL_OIDC_TOKEN']) {
+      setEnv(name, undefined)
+    }
+  }
+
+  test('passes the Anthropic key to Claude Code', () => {
+    clearGatewayEnv()
+    setEnv('ANTHROPIC_API_KEY', 'anthropic-secret')
+    const env = buildAgentEnvironment('claude-code', '/bin', '/tmp/agent-home')
+
+    expect(env.ANTHROPIC_API_KEY).toBe('anthropic-secret')
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+  })
+
+  test('passes the OpenAI key to Codex as CODEX_API_KEY', () => {
+    clearGatewayEnv()
+    setEnv('CODEX_API_KEY', undefined)
+    setEnv('OPENAI_API_KEY', 'openai-secret')
+    const env = buildAgentEnvironment('codex', '/bin', '/tmp/agent-home')
+
+    expect(env.CODEX_API_KEY).toBe('openai-secret')
+    expect(env.OPENAI_API_KEY).toBe('openai-secret')
+  })
+})
+
 describe('agent gateway configuration', () => {
   test('maps one gateway credential to Claude Code variables', () => {
-    const env = buildAgentEnvironment('claude-code', '/bin', 'gateway-secret')
+    const env = buildAgentEnvironment('claude-code', '/bin', '/tmp/agent-home', 'gateway-secret')
 
     expect(env.ANTHROPIC_AUTH_TOKEN).toBe('gateway-secret')
     expect(env.ANTHROPIC_BASE_URL).toBe('https://ai-gateway.vercel.sh')
@@ -61,7 +152,7 @@ describe('agent gateway configuration', () => {
   })
 
   test('configures Codex to use the gateway Responses API', () => {
-    const env = buildAgentEnvironment('codex', '/bin', 'gateway-secret')
+    const env = buildAgentEnvironment('codex', '/bin', '/tmp/agent-home', 'gateway-secret')
     const args = getCodexGatewayArgs('gpt-5.6-luna', true)
 
     expect(env.VERCEL_AI_GATEWAY_API_KEY).toBe('gateway-secret')
@@ -72,13 +163,6 @@ describe('agent gateway configuration', () => {
 
   test('keeps native Codex arguments when no gateway is configured', () => {
     expect(getCodexGatewayArgs('gpt-5.6-luna', false)).toEqual(['--model', 'gpt-5.6-luna'])
-  })
-
-  test('confines agent CLI home and cache to a disposable workspace when requested', () => {
-    const env = buildAgentEnvironment('codex', '/bin', 'gateway-secret', '/tmp/eval-workspace')
-    expect(env.HOME).toBe('/tmp/eval-workspace')
-    expect(env.XDG_CONFIG_HOME).toBe('/tmp/eval-workspace/.config')
-    expect(env.npm_config_cache).toBe('/tmp/eval-workspace/.npm-cache')
   })
 })
 

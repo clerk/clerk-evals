@@ -13,7 +13,7 @@ export type PlanInput = {
   cli: string
   agent: string
   harnessSha: string
-  /** Manual force, and a future CLI-release trigger, always run both columns. */
+  /** Manual force always reruns both columns, including completed revisions. */
   runBoth: boolean
   artifacts: readonly Artifact[]
   compare: (base: string, head: string) => Promise<SkillsDiff>
@@ -164,6 +164,9 @@ if (import.meta.main) {
     )
   }
   if (GITHUB_STEP_SUMMARY) {
-    await appendFile(GITHUB_STEP_SUMMARY, `## Add-auth eval plan\n\n${plan.reason}\n`)
+    await appendFile(
+      GITHUB_STEP_SUMMARY,
+      `## Add-auth eval plan\n\n- Skills SHA: \`${process.env.SKILLS_SHA}\`\n- Clerk CLI: \`${process.env.CLI_VERSION}\`\n- Claude Code: \`${process.env.AGENT_VERSION}\`\n- Decision: ${plan.reason}\n`,
+    )
   }
 }
