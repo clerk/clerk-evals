@@ -1,6 +1,16 @@
 import { describe, expect, test } from 'bun:test'
-import { parseClaudeCommands, parseClaudeUsage, parseStreamJson } from './claude-code'
-import { parseCodexCommands, parseCodexJsonl, parseCodexUsage } from './codex'
+import {
+  parseClaudeCommands,
+  parseClaudeProvisioningWarning,
+  parseClaudeUsage,
+  parseStreamJson,
+} from './claude-code'
+import {
+  parseCodexCommands,
+  parseCodexJsonl,
+  parseCodexProvisioningWarning,
+  parseCodexUsage,
+} from './codex'
 
 describe('agent event parsers', () => {
   test('records token usage from terminal agent events', () => {
@@ -102,6 +112,59 @@ describe('agent event parsers', () => {
       }),
     ].join('\n')
     expect(parseClaudeCommands(output)).toEqual(['npx -y clerk@latest init'])
+  })
+
+  test('recognizes provisioning warnings only in completed Clerk init output', () => {
+    const claude = [
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'text', text: 'Could not set up development keys.' },
+            {
+              type: 'tool_use',
+              id: 'init',
+              name: 'Bash',
+              input: { command: 'npx -y clerk@latest init --framework next' },
+            },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'init',
+              content: [{ text: 'Could not reach api.clerk.com within 15s.' }],
+            },
+          ],
+        },
+      }),
+    ].join('\n')
+    const codex = JSON.stringify({
+      type: 'item.completed',
+      item: {
+        type: 'command_execution',
+        command: 'npx -y clerk@latest init',
+        aggregated_output: 'Could not set up development keys.',
+        exit_code: 0,
+      },
+    })
+    expect(parseClaudeProvisioningWarning(claude)).toBe(true)
+    expect(parseCodexProvisioningWarning(codex)).toBe(true)
+    expect(
+      parseClaudeProvisioningWarning(
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'text', text: 'Could not set up development keys.' }] },
+        }),
+      ),
+    ).toBe(false)
+    expect(
+      parseCodexProvisioningWarning(codex.replace('clerk@latest init', 'clerk@latest deploy')),
+    ).toBe(false)
   })
 
   test('an unreturned Claude tool request does not count as executed', () => {

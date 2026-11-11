@@ -19,6 +19,7 @@ import {
   buildAgentEnvironment,
   buildAgentPrompt,
   buildAgentTranscript,
+  hasClerkInitProvisioningWarning,
   cleanupTempMCPConfig,
   cleanupTempWorkDir,
   copyWorkspace,
@@ -47,7 +48,7 @@ type StreamJsonMessage = {
       id?: string
       tool_use_id?: string
       input?: Record<string, unknown>
-      content?: string
+      content?: string | Array<{ text?: string }>
     }>
   }
 }
@@ -95,6 +96,39 @@ export function parseStreamJson(raw: string): string {
   }
 
   return assistantMessages.at(-1) ?? ''
+}
+
+export function parseClaudeProvisioningWarning(raw: string): boolean {
+  const pending = new Map<string, string>()
+  for (const line of raw.split('\n')) {
+    try {
+      const event = JSON.parse(line) as StreamJsonMessage
+      for (const block of event.message?.content ?? []) {
+        if (
+          event.type === 'assistant' &&
+          block.type === 'tool_use' &&
+          block.name === 'Bash' &&
+          block.id &&
+          typeof block.input?.command === 'string'
+        )
+          pending.set(block.id, block.input.command)
+        if (event.type !== 'user' || block.type !== 'tool_result' || !block.tool_use_id) continue
+        const command = pending.get(block.tool_use_id)
+        pending.delete(block.tool_use_id)
+        if (!command || !/\bclerk@latest\s+init\b/.test(command)) continue
+        const output =
+          typeof block.content === 'string'
+            ? block.content
+            : Array.isArray(block.content)
+              ? block.content.map((item) => item.text ?? '').join('\n')
+              : ''
+        if (hasClerkInitProvisioningWarning(output)) return true
+      }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return false
 }
 
 export function parseClaudeCommands(raw: string): string[] {
@@ -195,7 +229,9 @@ async function execClaude(
         success: !timedOut && code === 0,
         output: fullOutput,
         executedCommands: parseClaudeCommands(stdout),
+        provisioningWarning: parseClaudeProvisioningWarning(stdout),
         duration,
+        timedOut,
         exitCode: timedOut ? -1 : (code ?? -1),
         tokens: parseClaudeUsage(stdout),
         error: timedOut
@@ -214,7 +250,9 @@ async function execClaude(
         success: false,
         output: fullOutput,
         executedCommands: parseClaudeCommands(stdout),
+        provisioningWarning: parseClaudeProvisioningWarning(stdout),
         duration: Date.now() - startTime,
+        timedOut,
         error: err.message,
         exitCode: -1,
         tokens: parseClaudeUsage(stdout),
@@ -323,7 +361,7 @@ export default async function exec({
       mcpConfigPath,
     )
 
-    await onWorkspaceReady?.(workDir, result.executedCommands ?? [])
+    await onWorkspaceReady?.(workDir, result)
 
     if (!result.success) {
       return { ok: false as const, error: result.error || 'Claude Code execution failed' }

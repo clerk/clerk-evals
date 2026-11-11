@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+delete process.env.CLERK_PUBLISHABLE_KEY
+delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+delete process.env.CLERK_SECRET_KEY
+process.loadEnvFile('.env.local')
+
 export default defineConfig({
   testDir: '.',
   timeout: 60_000,

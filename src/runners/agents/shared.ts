@@ -327,6 +327,10 @@ export async function gradeAgentWorkspace(args: {
   }
 }
 
+export function hasClerkInitProvisioningWarning(output: string): boolean {
+  return /Could not (?:set up development keys|reach api\.clerk\.com within 15s)\.?/.test(output)
+}
+
 export function buildAgentTranscript(args: {
   agentLabel: string
   prompt: string
@@ -334,9 +338,14 @@ export function buildAgentTranscript(args: {
   graderResults: [string, boolean][]
   gradingArtifact: string
   hiddenVerification?: HiddenVerificationResult
-  score: number
+  score?: number
 }): string {
-  const scorePercent = (args.score * 100).toFixed(1)
+  const scorePercent = args.score === undefined ? 'Not graded' : `${(args.score * 100).toFixed(1)}%`
+  const commands = args.result.executedCommands ?? []
+  const commandSummary = commands.length
+    ? commands.map((command, index) => `${index + 1}. ${JSON.stringify(command)}`).join('\n')
+    : 'None observed'
+  const errorSummary = args.result.error ? `\n- **Error**: ${args.result.error}` : ''
   const hiddenSummary = args.hiddenVerification
     ? `\n\n## Hidden Verification\n**Passed**: ${args.hiddenVerification.passed}\n**Duration**: ${(args.hiddenVerification.durationMs / 1000).toFixed(2)}s\n**Exit Code**: ${args.hiddenVerification.exitCode ?? 'unknown'}`
     : ''
@@ -346,9 +355,7 @@ export function buildAgentTranscript(args: {
 ## Execution Info
 - **Duration**: ${(args.result.duration / 1000).toFixed(2)}s
 - **Exit Code**: ${args.result.exitCode}
-- **Success**: ${args.result.success}
-
-## Prompt
+- **Success**: ${args.result.success}${errorSummary}\n\n## Executed Commands\n${commandSummary}\n\n## Prompt
 \`\`\`markdown
 ${args.prompt.trim()}
 \`\`\`
@@ -360,7 +367,7 @@ ${args.gradingArtifact.slice(0, 10000)}${args.gradingArtifact.length > 10000 ? '
 ${hiddenSummary}
 
 ## Grader Results
-**Score: ${scorePercent}%**
+**Score: ${scorePercent}**
 
 | Grader | Result |
 |--------|--------|

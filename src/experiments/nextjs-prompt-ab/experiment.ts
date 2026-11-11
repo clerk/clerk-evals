@@ -20,6 +20,16 @@ export type Fixture = 'next15' | 'next16' | 'empty'
 export const FIXTURES: readonly Fixture[] = ['next15', 'next16', 'empty']
 export const ARMS: readonly Arm[] = ['dedicated', 'shared']
 export const AGENTS: readonly AgentType[] = ['claude-code', 'codex']
+export const CRITICAL_CHECKS = [
+  'ran_clerk_init',
+  'appropriate_init_flags',
+  'correct_next_version',
+  'correct_middleware_file',
+  'provider_inside_body',
+  'visible_auth_controls',
+  'no_unrequested_account_commands',
+  'hidden_functional_tests',
+] as const
 
 export type Cell = { arm: Arm; fixture: Fixture; agent: AgentType; trial: number }
 export type CellResult = Cell & {

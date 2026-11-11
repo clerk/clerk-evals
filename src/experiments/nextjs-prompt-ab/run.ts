@@ -1,13 +1,24 @@
 import { execFileSync } from 'node:child_process'
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises'
+import {
+  appendFile,
+  chmod,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  writeFile,
+} from 'node:fs/promises'
 import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { requireGatewayCredential } from '@/src/gateway'
-import type { AgentRunnerArgs, AgentType } from '@/src/interfaces/agent'
+import { buildAgentPrompt, buildAgentTranscript } from '@/src/runners/agents/shared'
+import type { AgentExecResult, AgentRunnerArgs, AgentType } from '@/src/interfaces/agent'
 import type { RunnerResult } from '@/src/interfaces'
 import {
   AGENTS,
+  CRITICAL_CHECKS,
   ARMS,
   FIXTURES,
   cellKey,
@@ -18,7 +29,6 @@ import {
   type CellResult,
   type Fixture,
 } from './experiment'
-import { resolveProjectRoot } from './project-root'
 
 type ExperimentRecord = {
   schemaVersion: 1
@@ -195,13 +205,38 @@ for (const cell of cells) {
       : cell.fixture === 'next16'
         ? path.join(experimentPath, 'fixtures/next16')
         : undefined
+  const promptOverride = promptFor(cell.fixture, prompts[cell.arm].content)
+  const fullPrompt = await buildAgentPrompt(evalPath, promptOverride)
   const claimFiles: string[] = []
   let preservedWorkspace: string | undefined
   let transcriptFile: string | undefined
+  let agentTimedOut = false
+  let provisioningFailed = false
+  let errorTokens: CellResult['tokens']
+  let executionEvidence: AgentExecResult | undefined
+  const preliminaryTranscript = (execution: AgentExecResult): string =>
+    buildAgentTranscript({
+      agentLabel: cell.agent,
+      prompt: fullPrompt,
+      result: execution,
+      graderResults: [],
+      gradingArtifact: `## Final response\n\n${execution.output}`,
+    })
+  const writeTranscript = async (content: string): Promise<void> => {
+    if (!transcriptFile) {
+      await mkdir(transcriptsDirectory, { recursive: true, mode: 0o700 })
+      const transcriptDirectory = await mkdtemp(
+        path.join(transcriptsDirectory, `${cellKey(cell).replaceAll(':', '-')}-`),
+      )
+      await chmod(transcriptDirectory, 0o700)
+      transcriptFile = path.join(transcriptDirectory, 'transcript.md')
+    }
+    await writeFile(transcriptFile, content, { mode: 0o600 })
+  }
   const args: AgentRunnerArgs = {
     agent: cell.agent,
     evalPath,
-    promptOverride: promptFor(cell.fixture, prompts[cell.arm].content),
+    promptOverride,
     model: agentModels[cell.agent],
     executablePath: commandOutput('which', [cell.agent === 'claude-code' ? 'claude' : 'codex']),
     envPath: process.env.PATH ?? '',
@@ -210,9 +245,11 @@ for (const cell of cells) {
     verification: { testsPath: path.join(experimentPath, 'hidden-tests') },
     preserveWorkspace: values['keep-workspaces'],
     captureTranscript: true,
-    onWorkspaceReady: async (workDir, executedCommands) => {
+    onWorkspaceReady: async (workDir, execution) => {
       if (values['keep-workspaces']) preservedWorkspace = workDir
-      const ranInit = executedCommands.some((command) => /\bclerk@latest\s+init\b/.test(command))
+      executionEvidence = execution
+      agentTimedOut = execution.timedOut ?? false
+      errorTokens = execution.tokens
       const candidateProjects = [
         workDir,
         ...readdirSync(workDir, { withFileTypes: true })
@@ -238,17 +275,17 @@ for (const cell of cells) {
           claimFiles.push(claimFile)
         }
       }
-      if (cell.fixture === 'empty' && !ranInit) return
-      const project = resolveProjectRoot(workDir)
-      const keyless = path.join(project, '.clerk/keyless.json')
-      if (ranInit) {
-        // Clerk CLI writes the breadcrumb only after writeKeysToEnvFile succeeds.
-        // Use that ordering to detect provisioning failure without reading key values.
-        if (!existsSync(keyless) || !existsSync(path.join(project, '.env.local'))) {
-          throw new Error(
-            'Clerk init ran but accountless app evidence is missing; treat as infrastructure error',
-          )
-        }
+      await writeTranscript(preliminaryTranscript(execution))
+      // A missing breadcrumb alone can be caused by the agent's command or scaffold.
+      // Only the CLI's own provisioning warning justifies an infrastructure error.
+      const provisioned = candidateProjects.some(
+        (project) =>
+          existsSync(path.join(project, '.clerk/keyless.json')) &&
+          existsSync(path.join(project, '.env.local')),
+      )
+      provisioningFailed = Boolean(execution.provisioningWarning && !provisioned)
+      if (provisioningFailed) {
+        throw new Error('Clerk CLI reported development-key provisioning failure')
       }
     },
   }
@@ -262,14 +299,24 @@ for (const cell of cells) {
     result = { ok: false, error: errorMessage(error) }
   }
   if (result.ok && result.value.debug?.transcript) {
-    await mkdir(transcriptsDirectory, { recursive: true, mode: 0o700 })
-    const transcriptDirectory = await mkdtemp(
-      path.join(transcriptsDirectory, `${cellKey(cell).replaceAll(':', '-')}-`),
-    )
-    await chmod(transcriptDirectory, 0o700)
-    transcriptFile = path.join(transcriptDirectory, 'transcript.md')
-    await writeFile(transcriptFile, result.value.debug.transcript, { mode: 0o600 })
+    await writeTranscript(result.value.debug.transcript)
   }
+  if (!result.ok) {
+    const failure = errorMessage(result.error)
+    if (!transcriptFile) {
+      await writeTranscript(
+        executionEvidence
+          ? preliminaryTranscript(executionEvidence)
+          : `# ${cell.agent} trial\n\n## Prompt\n\n${fullPrompt}\n`,
+      )
+    }
+    await appendFile(transcriptFile!, `\n## Trial error\n${failure}\n`)
+  }
+  const timedOutFailure =
+    !result.ok &&
+    agentTimedOut &&
+    !provisioningFailed &&
+    /^Timeout after \d+ms$/.test(errorMessage(result.error))
   const entry: CellResult = result.ok
     ? {
         ...cell,
@@ -282,14 +329,29 @@ for (const cell of cells) {
         tokens: result.value.tokens,
         transcriptFile,
       }
-    : {
-        ...cell,
-        status: 'error',
-        error: errorMessage(result.error),
-        durationMs: Date.now() - started,
-        claimFiles,
-        workspace: preservedWorkspace,
-      }
+    : timedOutFailure
+      ? {
+          ...cell,
+          status: 'completed',
+          score: 0,
+          graders: Object.fromEntries(CRITICAL_CHECKS.map((name) => [name, false])),
+          error: errorMessage(result.error),
+          durationMs: Date.now() - started,
+          claimFiles,
+          workspace: preservedWorkspace,
+          tokens: errorTokens,
+          transcriptFile,
+        }
+      : {
+          ...cell,
+          status: 'error',
+          error: errorMessage(result.error),
+          durationMs: Date.now() - started,
+          claimFiles,
+          workspace: preservedWorkspace,
+          tokens: errorTokens,
+          transcriptFile,
+        }
   record.results = record.results.filter((result) => cellKey(result) !== cellKey(cell))
   record.results.push(entry)
   record.claimFiles = [...new Set([...(record.claimFiles ?? []), ...claimFiles])]

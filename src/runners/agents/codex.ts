@@ -19,6 +19,7 @@ import {
   buildAgentEnvironment,
   buildAgentPrompt,
   buildAgentTranscript,
+  hasClerkInitProvisioningWarning,
   cleanupTempWorkDir,
   copyWorkspace,
   createTempHomeDir,
@@ -97,6 +98,24 @@ export function parseCodexJsonl(raw: string): string {
   }
 
   return assistantMessages.at(-1) ?? ''
+}
+
+export function parseCodexProvisioningWarning(raw: string): boolean {
+  for (const line of raw.split('\n')) {
+    try {
+      const event = JSON.parse(line) as CodexJsonEvent
+      if (
+        event.type === 'item.completed' &&
+        event.item?.type === 'command_execution' &&
+        /\bclerk@latest\s+init\b/.test(event.item.command ?? '') &&
+        hasClerkInitProvisioningWarning(event.item.aggregated_output ?? '')
+      )
+        return true
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return false
 }
 
 export function parseCodexCommands(raw: string): string[] {
@@ -182,7 +201,9 @@ async function execCodex(
         success: !timedOut && code === 0,
         output: fullOutput,
         executedCommands: parseCodexCommands(stdout),
+        provisioningWarning: parseCodexProvisioningWarning(stdout),
         duration,
+        timedOut,
         exitCode: timedOut ? -1 : (code ?? -1),
         tokens: parseCodexUsage(stdout),
         error: timedOut
@@ -201,7 +222,9 @@ async function execCodex(
         success: false,
         output: fullOutput,
         executedCommands: parseCodexCommands(stdout),
+        provisioningWarning: parseCodexProvisioningWarning(stdout),
         duration: Date.now() - startTime,
+        timedOut,
         error: err.message,
         exitCode: -1,
         tokens: parseCodexUsage(stdout),
@@ -305,7 +328,7 @@ export default async function exec({
       mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
     )
 
-    await onWorkspaceReady?.(workDir, result.executedCommands ?? [])
+    await onWorkspaceReady?.(workDir, result)
 
     if (!result.success) {
       return { ok: false as const, error: result.error || 'Codex execution failed' }

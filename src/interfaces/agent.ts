@@ -79,7 +79,7 @@ export type AgentRunnerArgs = {
   gradersPath?: string
   verification?: ResolvedAgentVerificationConfig
   /** Inspect and export experiment evidence before the disposable workspace is deleted. */
-  onWorkspaceReady?: (workDir: string, executedCommands: readonly string[]) => Promise<void>
+  onWorkspaceReady?: (workDir: string, execution: AgentExecResult) => Promise<void>
   /** Keep the workspace for manual browser checks. */
   preserveWorkspace?: boolean
 }
@@ -94,6 +94,10 @@ export type AgentExecResult = {
   output: string
   /** Commands observed in the agent's structured tool events, never inferred from prose. */
   executedCommands?: string[]
+  /** Clerk init emitted a known development-key provisioning warning. */
+  provisioningWarning?: boolean
+  /** The agent CLI exceeded its execution deadline. */
+  timedOut?: boolean
   /** Execution duration in milliseconds */
   duration: number
   /** Error message if failed */

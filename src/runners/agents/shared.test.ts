@@ -5,6 +5,7 @@ import {
   AGENT_PACKAGE_CACHE_DIR,
   buildAgentPrompt,
   buildAgentEnvironment,
+  buildAgentTranscript,
   buildVerificationEnvironment,
   cleanupTempWorkDir,
   createTempHomeDir,
@@ -63,6 +64,28 @@ describe('agent workspace isolation', () => {
     expect(snapshot).not.toContain('private agent credential')
     expect(snapshot).not.toContain('linked-secret')
     expect(snapshot).not.toContain('hidden harness instructions')
+  })
+})
+
+describe('agent trial evidence', () => {
+  test('includes executed commands and failure details in a transcript', () => {
+    const transcript = buildAgentTranscript({
+      agentLabel: 'Codex',
+      prompt: 'Set up Clerk',
+      result: {
+        success: false,
+        output: '',
+        executedCommands: ['npx -y clerk@latest init --framework wrong'],
+        duration: 1000,
+        exitCode: -1,
+        error: 'Timeout after 1000ms',
+      },
+      graderResults: [],
+      gradingArtifact: '## Final response',
+      score: 0,
+    })
+    expect(transcript).toContain('npx -y clerk@latest init --framework wrong')
+    expect(transcript).toContain('Timeout after 1000ms')
   })
 })
 
