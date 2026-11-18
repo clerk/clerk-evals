@@ -57,8 +57,12 @@ export type AgentRunnerArgs = {
   agent: AgentType
   /** Path to the evaluation directory */
   evalPath: string
+  /** Exact prompt supplied by a controlled experiment instead of the eval's default source. */
+  promptOverride?: string
   /** Enable debug output */
   debug?: boolean
+  /** Return a transcript without preserving the workspace or logging debug output. */
+  captureTranscript?: boolean
   /** MCP configuration (optional) */
   mcpConfig?: AgentMCPConfig
   /** Skills configuration (optional) */
@@ -74,6 +78,10 @@ export type AgentRunnerArgs = {
   /** Full path to the variant grader file (e.g., .../graders/nextjs.ts) */
   gradersPath?: string
   verification?: ResolvedAgentVerificationConfig
+  /** Inspect and export experiment evidence before the disposable workspace is deleted. */
+  onWorkspaceReady?: (workDir: string, execution: AgentExecResult) => Promise<void>
+  /** Keep the workspace for manual browser checks. */
+  preserveWorkspace?: boolean
 }
 
 /**
@@ -86,12 +94,17 @@ export type AgentExecResult = {
   output: string
   /** Commands observed in the agent's structured tool events, never inferred from prose. */
   executedCommands?: string[]
+  /** Clerk init emitted a known development-key provisioning warning. */
+  provisioningWarning?: boolean
+  /** The agent CLI exceeded its execution deadline. */
+  timedOut?: boolean
   /** Execution duration in milliseconds */
   duration: number
   /** Error message if failed */
   error?: string
   /** Exit code from the CLI */
   exitCode?: number
+  tokens?: { promptTokens: number; completionTokens: number; totalTokens: number }
 }
 
 /**

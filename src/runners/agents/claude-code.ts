@@ -19,6 +19,7 @@ import {
   buildAgentEnvironment,
   buildAgentPrompt,
   buildAgentTranscript,
+  hasClerkInitProvisioningWarning,
   cleanupTempMCPConfig,
   cleanupTempWorkDir,
   copyWorkspace,
@@ -32,6 +33,12 @@ import {
 
 type StreamJsonMessage = {
   type: string
+  usage?: {
+    input_tokens?: number
+    output_tokens?: number
+    cache_creation_input_tokens?: number
+    cache_read_input_tokens?: number
+  }
   message?: {
     role: string
     content: Array<{
@@ -41,9 +48,27 @@ type StreamJsonMessage = {
       id?: string
       tool_use_id?: string
       input?: Record<string, unknown>
-      content?: string
+      content?: string | Array<{ text?: string }>
     }>
   }
+}
+
+export function parseClaudeUsage(raw: string): AgentExecResult['tokens'] {
+  for (const line of raw.split('\n').reverse()) {
+    try {
+      const event = JSON.parse(line) as StreamJsonMessage
+      if (event.type !== 'result' || !event.usage) continue
+      const promptTokens =
+        (event.usage.input_tokens ?? 0) +
+        (event.usage.cache_creation_input_tokens ?? 0) +
+        (event.usage.cache_read_input_tokens ?? 0)
+      const completionTokens = event.usage.output_tokens ?? 0
+      return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return undefined
 }
 
 /**
@@ -71,6 +96,39 @@ export function parseStreamJson(raw: string): string {
   }
 
   return assistantMessages.at(-1) ?? ''
+}
+
+export function parseClaudeProvisioningWarning(raw: string): boolean {
+  const pending = new Map<string, string>()
+  for (const line of raw.split('\n')) {
+    try {
+      const event = JSON.parse(line) as StreamJsonMessage
+      for (const block of event.message?.content ?? []) {
+        if (
+          event.type === 'assistant' &&
+          block.type === 'tool_use' &&
+          block.name === 'Bash' &&
+          block.id &&
+          typeof block.input?.command === 'string'
+        )
+          pending.set(block.id, block.input.command)
+        if (event.type !== 'user' || block.type !== 'tool_result' || !block.tool_use_id) continue
+        const command = pending.get(block.tool_use_id)
+        pending.delete(block.tool_use_id)
+        if (!command || !/\bclerk@latest\s+init\b/.test(command)) continue
+        const output =
+          typeof block.content === 'string'
+            ? block.content
+            : Array.isArray(block.content)
+              ? block.content.map((item) => item.text ?? '').join('\n')
+              : ''
+        if (hasClerkInitProvisioningWarning(output)) return true
+      }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return false
 }
 
 export function parseClaudeCommands(raw: string): string[] {
@@ -171,8 +229,11 @@ async function execClaude(
         success: !timedOut && code === 0,
         output: fullOutput,
         executedCommands: parseClaudeCommands(stdout),
+        provisioningWarning: parseClaudeProvisioningWarning(stdout),
         duration,
+        timedOut,
         exitCode: timedOut ? -1 : (code ?? -1),
+        tokens: parseClaudeUsage(stdout),
         error: timedOut
           ? `Timeout after ${timeout}ms`
           : code !== 0
@@ -189,9 +250,12 @@ async function execClaude(
         success: false,
         output: fullOutput,
         executedCommands: parseClaudeCommands(stdout),
+        provisioningWarning: parseClaudeProvisioningWarning(stdout),
         duration: Date.now() - startTime,
+        timedOut,
         error: err.message,
         exitCode: -1,
+        tokens: parseClaudeUsage(stdout),
       })
     })
   })
@@ -209,7 +273,9 @@ async function execClaude(
  */
 export default async function exec({
   evalPath,
+  promptOverride,
   debug = false,
+  captureTranscript = false,
   mcpConfig,
   skillsConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
@@ -219,6 +285,8 @@ export default async function exec({
   workspacePath,
   gradersPath,
   verification,
+  onWorkspaceReady,
+  preserveWorkspace = false,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -233,7 +301,7 @@ export default async function exec({
 
   try {
     // 1. Build prompt
-    const prompt = await buildAgentPrompt(evalPath)
+    const prompt = await buildAgentPrompt(evalPath, promptOverride)
 
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
@@ -293,6 +361,8 @@ export default async function exec({
       mcpConfigPath,
     )
 
+    await onWorkspaceReady?.(workDir, result)
+
     if (!result.success) {
       return { ok: false as const, error: result.error || 'Claude Code execution failed' }
     }
@@ -310,30 +380,33 @@ export default async function exec({
     // 6. Return result
     return OK({
       score: grading.score,
+      graderResults: grading.graderResults,
       durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
-      debug: debug
-        ? {
-            prompt,
-            response: grading.gradingArtifact,
-            graders: grading.graderResults,
-            transcript: buildAgentTranscript({
-              agentLabel: 'Claude Code',
+      tokens: result.tokens,
+      debug:
+        debug || captureTranscript
+          ? {
               prompt,
-              result,
-              graderResults: grading.graderResults,
-              gradingArtifact: grading.gradingArtifact,
-              hiddenVerification: grading.hiddenVerification,
-              score: grading.score,
-            }),
-            hiddenVerification: grading.hiddenVerification
-              ? {
-                  passed: grading.hiddenVerification.passed,
-                  durationMs: grading.hiddenVerification.durationMs,
-                  exitCode: grading.hiddenVerification.exitCode,
-                }
-              : undefined,
-          }
-        : undefined,
+              response: grading.gradingArtifact,
+              graders: grading.graderResults,
+              transcript: buildAgentTranscript({
+                agentLabel: 'Claude Code',
+                prompt,
+                result,
+                graderResults: grading.graderResults,
+                gradingArtifact: grading.gradingArtifact,
+                hiddenVerification: grading.hiddenVerification,
+                score: grading.score,
+              }),
+              hiddenVerification: grading.hiddenVerification
+                ? {
+                    passed: grading.hiddenVerification.passed,
+                    durationMs: grading.hiddenVerification.durationMs,
+                    exitCode: grading.hiddenVerification.exitCode,
+                  }
+                : undefined,
+            }
+          : undefined,
     })
   } catch (error) {
     // Return error as string for cross-process serialization
@@ -344,12 +417,10 @@ export default async function exec({
     if (mcpConfigPath) {
       await cleanupTempMCPConfig(mcpConfigPath)
     }
-    if (!debug) {
-      if (workDir) await cleanupTempWorkDir(workDir)
-      if (homeDir) await cleanupTempWorkDir(homeDir)
-    }
-    if (workDir && debug) {
-      console.log(`[debug] Work dir preserved: ${workDir}`)
+    if (workDir && !debug && !preserveWorkspace) await cleanupTempWorkDir(workDir)
+    if (homeDir && !debug) await cleanupTempWorkDir(homeDir)
+    if (workDir && (debug || preserveWorkspace)) {
+      console.log(`[workspace] Preserved: ${workDir}`)
     }
     if (homeDir && debug) {
       console.log(`[debug] Home dir preserved: ${homeDir}`)

@@ -15,6 +15,7 @@
     "agent:claude": "bun src/agent-index.ts --agent claude-code",
     "agent:claude:mcp": "bun src/agent-index.ts --agent claude-code --mcp",
     "agent:codex": "bun src/agent-index.ts --agent codex",
+    "ab:nextjs-prompts": "bun src/experiments/nextjs-prompt-ab/run.ts",
     "agent:skills": "bun src/agent-index.ts --agent claude-code --skills",
     "agent:skills:mcp": "bun src/agent-index.ts --agent claude-code --skills --mcp",
     "report:braintrust": "bun src/report-braintrust.ts",

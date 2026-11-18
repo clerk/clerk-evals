@@ -19,6 +19,7 @@ import {
   buildAgentEnvironment,
   buildAgentPrompt,
   buildAgentTranscript,
+  hasClerkInitProvisioningWarning,
   cleanupTempWorkDir,
   copyWorkspace,
   createTempHomeDir,
@@ -57,6 +58,21 @@ type CodexJsonEvent = {
   }
 }
 
+export function parseCodexUsage(raw: string): AgentExecResult['tokens'] {
+  for (const line of raw.split('\n').reverse()) {
+    try {
+      const event = JSON.parse(line) as CodexJsonEvent
+      if (event.type !== 'turn.completed' || !event.usage) continue
+      const promptTokens = event.usage.input_tokens
+      const completionTokens = event.usage.output_tokens
+      return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens }
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return undefined
+}
+
 /**
  * Parse Codex JSONL output and return the final agent message.
  */
@@ -82,6 +98,24 @@ export function parseCodexJsonl(raw: string): string {
   }
 
   return assistantMessages.at(-1) ?? ''
+}
+
+export function parseCodexProvisioningWarning(raw: string): boolean {
+  for (const line of raw.split('\n')) {
+    try {
+      const event = JSON.parse(line) as CodexJsonEvent
+      if (
+        event.type === 'item.completed' &&
+        event.item?.type === 'command_execution' &&
+        /\bclerk@latest\s+init\b/.test(event.item.command ?? '') &&
+        hasClerkInitProvisioningWarning(event.item.aggregated_output ?? '')
+      )
+        return true
+    } catch {
+      // Ignore non-JSON diagnostics.
+    }
+  }
+  return false
 }
 
 export function parseCodexCommands(raw: string): string[] {
@@ -167,8 +201,11 @@ async function execCodex(
         success: !timedOut && code === 0,
         output: fullOutput,
         executedCommands: parseCodexCommands(stdout),
+        provisioningWarning: parseCodexProvisioningWarning(stdout),
         duration,
+        timedOut,
         exitCode: timedOut ? -1 : (code ?? -1),
+        tokens: parseCodexUsage(stdout),
         error: timedOut
           ? `Timeout after ${timeout}ms`
           : code !== 0
@@ -185,9 +222,12 @@ async function execCodex(
         success: false,
         output: fullOutput,
         executedCommands: parseCodexCommands(stdout),
+        provisioningWarning: parseCodexProvisioningWarning(stdout),
         duration: Date.now() - startTime,
+        timedOut,
         error: err.message,
         exitCode: -1,
+        tokens: parseCodexUsage(stdout),
       })
     })
   })
@@ -206,7 +246,9 @@ async function execCodex(
  */
 export default async function exec({
   evalPath,
+  promptOverride,
   debug = false,
+  captureTranscript = false,
   skillsConfig,
   mcpConfig,
   timeout = DEFAULT_AGENT_TIMEOUT,
@@ -216,6 +258,8 @@ export default async function exec({
   workspacePath,
   gradersPath,
   verification,
+  onWorkspaceReady,
+  preserveWorkspace = false,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -229,7 +273,7 @@ export default async function exec({
 
   try {
     // 1. Build prompt
-    const prompt = await buildAgentPrompt(evalPath)
+    const prompt = await buildAgentPrompt(evalPath, promptOverride)
 
     // 2. Create temp work directory
     const evalName = evalPath.split('/').slice(-2).join('-')
@@ -284,6 +328,8 @@ export default async function exec({
       mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
     )
 
+    await onWorkspaceReady?.(workDir, result)
+
     if (!result.success) {
       return { ok: false as const, error: result.error || 'Codex execution failed' }
     }
@@ -301,42 +347,43 @@ export default async function exec({
     // 6. Return result
     return OK({
       score: grading.score,
+      graderResults: grading.graderResults,
       durationMs: result.duration + (grading.hiddenVerification?.durationMs ?? 0),
-      debug: debug
-        ? {
-            prompt,
-            response: grading.gradingArtifact,
-            graders: grading.graderResults,
-            transcript: buildAgentTranscript({
-              agentLabel: 'Codex',
+      tokens: result.tokens,
+      debug:
+        debug || captureTranscript
+          ? {
               prompt,
-              result,
-              graderResults: grading.graderResults,
-              gradingArtifact: grading.gradingArtifact,
-              hiddenVerification: grading.hiddenVerification,
-              score: grading.score,
-            }),
-            hiddenVerification: grading.hiddenVerification
-              ? {
-                  passed: grading.hiddenVerification.passed,
-                  durationMs: grading.hiddenVerification.durationMs,
-                  exitCode: grading.hiddenVerification.exitCode,
-                }
-              : undefined,
-          }
-        : undefined,
+              response: grading.gradingArtifact,
+              graders: grading.graderResults,
+              transcript: buildAgentTranscript({
+                agentLabel: 'Codex',
+                prompt,
+                result,
+                graderResults: grading.graderResults,
+                gradingArtifact: grading.gradingArtifact,
+                hiddenVerification: grading.hiddenVerification,
+                score: grading.score,
+              }),
+              hiddenVerification: grading.hiddenVerification
+                ? {
+                    passed: grading.hiddenVerification.passed,
+                    durationMs: grading.hiddenVerification.durationMs,
+                    exitCode: grading.hiddenVerification.exitCode,
+                  }
+                : undefined,
+            }
+          : undefined,
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     return { ok: false as const, error: errorMessage }
   } finally {
     // Cleanup — skip in debug mode for inspection
-    if (!debug) {
-      if (workDir) await cleanupTempWorkDir(workDir)
-      if (homeDir) await cleanupTempWorkDir(homeDir)
-    }
-    if (workDir && debug) {
-      console.log(`[debug] Work dir preserved: ${workDir}`)
+    if (workDir && !debug && !preserveWorkspace) await cleanupTempWorkDir(workDir)
+    if (homeDir && !debug) await cleanupTempWorkDir(homeDir)
+    if (workDir && (debug || preserveWorkspace)) {
+      console.log(`[workspace] Preserved: ${workDir}`)
     }
     if (homeDir && debug) {
       console.log(`[debug] Home dir preserved: ${homeDir}`)

@@ -63,6 +63,7 @@ export type TokenUsage = {
  */
 export type RunnerResult = Result<{
   score: number
+  graderResults?: [string, boolean][]
   debug?: RunnerDebugPayload
   tokens?: TokenUsage
   durationMs?: number
