@@ -244,6 +244,8 @@ for (const cell of cells) {
     gradersPath: path.join(experimentPath, 'graders', `${cell.fixture}.ts`),
     verification: { testsPath: path.join(experimentPath, 'hidden-tests') },
     preserveWorkspace: values['keep-workspaces'],
+    // Accountless clerk init must reach Clerk from inside Codex's sandbox.
+    allowNetwork: true,
     captureTranscript: true,
     onWorkspaceReady: async (workDir, execution) => {
       if (values['keep-workspaces']) preservedWorkspace = workDir

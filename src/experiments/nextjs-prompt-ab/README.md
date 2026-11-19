@@ -6,6 +6,8 @@ This is a manual comparison, not a replacement for the add-auth baseline-vs-Skil
 
 Each arm runs on the same three starting points: an existing Next.js 15 project, an existing Next.js 16 project, and an empty directory (the user has chosen Next.js and npm). Both Claude Code and Codex run each case five times by default: **60 agent trials**. Trials alternate A/B order. Each run uses a fresh workspace and temporary home; hidden verification builds the project at the workspace root or in its single scaffolded subdirectory. Results include per-grader outcomes, token counts when the agent reports them, errors, prompt hashes, CLI version, and agent model/version. The runner saves each trial's transcript and observed commands in restricted, git-ignored `nextjs-prompt-ab-transcripts/` and records its path, including for failed runs. It records confirmed Clerk CLI provisioning failures separately from prompt failures.
 
+This experiment opts Codex into network access within its workspace-write sandbox so accountless `clerk init` can provision development keys. Other Codex evals keep their existing sandbox settings.
+
 ## Run
 
 Before spending credits or creating apps, pick a full Docs commit SHA that contains both prompt files. Confirm that the shared arm's `NEXTJS_QUICKSTART_HINT` matches `frameworkHint('next')` in `src/lib/prompt-framework.ts` at that commit, then check the plan:
@@ -32,6 +34,8 @@ npx playwright test --config .clerk-eval-browser/playwright.config.mjs
 ```
 
 The Playwright config loads the project's own `.env.local`, so `clerkSetup()` uses that workspace's `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The check verifies a visible sign-in button, then signs up a unique `+clerk_test` address with code `424242`. Record each result and test-user email alongside the automated scores, and include the users in app cleanup.
+
+Run the browser check while the trial's Clerk app still exists. The Next.js 16 starter includes a home page because Playwright waits for `/` before running the check. If `/` does not respond, stop and diagnose that app instead of counting the browser check as a prompt failure.
 
 ## Review results
 

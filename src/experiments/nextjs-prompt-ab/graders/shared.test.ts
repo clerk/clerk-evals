@@ -27,9 +27,20 @@ describe('Next.js prompt A/B graders', () => {
     ).toBe(false)
   })
 
-  test('requires proxy.ts for Next 16 and middleware.ts for Next 15', async () => {
+  test('requires proxy for Next 16 and middleware for Next 15', async () => {
     expect(await nextjsGraders(16).correct_middleware_file(artifact)).toBe(true)
     expect(await nextjsGraders(15).correct_middleware_file(artifact)).toBe(false)
+
+    const next16Js = artifact.replace('### proxy.ts', '### proxy.js')
+    expect(await nextjsGraders(16).correct_middleware_file(next16Js)).toBe(true)
+    expect(await nextjsGraders(15).correct_middleware_file(next16Js)).toBe(false)
+
+    const next15Js = artifact.replace('### proxy.ts', '### src/middleware.js')
+    expect(await nextjsGraders(15).correct_middleware_file(next15Js)).toBe(true)
+    expect(await nextjsGraders(16).correct_middleware_file(next15Js)).toBe(false)
+
+    const next15Ts = artifact.replace('### proxy.ts', '### middleware.ts')
+    expect(await nextjsGraders(15).correct_middleware_file(next15Ts)).toBe(true)
   })
 
   test('scores files in the single scaffolded subdirectory', async () => {

@@ -148,6 +148,7 @@ async function execCodex(
   executablePath: string,
   envPath: string,
   model: string,
+  allowNetwork: boolean,
   mcpServerUrl?: string,
 ): Promise<AgentExecResult> {
   const startTime = Date.now()
@@ -160,6 +161,7 @@ async function execCodex(
       '--sandbox',
       'workspace-write',
       '--ignore-user-config',
+      ...(allowNetwork ? ['--config', 'sandbox_workspace_write.network_access=true'] : []),
       '--ignore-rules',
       ...getCodexGatewayArgs(model),
       ...(mcpServerUrl
@@ -260,6 +262,7 @@ export default async function exec({
   verification,
   onWorkspaceReady,
   preserveWorkspace = false,
+  allowNetwork = false,
 }: AgentRunnerArgs): Promise<RunnerResult> {
   if (!executablePath) {
     return { ok: false as const, error: 'executablePath is required but was not provided' }
@@ -325,6 +328,7 @@ export default async function exec({
       executablePath,
       envPath,
       model,
+      allowNetwork,
       mcpConfig?.enabled ? mcpConfig.serverUrl : undefined,
     )
 
