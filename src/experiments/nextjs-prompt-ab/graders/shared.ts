@@ -49,15 +49,20 @@ export function nextjsGraders(version: 15 | 16 | 'empty') {
     )
   }
   const middlewareUsesClerk: Grader = async (artifact) => {
-    return ['ts', 'js'].some((extension) =>
-      [`${middlewareName}.${extension}`, `src/${middlewareName}.${extension}`].some((filePath) => {
-        const middleware = getProjectFile(artifact, filePath)
-        return Boolean(
-          middleware &&
-          /from ['"]@clerk\/nextjs\/server['"]/.test(middleware) &&
-          /\bclerkMiddleware\s*\(/.test(middleware),
-        )
-      }),
+    const appDirectory = ['app', 'src/app'].find((directory) =>
+      ['tsx', 'jsx', 'ts', 'js'].some((extension) =>
+        getProjectFile(artifact, `${directory}/layout.${extension}`),
+      ),
+    )
+    if (!appDirectory) return false
+
+    const extension = getProjectFile(artifact, 'tsconfig.json') ? 'ts' : 'js'
+    const filePath = `${appDirectory === 'src/app' ? 'src/' : ''}${middlewareName}.${extension}`
+    const middleware = getProjectFile(artifact, filePath)
+    return Boolean(
+      middleware &&
+      /from ['"]@clerk\/nextjs\/server['"]/.test(middleware) &&
+      /\bclerkMiddleware\s*\(/.test(middleware),
     )
   }
   const frameworkMatchesFixture: Grader = async (artifact) => {
