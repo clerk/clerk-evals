@@ -82,6 +82,8 @@ export type AgentRunnerArgs = {
   onWorkspaceReady?: (workDir: string, execution: AgentExecResult) => Promise<void>
   /** Keep the workspace for manual browser checks. */
   preserveWorkspace?: boolean
+  /** Allow network access inside Codex's workspace-write sandbox for accountless setup trials. */
+  allowNetwork?: boolean
 }
 
 /**

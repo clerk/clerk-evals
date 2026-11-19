@@ -30,7 +30,7 @@ const noUnrequestedAccountCommands: Grader = async (_artifact, context) =>
   !commands(context).some((command) => unrequestedAccountCommandPattern.test(command))
 
 export function nextjsGraders(version: 15 | 16 | 'empty') {
-  const middlewarePath = version === 15 ? 'middleware.ts' : 'proxy.ts'
+  const middlewareName = version === 15 ? 'middleware' : 'proxy'
   const layoutHasProvider: Grader = async (artifact) => {
     const layout =
       getProjectFile(artifact, 'app/layout.tsx') ?? getProjectFile(artifact, 'src/app/layout.tsx')
@@ -49,8 +49,16 @@ export function nextjsGraders(version: 15 | 16 | 'empty') {
     )
   }
   const middlewareUsesClerk: Grader = async (artifact) => {
-    const middleware =
-      getProjectFile(artifact, middlewarePath) ?? getProjectFile(artifact, `src/${middlewarePath}`)
+    const appDirectory = ['app', 'src/app'].find((directory) =>
+      ['tsx', 'jsx', 'ts', 'js'].some((extension) =>
+        getProjectFile(artifact, `${directory}/layout.${extension}`),
+      ),
+    )
+    if (!appDirectory) return false
+
+    const extension = getProjectFile(artifact, 'tsconfig.json') ? 'ts' : 'js'
+    const filePath = `${appDirectory === 'src/app' ? 'src/' : ''}${middlewareName}.${extension}`
+    const middleware = getProjectFile(artifact, filePath)
     return Boolean(
       middleware &&
       /from ['"]@clerk\/nextjs\/server['"]/.test(middleware) &&

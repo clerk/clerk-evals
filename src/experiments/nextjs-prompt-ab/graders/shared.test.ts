@@ -8,6 +8,8 @@ const artifact = [
   '## Final workspace',
   '### package.json',
   '{"dependencies":{"next":"16.0.0"}}',
+  '### tsconfig.json',
+  '{}',
   '### proxy.ts',
   "import { clerkMiddleware } from '@clerk/nextjs/server'",
   'export default clerkMiddleware()',
@@ -27,9 +29,42 @@ describe('Next.js prompt A/B graders', () => {
     ).toBe(false)
   })
 
-  test('requires proxy.ts for Next 16 and middleware.ts for Next 15', async () => {
+  test('requires the version-specific TypeScript file in the active app directory', async () => {
     expect(await nextjsGraders(16).correct_middleware_file(artifact)).toBe(true)
     expect(await nextjsGraders(15).correct_middleware_file(artifact)).toBe(false)
+
+    const next16Js = artifact.replace('### proxy.ts', '### proxy.js')
+    expect(await nextjsGraders(16).correct_middleware_file(next16Js)).toBe(false)
+    expect(await nextjsGraders(15).correct_middleware_file(next16Js)).toBe(false)
+
+    const next15Ts = artifact.replace('### proxy.ts', '### middleware.ts')
+    expect(await nextjsGraders(15).correct_middleware_file(next15Ts)).toBe(true)
+
+    const misplaced = artifact.replace('### proxy.ts', '### src/proxy.ts')
+    expect(await nextjsGraders(16).correct_middleware_file(misplaced)).toBe(false)
+
+    const srcApp = artifact
+      .replace('### app/layout.tsx', '### src/app/layout.tsx')
+      .replace('### proxy.ts', '### src/proxy.ts')
+    expect(await nextjsGraders(16).correct_middleware_file(srcApp)).toBe(true)
+    expect(
+      await nextjsGraders(16).correct_middleware_file(
+        srcApp.replace('### src/proxy.ts', '### proxy.ts'),
+      ),
+    ).toBe(false)
+  })
+
+  test('accepts JavaScript only for a JavaScript project', async () => {
+    const javascript = artifact
+      .replace('### tsconfig.json\n\n{}\n\n', '')
+      .replace('### app/layout.tsx', '### app/layout.jsx')
+      .replace('### proxy.ts', '### proxy.js')
+    expect(await nextjsGraders(16).correct_middleware_file(javascript)).toBe(true)
+    expect(
+      await nextjsGraders(16).correct_middleware_file(
+        javascript.replace('### proxy.js', '### proxy.ts'),
+      ),
+    ).toBe(false)
   })
 
   test('scores files in the single scaffolded subdirectory', async () => {
