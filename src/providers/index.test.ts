@@ -11,6 +11,7 @@ describe('gateway model resolution', () => {
       'deepseek/deepseek-v4.1-flash',
     )
     expect(getModel('zai', 'glm-5.3-flash')?.modelId).toBe('zai/glm-5.3-flash')
+    expect(getModel('meta', 'muse-wonder-1.0')?.modelId).toBe('meta/muse-wonder-1.0')
   })
 
   test('rejects model IDs outside the catalog', () => {

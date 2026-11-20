@@ -113,6 +113,7 @@ export const MODELS: ProviderModels = {
     model('google', 'gemini-2.5-flash-lite', 'Gemini 2.5 Flash-Lite', '2025-06-17'),
     model('google', 'gemini-3.5-flash', 'Gemini 3.5 Flash', '2026-05-19'),
   ],
+  meta: [model('meta', 'muse-wonder-1.0', 'Muse Wonder', '2026-10-12')],
   'x-ai': [
     model('x-ai', 'grok-4.6', 'Grok 4.6', '2026-08-12', {
       gatewayProvider: 'spacexai',
