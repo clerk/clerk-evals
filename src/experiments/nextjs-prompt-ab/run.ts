@@ -200,11 +200,7 @@ for (const cell of cells) {
   }
 
   const workspacePath =
-    cell.fixture === 'next15'
-      ? path.join(evalPath, 'fixtures/nextjs')
-      : cell.fixture === 'next16'
-        ? path.join(experimentPath, 'fixtures/next16')
-        : undefined
+    cell.fixture === 'empty' ? undefined : path.join(experimentPath, 'fixtures', cell.fixture)
   const promptOverride = promptFor(cell.fixture, prompts[cell.arm].content)
   const fullPrompt = await buildAgentPrompt(evalPath, promptOverride)
   const claimFiles: string[] = []

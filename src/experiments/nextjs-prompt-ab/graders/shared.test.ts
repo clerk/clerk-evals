@@ -59,9 +59,10 @@ describe('Next.js prompt A/B graders', () => {
       .replace('### tsconfig.json\n\n{}\n\n', '')
       .replace('### app/layout.tsx', '### app/layout.jsx')
       .replace('### proxy.ts', '### proxy.js')
-    expect(await nextjsGraders(16).correct_middleware_file(javascript)).toBe(true)
+    expect(await nextjsGraders('empty').correct_middleware_file(javascript)).toBe(true)
+    expect(await nextjsGraders(16).correct_middleware_file(javascript)).toBe(false)
     expect(
-      await nextjsGraders(16).correct_middleware_file(
+      await nextjsGraders('empty').correct_middleware_file(
         javascript.replace('### proxy.js', '### proxy.ts'),
       ),
     ).toBe(false)

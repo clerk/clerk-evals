@@ -56,7 +56,10 @@ export function nextjsGraders(version: 15 | 16 | 'empty') {
     )
     if (!appDirectory) return false
 
-    const extension = getProjectFile(artifact, 'tsconfig.json') ? 'ts' : 'js'
+    // Existing-app fixtures start as TypeScript projects. Next can add a
+    // tsconfig.json during a trial, so don't infer their type from final files.
+    const extension =
+      version === 'empty' && !getProjectFile(artifact, 'tsconfig.json') ? 'js' : 'ts'
     const filePath = `${appDirectory === 'src/app' ? 'src/' : ''}${middlewareName}.${extension}`
     const middleware = getProjectFile(artifact, filePath)
     return Boolean(
