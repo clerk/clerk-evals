@@ -35,7 +35,7 @@ npx playwright test --config .clerk-eval-browser/playwright.config.mjs
 
 The Playwright config loads the project's own `.env.local`, so `clerkSetup()` uses that workspace's `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The check verifies a visible sign-in button, then signs up a unique `+clerk_test` address with code `424242`. Record each result and test-user email alongside the automated scores, and include the users in app cleanup.
 
-Run the browser check while the trial's Clerk app still exists. Playwright waits for the development server to accept connections before running the check. The test then opens `/`; if that page does not respond or lacks the expected sign-in button, diagnose the app instead of counting the browser check as a prompt failure.
+Run the browser check while the trial's Clerk app still exists. Playwright waits for the development server to accept connections before running the check. The test then opens `/`; if that page doesn't respond or lacks the expected sign-in button, diagnose the app before counting the browser check as a prompt failure.
 
 ## Review results
 
