@@ -4,7 +4,9 @@
 
 This is a manual comparison, not a replacement for the add-auth baseline-vs-Skills workflow. A is `clerk-docs/prompts/nextjs-quickstart.md`; B is `clerk-docs/prompts/cli-setup.md` plus the Next.js quickstart framework hint appended by the live Docs card. The runner reads both files from **one full `clerk/clerk` commit SHA** in a local Docs checkout; the hashes record the prompt text actually sent to each agent. This avoids public raw-file access to the private repository. Neither arm starts with installed Clerk skills or an MCP server. Both receive the same setup-prompt label, non-interactive user approval, and project context.
 
-Each arm runs on the same three starting points: an existing Next.js 15 project, an existing Next.js 16 project, and an empty directory (the user has chosen Next.js and npm). Both Claude Code and Codex run each case five times by default: **60 agent trials**. Trials alternate A/B order. Each run uses a fresh workspace and temporary home; hidden verification builds the project at the workspace root or in its single scaffolded subdirectory. Results include per-grader outcomes, token counts when the agent reports them, errors, prompt hashes, CLI version, and agent model/version. The runner saves each trial's transcript and observed commands in restricted, git-ignored `nextjs-prompt-ab-transcripts/` and records its path, including for failed runs. It records confirmed Clerk CLI provisioning failures separately from prompt failures.
+Each arm runs on the same three starting points: an existing Next.js 15 TypeScript project, an existing Next.js 16 TypeScript project, and an empty directory (the user has chosen Next.js and npm). The existing-app starters belong to this experiment, so changing them doesn't change the separate add-auth eval. Both Claude Code and Codex run each case five times by default: **60 agent trials**. Trials alternate A/B order. Each run uses a fresh workspace and temporary home; hidden verification builds the project at the workspace root or in its single scaffolded subdirectory. Results include per-grader outcomes, token counts when the agent reports them, errors, prompt hashes, CLI version, and agent model/version. The runner saves each trial's transcript and observed commands in restricted, git-ignored `nextjs-prompt-ab-transcripts/` and records its path, including for failed runs. It records confirmed Clerk CLI provisioning failures separately from prompt failures.
+
+This experiment opts Codex into network access within its workspace-write sandbox so accountless `clerk init` can provision development keys. Other Codex evals keep their existing sandbox settings.
 
 ## Run
 
@@ -32,6 +34,8 @@ npx playwright test --config .clerk-eval-browser/playwright.config.mjs
 ```
 
 The Playwright config loads the project's own `.env.local`, so `clerkSetup()` uses that workspace's `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The check verifies a visible sign-in button, then signs up a unique `+clerk_test` address with code `424242`. Record each result and test-user email alongside the automated scores, and include the users in app cleanup.
+
+Run the browser check while the trial's Clerk app still exists. Playwright waits for the development server to accept connections before running the check. The test then opens `/`; if that page doesn't respond or lacks the expected sign-in button, diagnose the app before counting the browser check as a prompt failure.
 
 ## Review results
 
